@@ -26,6 +26,8 @@ public sealed class DownloadViewModel : ObservableObject
     private string _status = "选择分类开始浏览";
     private double _progress;
     private bool _isBusy;
+    private CancellationTokenSource? _loaderCts;
+    private CancellationTokenSource? _searchCts;
 
     public DownloadViewModel(AppServices services)
     {
@@ -37,6 +39,7 @@ public sealed class DownloadViewModel : ObservableObject
         _selectedCategory = Categories[0];
 
         ManifestVersions = [];
+        FilteredVersions = [];
         LoaderVersions = [];
         Results = [];
 
@@ -51,6 +54,7 @@ public sealed class DownloadViewModel : ObservableObject
 
     public ObservableCollection<DownloadCategory> Categories { get; }
     public ObservableCollection<string> ManifestVersions { get; }
+    public ObservableCollection<string> FilteredVersions { get; }
     public ObservableCollection<LoaderVersion> LoaderVersions { get; }
     public ObservableCollection<ContentProject> Results { get; }
     public AsyncRelayCommand RefreshCommand { get; }
@@ -117,7 +121,11 @@ public sealed class DownloadViewModel : ObservableObject
     public string Search
     {
         get => _search;
-        set => SetProperty(ref _search, value);
+        set
+        {
+            if (!SetProperty(ref _search, value)) return;
+            if (IsVersionTab) ApplyVersionFilter();
+        }
     }
 
     public string Status
@@ -151,12 +159,18 @@ public sealed class DownloadViewModel : ObservableObject
             var manifest = await _services.Manifests.GetAsync();
             var previous = SelectedGameVersion;
             ManifestVersions.Clear();
-            foreach (var entry in manifest.Versions) ManifestVersions.Add(entry.Id);
+            FilteredVersions.Clear();
+            foreach (var entry in manifest.Versions)
+            {
+                ManifestVersions.Add(entry.Id);
+                FilteredVersions.Add(entry.Id);
+            }
             var fallback = previous is not null && ManifestVersions.Contains(previous)
                 ? previous
                 : manifest.Versions.FirstOrDefault(v => v.Type == "release")?.Id ?? ManifestVersions.FirstOrDefault();
             await Application.Current.Dispatcher.InvokeAsync(() => SelectedGameVersion = fallback);
             Status = $"共 {ManifestVersions.Count} 个版本";
+            if (IsVersionTab && Search.Trim().Length > 0) ApplyVersionFilter();
         }
         catch (Exception ex)
         {
@@ -175,30 +189,66 @@ public sealed class DownloadViewModel : ObservableObject
 
     private async Task LoadLoadersAsync()
     {
+        _loaderCts?.Cancel();
+        _loaderCts?.Dispose();
+        _loaderCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var token = _loaderCts.Token;
+
         LoaderVersions.Clear();
         SelectedLoaderVersion = null;
         if (CurrentLoaderType is not { } type || SelectedGameVersion is not { } mc) return;
+
         try
         {
             Status = $"加载 {SelectedLoader} 版本列表…";
-            var list = await _loaders.ListAsync(type, mc, CancellationToken.None);
+            // 快速连点下拉框时只保留最后一次请求。
+            await Task.Delay(250, token);
+            var list = await _loaders.ListAsync(type, mc, token);
+            if (token.IsCancellationRequested) return;
             foreach (var item in list) LoaderVersions.Add(item);
             SelectedLoaderVersion = LoaderVersions.FirstOrDefault();
             Status = $"{SelectedLoader} 共 {LoaderVersions.Count} 个构建";
         }
+        catch (OperationCanceledException)
+        {
+            if (!token.IsCancellationRequested) Status = $"{SelectedLoader} 列表加载超时";
+        }
         catch (Exception ex)
         {
-            Status = $"{SelectedLoader} 列表加载失败：" + ex.Message;
+            if (!token.IsCancellationRequested) Status = $"{SelectedLoader} 列表加载失败：" + ex.Message;
         }
+    }
+
+    private void ApplyVersionFilter()
+    {
+        var keyword = Search.Trim();
+        var previous = SelectedGameVersion;
+        FilteredVersions.Clear();
+        foreach (var id in ManifestVersions)
+            if (keyword.Length == 0 || id.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                FilteredVersions.Add(id);
+
+        Status = keyword.Length == 0
+            ? $"共 {ManifestVersions.Count} 个版本，输入版本号过滤"
+            : $"匹配 {FilteredVersions.Count} / {ManifestVersions.Count} 个版本";
+
+        SelectedGameVersion = previous is not null && FilteredVersions.Contains(previous)
+            ? previous
+            : FilteredVersions.FirstOrDefault();
     }
 
     private async Task SearchAsync()
     {
         if (IsVersionTab)
         {
-            Status = $"共 {ManifestVersions.Count} 个版本，输入版本号过滤";
+            ApplyVersionFilter();
             return;
         }
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var token = _searchCts.Token;
+
         IsBusy = true;
         try
         {
@@ -212,14 +262,18 @@ public sealed class DownloadViewModel : ObservableObject
                 _ => ContentKind.DataPack
             };
             var loader = kind == ContentKind.Mod && SelectedLoader != "原版" ? SelectedLoader.ToLowerInvariant() : null;
-            var list = await _services.Modrinth.SearchAsync(kind, Search, SelectedGameVersion, loader, 30, CancellationToken.None);
+            var list = await _services.Modrinth.SearchAsync(kind, Search, SelectedGameVersion, loader, 30, token);
             Results.Clear();
             foreach (var item in list) Results.Add(item);
             Status = list.Count == 0 ? "没有找到匹配内容" : $"找到 {list.Count} 个结果";
         }
+        catch (OperationCanceledException)
+        {
+            Status = "搜索超时";
+        }
         catch (Exception ex)
         {
-            Status = "搜索失败：" + ex.Message;
+            if (!token.IsCancellationRequested) Status = "搜索失败：" + ex.Message;
         }
         finally { IsBusy = false; }
     }

@@ -53,12 +53,29 @@ public sealed class AppServices
         if (!Directory.Exists(Paths.Versions)) return [];
         return Directory.EnumerateDirectories(Paths.Versions)
             .Select(Path.GetFileName)
-            .Where(name => name is not null
-                           && File.Exists(Paths.VersionJson(name))
-                           && File.Exists(Paths.VersionJar(name)))
+            .Where(name => name is not null && IsRunnableVersion(name))
             .Select(name => name!)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    /// <summary>有 json 且（自带 client jar 或通过 inheritsFrom 继承父版本的 jar）才算可启动。</summary>
+    private bool IsRunnableVersion(string id)
+    {
+        var json = Paths.VersionJson(id);
+        if (!File.Exists(json)) return false;
+        if (File.Exists(Paths.VersionJar(id))) return true;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(json));
+            return doc.RootElement.TryGetProperty("inheritsFrom", out var value)
+                   && value.ValueKind == System.Text.Json.JsonValueKind.String
+                   && !string.IsNullOrWhiteSpace(value.GetString());
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public void NotifyInstalledVersionsChanged() => InstalledVersionsChanged?.Invoke();

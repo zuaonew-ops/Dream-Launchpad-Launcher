@@ -23,7 +23,7 @@ public sealed class GameLauncher(GamePaths paths, Log log)
 {
     public Process BuildProcess(VersionJson version, LaunchOptions options)
     {
-        var nativesDir = paths.NativesDir(version.Id);
+        var nativesDir = ResolveNativesDir(version);
         var classpath = BuildClasspath(version);
         var variables = BuildVariables(version, options, nativesDir, classpath);
 
@@ -87,6 +87,25 @@ public sealed class GameLauncher(GamePaths paths, Log log)
 
     private static string QuoteForLog(string arg) => arg.Contains(' ') ? $"\"{arg}\"" : arg;
 
+    /// <summary>加载器版本没有自己的 natives，回退到父版本已解压的 natives 目录。</summary>
+    private string ResolveNativesDir(VersionJson version)
+    {
+        var own = paths.NativesDir(version.Id);
+        if (HasFiles(own)) return own;
+
+        if (version.InheritsFrom is { } parentId)
+        {
+            var parent = paths.NativesDir(parentId);
+            if (HasFiles(parent)) return parent;
+        }
+
+        Directory.CreateDirectory(own);
+        return own;
+    }
+
+    private static bool HasFiles(string dir)
+        => Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any();
+
     public string BuildClasspath(VersionJson version)
     {
         var entries = new List<string>();
@@ -98,7 +117,14 @@ public sealed class GameLauncher(GamePaths paths, Log log)
             var path = Path.Combine(paths.Libraries, artifact.Path ?? MavenCoordinate.Parse(library.Name).ToPath());
             entries.Add(path);
         }
-        entries.Add(paths.VersionJar(version.Id));
+        var ownJar = paths.VersionJar(version.Id);
+        if (File.Exists(ownJar)) entries.Add(ownJar);
+        // 加载器版本没有自己的 client jar，主类来自父版本（Fabric/Forge/Quilt 都通过 inheritsFrom 继承）。
+        if (version.InheritsFrom is { } parentId)
+        {
+            var parentJar = paths.VersionJar(parentId);
+            if (File.Exists(parentJar)) entries.Add(parentJar);
+        }
         return string.Join(Path.PathSeparator, entries);
     }
 

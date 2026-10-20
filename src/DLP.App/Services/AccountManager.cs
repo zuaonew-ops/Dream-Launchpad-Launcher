@@ -44,7 +44,8 @@ public sealed class AccountManager
             if (value is not null)
             {
                 _settings.SelectedAccount = value.Uuid;
-                _settings.Username = value.Username;
+                // 离线用户名只在离线账号上覆盖，切到微软账号时保留原离线名。
+                if (value.Kind == "offline") _settings.Username = value.Username;
                 _settings.Save();
             }
             Changed?.Invoke();
@@ -116,6 +117,7 @@ public sealed class AccountManager
         if (old is not null) Accounts[Accounts.IndexOf(old)] = entry;
         else Accounts.Add(entry);
         Current = entry;
+        PersistSession(session);
         Persist();
         return session;
     }
@@ -164,8 +166,9 @@ public sealed class AccountManager
                 records.Add(new StoredAccount("offline", entry.Username, entry.Uuid, null, null, null));
                 continue;
             }
+            // 微软账号只保留已保存过令牌的记录，避免把 refreshToken/accessToken 覆盖成 null。
             var existing = _store.Load().FirstOrDefault(a => a.Uuid == entry.Uuid);
-            records.Add(existing ?? new StoredAccount("msa", entry.Username, entry.Uuid, null, null, null));
+            if (existing is not null) records.Add(existing);
         }
         _store.Save(records);
     }

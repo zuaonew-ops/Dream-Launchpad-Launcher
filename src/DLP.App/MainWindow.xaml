@@ -98,7 +98,8 @@
                         <StackPanel>
                             <TextBlock Text="切换账号" Style="{StaticResource SmallText}" Margin="8,4,8,6" />
                             <ListBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding CurrentAccount}"
-                                     Background="Transparent" BorderThickness="0" MaxHeight="180">
+                                     Background="Transparent" BorderThickness="0" MaxHeight="180"
+                                     SelectionChanged="AccountList_SelectionChanged">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel>

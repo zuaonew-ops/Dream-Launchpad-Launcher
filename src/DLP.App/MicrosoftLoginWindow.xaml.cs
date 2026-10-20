@@ -35,8 +35,10 @@ public partial class MicrosoftLoginWindow : Window, INotifyPropertyChanged
     public string VerificationUri
     {
         get => _verificationUri;
-        private set { _verificationUri = value; OnPropertyChanged(); }
+        private set { _verificationUri = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasVerificationUri)); }
     }
+
+    public bool HasVerificationUri => !string.IsNullOrWhiteSpace(_verificationUri);
 
     public string Status
     {

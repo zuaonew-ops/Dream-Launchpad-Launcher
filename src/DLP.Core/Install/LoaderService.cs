@@ -23,7 +23,7 @@ public sealed class LoaderService(GamePaths paths, HttpClient http)
     private const string FabricMeta = "https://meta.fabricmc.net/v2";
     private const string QuiltMeta = "https://meta.quiltmc.org/v3";
 
-    private static readonly TimeSpan InstallerTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan InstallerTimeout = TimeSpan.FromMinutes(10);
     private static readonly JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
 
     /// <summary>查询加载器可用版本；Forge / NeoForge 按版本号降序（Fabric / Quilt 保留官方顺序，最新在前）。</summary>
@@ -221,12 +221,21 @@ public sealed class LoaderService(GamePaths paths, HttpClient http)
 
         EnsureLauncherProfiles(paths.Root);
 
+        var before = SnapshotVersionDirs();
         status?.Report($"正在运行 {prefix} 安装器（最长 {InstallerTimeout.TotalMinutes:0} 分钟）");
         await RunInstallerAsync(javaExe, installerPath, paths.Root, status, ct);
-        status?.Report($"{prefix} {loaderVersion} 安装完成");
 
-        return newId;
+        // 安装器实际写出的目录名与规范 id 不一定一致（Forge 建的是 <mc>-forge-<ver>），以目录为准。
+        var actual = SnapshotVersionDirs().FirstOrDefault(name => !before.Contains(name)) ?? newId;
+        status?.Report($"{prefix} {loaderVersion} 安装完成（{actual}）");
+
+        return actual;
     }
+
+    private HashSet<string> SnapshotVersionDirs()
+        => Directory.Exists(paths.Versions)
+            ? Directory.GetDirectories(paths.Versions).Select(Path.GetFileName).Where(n => n is not null).Select(n => n!).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Forge / NeoForge 安装器要求目标目录已有 launcher_profiles.json，没有就直接报错；缺失时补一个空档案。</summary>
     private static void EnsureLauncherProfiles(string root)

@@ -82,9 +82,17 @@ public sealed class SettingsViewModel : ObservableObject
         settings.JavaPath = string.IsNullOrWhiteSpace(JavaPath) ? null : JavaPath;
         settings.DownloadSource = DownloadSource;
         settings.MicrosoftClientId = string.IsNullOrWhiteSpace(MicrosoftClientId) ? null : MicrosoftClientId.Trim();
-        settings.Save();
-        Mirrors.Enabled = DownloadSource != "official";
-        Status = "已保存";
+        try
+        {
+            settings.Save();
+            Mirrors.Enabled = DownloadSource != "official";
+            if (_services.Accounts.Current?.Kind != "msa") _services.Accounts.SetOffline(settings.Username);
+            Status = "已保存";
+        }
+        catch (Exception ex)
+        {
+            Status = "保存失败：" + ex.Message;
+        }
     }
 
     private void BrowseJava()

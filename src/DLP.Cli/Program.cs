@@ -20,6 +20,7 @@ var versions = new VersionRepository(paths, downloader, manifests);
 var java = new JavaManager(paths, http, downloader, log);
 var installer = new GameInstaller(paths, downloader, versions, log);
 var launcher = new GameLauncher(paths, log);
+Mirrors.Enabled = true;
 
 var command = args.FirstOrDefault() ?? "help";
 var rest = args.Skip(1).ToArray();
@@ -42,6 +43,8 @@ DLP 命令行
   dlp java [<versionId>]             扫描/检查 Java（给版本 ID 时确保该版本所需 Java）
   dlp run <versionId> [--username 名字] [--memory 2048] [--java 路径]
   dlp info <versionId>               查看版本详情
+  dlp loader <fabric|quilt|forge|neoforge> <mcVersion> [loaderVersion]
+                                     列出/安装模组加载器
 """);
             break;
 
@@ -54,6 +57,35 @@ DLP 命令行
             foreach (var version in list.Take(count))
                 Console.WriteLine($"{version.Id,-24} {version.Type,-10} {version.ReleaseTime:yyyy-MM-dd}");
             Console.WriteLine($"最新正式版：{manifest.Latest.Release}；最新快照：{manifest.Latest.Snapshot}");
+            break;
+        }
+
+        case "loader":
+        {
+            var typeName = rest.FirstOrDefault() ?? throw new ArgumentException("用法：dlp loader <fabric|quilt|forge|neoforge> <mcVersion> [loaderVersion]");
+            var mcVersion = rest.Skip(1).FirstOrDefault() ?? throw new ArgumentException("缺少原版版本 ID");
+            var loaderType = typeName.ToLowerInvariant() switch
+            {
+                "fabric" => ModLoaderType.Fabric,
+                "quilt" => ModLoaderType.Quilt,
+                "forge" => ModLoaderType.Forge,
+                "neoforge" => ModLoaderType.NeoForge,
+                _ => throw new ArgumentException($"未知加载器：{typeName}")
+            };
+
+            var loaders = new LoaderService(paths, http);
+            if (rest.Length < 3)
+            {
+                var list = await loaders.ListAsync(loaderType, mcVersion, CancellationToken.None);
+                foreach (var item in list.Take(10))
+                    Console.WriteLine($"{item.Id,-32} {item.DisplayName}");
+                Console.WriteLine($"共 {list.Count} 个 {typeName} 构建，安装：dlp loader {typeName} {mcVersion} <loaderVersion>");
+                break;
+            }
+
+            var installed = await loaders.InstallAsync(loaderType, mcVersion, rest[2],
+                new Progress<string>(Console.WriteLine), CancellationToken.None);
+            Console.WriteLine($"安装完成：{installed}");
             break;
         }
 
@@ -104,10 +136,14 @@ DLP 命令行
             var memory = int.TryParse(Option(args, "--memory"), out var m) ? m : 2048;
                         var version = await versions.ResolveAsync(id);
 
-            if (!File.Exists(paths.VersionJar(id)) || !File.Exists(paths.VersionJson(id)))
+            // 加载器版本没有自己的 client jar，只要有 json 且能继承父版本即可启动。
+            var runnable = File.Exists(paths.VersionJson(id))
+                           && (File.Exists(paths.VersionJar(id)) || version.InheritsFrom is not null);
+            if (!runnable)
             {
-                log.Info("未检测到安装，先安装版本");
-                await installer.InstallAsync(id);
+                var installId = version.InheritsFrom ?? id;
+                log.Info($"未检测到安装，先安装 {installId}");
+                await installer.InstallAsync(installId);
             }
 
             var runtime = Option(args, "--java") is { } javaPath

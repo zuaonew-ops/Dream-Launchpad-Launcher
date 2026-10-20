@@ -158,9 +158,6 @@ public sealed class HomeViewModel : ObservableObject
             foreach (var dir in new[] { "mods", "saves", "resourcepacks", "shaderpacks", "logs" })
                 Directory.CreateDirectory(Path.Combine(gameDir, dir));
 
-            if (_services.Accounts.Current?.Kind != "msa")
-                _services.Accounts.SetOffline(string.IsNullOrWhiteSpace(Username) ? "Steve" : Username);
-
             var options = new LaunchOptions
             {
                 Account = _services.Accounts.GetLaunchAccount(),
