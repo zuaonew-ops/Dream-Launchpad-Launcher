@@ -407,6 +407,17 @@ Idle → CheckingFiles → Downloading → Launching → Running → Exited / Fa
 
 ---
 
+### 视觉系统（v2）
+
+- **背景**：程序生成的 1920x1080 抽象插画（深靛渐变 + 紫/青/粉光晕 + 星点 + 斜光带 + 暗角），作为 WPF Resource 打包；窗口层再叠一层横向暗化渐变保证文字对比度。
+- **布局**：左侧 96px 玻璃图标栏（Logo、5 个导航项、账号头像）；顶栏 44px 含账号状态胶囊与窗口按钮；内容区按页面卡片化。
+- **设计令牌**：玻璃卡片 #1AFFFFFF + 1px #2EFFFFFF 描边 + 18px 圆角 + 柔和投影；语气色为紫→粉渐变（#8B5CF6 → #D946EF → #F472B6）；正文 #FFFFFF，次级 #B9B4CE，弱化 #8A84A6。
+- **控件**：主按钮渐变填充 + 紫色辉光；次按钮玻璃底；输入框/下拉/滑杆/进度条均为自绘模板，统一 12-16px 圆角；胶囊 Chip 用于元信息。
+- **动效**：页面入场 320ms 淡入 + 上移 10px（CubicEase）；按钮 hover/pressed/disabled 透明度反馈；下拉 Fade 弹出。
+- **窗口**：WindowStyle=None + WindowChrome（44px 可拖拽标题区），DWM 圆角（Win11）；图标按钮设置 AutomationProperties.Name 便于无障碍与自动化测试。
+
+---
+
 ## 10. 错误处理与日志
 
 **错误码**：DLP-1xxx 网络、2xxx 文件/校验、3xxx Java、4xxx 认证、5xxx 启动、9xxx 未知。每条错误含：用户文案、技术详情、建议操作、原始异常（仅日志）。
