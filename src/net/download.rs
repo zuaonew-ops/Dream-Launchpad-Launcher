@@ -11,6 +11,8 @@ use tokio::io::AsyncReadExt;
 #[derive(Clone, Debug)]
 pub struct Job {
     pub url: String,
+    /// 主地址失败后的回退地址（通常是官方源）
+    pub fallback: Option<String>,
     pub dest: PathBuf,
     pub sha1: Option<String>,
 }
@@ -19,8 +21,28 @@ impl Job {
     pub fn new(url: impl Into<String>, dest: impl Into<PathBuf>, sha1: Option<String>) -> Self {
         Self {
             url: url.into(),
+            fallback: None,
             dest: dest.into(),
             sha1,
+        }
+    }
+
+    /// 官方 URL + 可选镜像：镜像优先，官方兜底。
+    pub fn mirrored(
+        url: impl Into<String>,
+        dest: impl Into<PathBuf>,
+        sha1: Option<String>,
+        version_id: Option<&str>,
+    ) -> Self {
+        let official = url.into();
+        match crate::net::mirror::rewrite(&official, version_id) {
+            Some(primary) => Self {
+                url: primary,
+                fallback: Some(official),
+                dest: dest.into(),
+                sha1,
+            },
+            None => Self::new(official, dest, sha1),
         }
     }
 }
@@ -93,7 +115,12 @@ async fn fetch_one(client: &Client, job: &Job) -> Result<(), String> {
 
     let mut last_error = String::new();
     for attempt in 1..=3 {
-        match download_to(client, &job.url, &job.dest).await {
+        // 前两次走主地址（可能是镜像），最后一次换回退地址（官方）
+        let url = match (&job.fallback, attempt) {
+            (Some(fallback), 3) => fallback.as_str(),
+            _ => job.url.as_str(),
+        };
+        match download_to(client, url, &job.dest).await {
             Ok(()) => {
                 if let Some(expected) = &job.sha1 {
                     if !file_matches(&job.dest, expected).await {
@@ -105,7 +132,7 @@ async fn fetch_one(client: &Client, job: &Job) -> Result<(), String> {
                 return Ok(());
             }
             Err(e) => {
-                last_error = format!("第 {attempt} 次下载 {} 失败: {e}", job.url);
+                last_error = format!("第 {attempt} 次下载 {url} 失败: {e}");
                 let _ = tokio::fs::remove_file(&job.dest).await;
             }
         }

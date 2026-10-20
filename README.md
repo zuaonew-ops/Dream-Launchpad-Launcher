@@ -25,6 +25,15 @@
 | Windows 7 | **不做**（见 [REQ-001](docs/requirements/REQ-001-启动器骨架.md) §4） |
 | macOS | 本期不做 |
 
+## 数据目录
+
+默认是**可执行文件同目录的 `.minecraft`**（绿色版，拷走整个文件夹就能带走存档）。
+如果那个目录不可写（装在 Program Files 之类），自动退回 `%APPDATA%\DreamLaunchpad`。
+用环境变量 `DLP_HOME` 可以指定任意目录。
+
+下载默认走 [BMCLAPI](https://bmclapidoc.bangbang93.com/)：清单、客户端 jar、依赖库、资源对象优先镜像，
+失败自动回退官方源。
+
 ## 结构
 
 ```

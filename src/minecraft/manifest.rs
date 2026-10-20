@@ -38,8 +38,18 @@ impl VersionEntry {
 
 /// 拉取版本清单。
 pub async fn fetch(client: &Client) -> Result<VersionManifest, String> {
+    let mirror = crate::net::mirror::rewrite(MANIFEST_URL, None);
+    if let Some(url) = mirror {
+        if let Ok(manifest) = get_manifest(client, &url).await {
+            return Ok(manifest);
+        }
+    }
+    get_manifest(client, MANIFEST_URL).await
+}
+
+async fn get_manifest(client: &Client, url: &str) -> Result<VersionManifest, String> {
     client
-        .get(MANIFEST_URL)
+        .get(url)
         .send()
         .await
         .map_err(|e| format!("获取版本清单失败: {e}"))?

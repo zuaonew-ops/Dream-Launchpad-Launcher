@@ -17,10 +17,14 @@ impl Paths {
         Self { root: root.into() }
     }
 
-    /// 默认根目录。
+    /// 默认根目录：优先"可执行文件同目录下的 .minecraft"（绿色版），
+    /// 目录建不出来（例如装在 Program Files 且无写权限）时退回用户数据目录。
     pub fn default_root() -> PathBuf {
         if let Some(custom) = std::env::var_os("DLP_HOME") {
             return PathBuf::from(custom);
+        }
+        if let Some(portable) = portable_root() {
+            return portable;
         }
         if let Some(appdata) = std::env::var_os("APPDATA") {
             return Path::new(&appdata).join(DIR_NAME);
@@ -74,6 +78,16 @@ impl Paths {
     pub fn is_installed(&self, id: &str) -> bool {
         self.version_json(id).is_file() && self.client_jar(id).is_file()
     }
+}
+
+/// 可执行文件同目录的 `.minecraft`：存在或能创建则使用。
+fn portable_root() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?.join(".minecraft");
+    if dir.is_dir() {
+        return Some(dir);
+    }
+    std::fs::create_dir_all(&dir).ok().map(|_| dir)
 }
 
 fn home_dir() -> PathBuf {

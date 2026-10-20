@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::path::Path;
 
 const CONCURRENCY: usize = 32;
-const OBJECT_BASE: &str = "https://resources.download.minecraft.net";
 
 #[derive(Debug, Deserialize)]
 pub struct AssetIndex {
@@ -37,12 +36,14 @@ pub async fn download_objects(
         .objects
         .values()
         .map(|obj| {
+            let (mirror, official) = crate::net::mirror::asset_urls(&obj.hash);
             let prefix = &obj.hash[0..2];
-            Job::new(
-                format!("{OBJECT_BASE}/{prefix}/{}", obj.hash),
-                paths.objects().join(prefix).join(&obj.hash),
-                Some(obj.hash.clone()),
-            )
+            Job {
+                url: mirror,
+                fallback: Some(official),
+                dest: paths.objects().join(prefix).join(&obj.hash),
+                sha1: Some(obj.hash.clone()),
+            }
         })
         .collect();
 

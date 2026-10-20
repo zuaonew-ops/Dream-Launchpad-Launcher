@@ -17,7 +17,7 @@ pub async fn ensure_version_json(
     entry: &VersionEntry,
 ) -> Result<(), String> {
     let dest = paths.version_json(&entry.id);
-    let job = Job::new(entry.url.clone(), dest, entry.sha1.clone());
+    let job = Job::mirrored(entry.url.clone(), dest, entry.sha1.clone(), Some(&entry.id));
     download::run(client, vec![job], 1, "版本信息", &Progress::none()).await
 }
 
@@ -53,10 +53,11 @@ fn metadata_jobs(paths: &Paths, id: &str, version: &VersionJson) -> Vec<Job> {
     let mut jobs = Vec::new();
 
     if let Some(client_jar) = version.downloads.as_ref().and_then(|d| d.client.as_ref()) {
-        jobs.push(Job::new(
+        jobs.push(Job::mirrored(
             client_jar.url.clone(),
             paths.client_jar(id),
             client_jar.sha1.clone(),
+            Some(id),
         ));
     }
 
@@ -106,20 +107,22 @@ fn libraries_jobs(paths: &Paths, version: &VersionJson) -> (Vec<Job>, Vec<Job>) 
                 if !platform::is_usable(path) {
                     continue;
                 }
-                libs.push(Job::new(
+                libs.push(Job::mirrored(
                     artifact.url.clone(),
                     paths.libraries().join(path),
                     artifact.sha1.clone(),
+                    None,
                 ));
             }
         }
         if let Some(key) = version.native_key(lib) {
             if let Some(native) = downloads.classifiers.get(&key) {
                 if let Some(path) = &native.path {
-                    natives.push(Job::new(
+                    natives.push(Job::mirrored(
                         native.url.clone(),
                         paths.libraries().join(path),
                         native.sha1.clone(),
+                        None,
                     ));
                 }
             }
