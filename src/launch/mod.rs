@@ -155,7 +155,7 @@ pub fn ensure_default_language(game_dir: &Path) -> Result<(), String> {
 }
 
 /// 真正拉起游戏进程，返回 pid。输出写入 `<root>/logs/<版本>.log`。
-pub fn spawn(plan: &LaunchPlan, paths: &Paths) -> Result<u32, String> {
+pub fn spawn(plan: &LaunchPlan, paths: &Paths) -> Result<std::process::Child, String> {
     ensure_default_language(&plan.game_dir)?;
 
     let logs = paths.root.join("logs");
@@ -188,7 +188,7 @@ pub fn spawn(plan: &LaunchPlan, paths: &Paths) -> Result<u32, String> {
         .spawn()
         .map_err(|e| format!("启动 Java 失败: {e}"))?;
 
-    Ok(child.id())
+    Ok(child)
 }
 
 #[cfg(test)]

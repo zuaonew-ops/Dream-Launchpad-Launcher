@@ -38,7 +38,7 @@ fn main() -> Result<(), String> {
     println!("主类/参数数量: {}", plan.args.len());
     println!("前 6 个参数: {:?}", &plan.args[..6.min(plan.args.len())]);
 
-    let pid = launch::spawn(&plan, &paths)?;
+    let pid = launch::spawn(&plan, &paths)?.id();
     println!("已启动，pid = {pid}");
     Ok(())
 }

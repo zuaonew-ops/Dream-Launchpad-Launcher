@@ -1,12 +1,12 @@
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // 前端源码在 ui/，构建产物落在仓库根的 dist/（供 Tauri 打包用）
 export default defineConfig({
   root: "ui",
-  plugins: [vue()],
+  plugins: [react()],
 
   // Tauri 需要一个固定端口，端口被占用时直接失败而不是自动换端口
   clearScreen: false,

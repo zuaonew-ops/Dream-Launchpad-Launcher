@@ -4,7 +4,7 @@
 
 - 核心：Rust（`dlp-core`，无 GUI 依赖，可单测）
 - 桌面壳：[Tauri 2](https://tauri.app/)
-- 界面：Vue 3 + Vite + TypeScript
+- 界面：React 19 + Vite + TypeScript
 
 ## 当前功能（0.6.0）
 
@@ -48,7 +48,7 @@
 Cargo.toml          # Rust workspace
 src/                # dlp-core：核心逻辑（清单 / 下载 / 校验 / Java / 启动 / 账号）
 src-tauri/          # Tauri 壳：窗口、命令、打包配置、图标
-ui/                 # Vue 3 前端源码：pages/（四个页面）+ components/ + composables/（构建产物输出到根目录 dist/）
+ui/                 # React 19 前端源码：pages/（四个页面）+ components/ + store.ts（构建产物输出到根目录 dist/）
 docs/               # 需求、调研、设计
 scripts/            # 开发辅助脚本（图标生成等）
 ```

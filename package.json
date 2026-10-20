@@ -1,23 +1,26 @@
 {
   "name": "dream-launchpad-launcher",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",
-    "vue": "^3.5.44"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.3",
-    "@vitejs/plugin-vue": "^6.0.10",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.1.0",
     "typescript": "^5.9.3",
-    "vite": "^8.3.4",
-    "vue-tsc": "^3.3.13"
+    "vite": "^8.3.4"
   }
 }

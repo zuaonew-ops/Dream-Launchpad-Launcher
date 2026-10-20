@@ -1,11 +1,14 @@
 use dlp_core::{install, java, launch, minecraft, net::Progress, paths::Paths};
 use serde::Serialize;
 use std::path::PathBuf;
-use tauri::{Emitter, State};
+use std::sync::Mutex;
+use tauri::{Emitter, Manager, State};
 
 struct AppState {
     paths: Paths,
     client: reqwest::Client,
+    /// 正在运行的游戏进程（退出后清空）
+    game: Mutex<Option<RunningGame>>,
 }
 
 #[derive(Serialize)]
@@ -21,6 +24,19 @@ struct ProgressPayload {
     stage: String,
     done: usize,
     total: usize,
+}
+
+#[derive(Serialize, Clone)]
+struct RunningGame {
+    pid: u32,
+    id: String,
+}
+
+#[derive(Serialize, Clone)]
+struct GameExit {
+    pid: u32,
+    id: String,
+    code: Option<i32>,
 }
 
 #[derive(Serialize)]
@@ -63,6 +79,11 @@ async fn list_versions(
 }
 
 #[tauri::command]
+fn running_game(state: State<'_, AppState>) -> Option<RunningGame> {
+    state.game.lock().unwrap().clone()
+}
+
+#[tauri::command]
 async fn detect_java() -> Result<Vec<java::JavaInfo>, String> {
     tauri::async_runtime::spawn_blocking(java::detect)
         .await
@@ -102,6 +123,7 @@ async fn install_version(
 
 #[tauri::command]
 async fn launch_game(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     id: String,
     username: String,
@@ -137,7 +159,39 @@ async fn launch_game(
         isolate,
     };
     let plan = launch::build(&paths, &version, &options)?;
-    launch::spawn(&plan, &paths)
+
+    if let Some(existing) = state.game.lock().unwrap().as_ref() {
+        return Err(format!("游戏已在运行（pid {}）", existing.pid));
+    }
+
+    let mut child = launch::spawn(&plan, &paths)?;
+    let pid = child.id();
+    *state.game.lock().unwrap() = Some(RunningGame {
+        pid,
+        id: id.clone(),
+    });
+
+    // 等待进程退出：清掉状态并通知前端，否则界面会一直显示「运行中」
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let status = child.wait();
+        if let Some(state) = handle.try_state::<AppState>() {
+            let mut guard = state.game.lock().unwrap();
+            if guard.as_ref().map(|g| g.pid) == Some(pid) {
+                *guard = None;
+            }
+        }
+        let _ = handle.emit(
+            "game-exit",
+            GameExit {
+                pid,
+                id,
+                code: status.ok().and_then(|s| s.code()),
+            },
+        );
+    });
+
+    Ok(pid)
 }
 
 #[tauri::command]
@@ -184,13 +238,18 @@ pub fn run() {
         .expect("构建 HTTP 客户端失败");
 
     tauri::Builder::default()
-        .manage(AppState { paths, client })
+        .manage(AppState {
+            paths,
+            client,
+            game: Mutex::new(None),
+        })
         .invoke_handler(tauri::generate_handler![
             environment,
             list_versions,
             detect_java,
             install_version,
             launch_game,
+            running_game,
             open_dir
         ])
         .run(tauri::generate_context!())
