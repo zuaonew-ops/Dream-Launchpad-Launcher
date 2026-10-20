@@ -42,3 +42,5 @@ artifacts/
 install-*.log
 # 临时 API 载荷
 _*.json
+# 本地截图
+_*.png

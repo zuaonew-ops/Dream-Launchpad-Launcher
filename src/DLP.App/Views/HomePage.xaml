@@ -1,0 +1,100 @@
+<UserControl x:Class="DLP.App.Views.HomePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="34,28,34,34">
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="首页" Style="{StaticResource PageTitle}" />
+                    <TextBlock Text="启动 Minecraft: Java 版" Style="{StaticResource PageSubtitle}" />
+                </StackPanel>
+                <Button HorizontalAlignment="Right" VerticalAlignment="Top" Content="刷新"
+                        Style="{StaticResource BaseButton}" Command="{Binding RefreshCommand}" />
+            </Grid>
+
+            <Border Style="{StaticResource CardStyle}" Margin="0,22,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="300" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="启动游戏" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="选择实例与版本，一键启动" Style="{StaticResource PageSubtitle}" Margin="0,4,0,0" />
+
+                        <Grid Margin="0,20,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="实例" Style="{StaticResource FieldLabel}" />
+                                <ComboBox Style="{StaticResource ComboBoxStyle}" ItemsSource="{Binding Instances}"
+                                          SelectedItem="{Binding SelectedInstance}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="版本" Style="{StaticResource FieldLabel}" />
+                                <ComboBox Style="{StaticResource ComboBoxStyle}" ItemsSource="{Binding InstalledVersions}"
+                                          SelectedItem="{Binding SelectedVersion}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="离线用户名" Style="{StaticResource FieldLabel}" />
+                                <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource FieldLabel}">
+                                    <Run Text="内存上限：" /><Run Text="{Binding MemoryMb, Mode=OneWay}" /><Run Text=" MB" />
+                                </TextBlock>
+                                <Slider Minimum="512" Maximum="8192" TickFrequency="512" IsSnapToTickEnabled="True"
+                                        Value="{Binding MemoryMb}" Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+                            <Button Content="启动游戏" Style="{StaticResource AccentButton}" Command="{Binding LaunchCommand}" />
+                            <Button Content="打开实例目录" Style="{StaticResource BaseButton}" Margin="12,0,0,0"
+                                    Command="{Binding OpenFolderCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding Status}" Margin="2,18,0,0" FontSize="12"
+                                   Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Border Grid.Column="2" Background="{StaticResource InputBrush}" CornerRadius="10" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="提示" FontSize="13" FontWeight="SemiBold" />
+                            <TextBlock Margin="0,10,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                       Text="离线账号只能进入离线游戏与本地世界，不能连接正版服务器。" />
+                            <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                       Text="首次使用请先在「版本」页安装一个版本。" />
+                            <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                       Text="启动参数与游戏输出会实时写入「日志」页。" />
+                            <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                       Text="实例之间 mods、存档、配置完全隔离。" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}" Margin="0,16,0,0"
+                    Visibility="{Binding HasNoVersions, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <TextBlock Text="还没有安装任何版本" FontSize="15" FontWeight="SemiBold" />
+                    <TextBlock Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource MutedBrush}"
+                               Text="切换到左侧「版本」页，选择一个正式版并点击安装。安装会自动下载依赖库、资源文件与 Java 运行时。" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

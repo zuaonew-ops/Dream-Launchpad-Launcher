@@ -16,9 +16,9 @@ http.DefaultRequestHeaders.UserAgent.ParseAdd("DreamLaunchpad/0.1");
 
 var downloader = new DownloadClient(http, log);
 var manifests = new VersionManifestService(http, paths, log);
-var versions = new VersionRepository(http, paths, downloader, manifests, log);
+var versions = new VersionRepository(paths, downloader, manifests);
 var java = new JavaManager(paths, http, downloader, log);
-var installer = new GameInstaller(http, paths, downloader, versions, log);
+var installer = new GameInstaller(paths, downloader, versions, log);
 var launcher = new GameLauncher(paths, log);
 
 var command = args.FirstOrDefault() ?? "help";

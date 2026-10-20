@@ -9,10 +9,10 @@ namespace DLP.Core.Install;
 public sealed record InstallProgress(string Stage, int Completed, int Total, long DownloadedBytes, long TotalBytes);
 
 /// <summary>原版版本安装：client jar、依赖库、natives、资源、日志配置。</summary>
-public sealed class GameInstaller(HttpClient http, GamePaths paths, DownloadClient downloader,
-    VersionRepository versions, Log log, IProgress<InstallProgress>? progress = null)
+public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
+    VersionRepository versions, Log log)
 {
-    public async Task InstallAsync(string versionId, CancellationToken ct = default)
+    public async Task InstallAsync(string versionId, IProgress<InstallProgress>? progress = null, CancellationToken ct = default)
     {
         log.Info($"开始安装 {versionId}");
         var version = await versions.ResolveAsync(versionId, ct);
@@ -22,7 +22,7 @@ public sealed class GameInstaller(HttpClient http, GamePaths paths, DownloadClie
         await downloader.DownloadAsync(jar.Url, paths.VersionJar(versionId), jar.Sha1, jar.Size, ct);
 
         await InstallLibrariesAsync(version, ct);
-        await InstallAssetsAsync(version, ct);
+        await InstallAssetsAsync(version, progress, ct);
         await InstallLoggingAsync(version, ct);
 
         await File.WriteAllTextAsync(Path.Combine(paths.VersionDir(versionId), "install.json"),
@@ -93,7 +93,7 @@ public sealed class GameInstaller(HttpClient http, GamePaths paths, DownloadClie
         }
     }
 
-    private async Task InstallAssetsAsync(VersionJson version, CancellationToken ct)
+    private async Task InstallAssetsAsync(VersionJson version, IProgress<InstallProgress>? progress, CancellationToken ct)
     {
         if (version.AssetIndex is not { } indexRef)
         {

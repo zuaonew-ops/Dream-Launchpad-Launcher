@@ -1,13 +1,25 @@
-﻿using System.Configuration;
-using System.Data;
 using System.Windows;
+using DLP.App.Services;
+using DLP.App.ViewModels;
 
 namespace DLP.App;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
-}
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+        var services = new AppServices();
+        var viewModel = new MainViewModel(
+            services,
+            new HomeViewModel(services),
+            new VersionsViewModel(services),
+            new InstancesViewModel(services),
+            new SettingsViewModel(services),
+            new LogViewModel(services));
 
+        var window = new MainWindow { DataContext = viewModel };
+        MainWindow = window;
+        window.Show();
+    }
+}

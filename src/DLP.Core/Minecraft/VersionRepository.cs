@@ -5,7 +5,7 @@ using DLP.Core.Infrastructure;
 namespace DLP.Core.Minecraft;
 
 /// <summary>版本 JSON 的获取与 inheritsFrom 合并。</summary>
-public sealed class VersionRepository(HttpClient http, GamePaths paths, DownloadClient downloader, VersionManifestService manifests, Log log)
+public sealed class VersionRepository(GamePaths paths, DownloadClient downloader, VersionManifestService manifests)
 {
     public async Task<VersionJson> GetRawAsync(string id, CancellationToken ct = default)
     {
