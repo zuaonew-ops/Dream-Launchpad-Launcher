@@ -6,6 +6,15 @@
 - 桌面壳：[Tauri 2](https://tauri.app/)
 - 界面：Vue 3 + Vite + TypeScript
 
+## 当前功能（0.3.0）
+
+- 拉取版本清单，列出正式版本
+- 安装原版：客户端 jar / 依赖库 / natives / 资源文件，SHA1 校验，16–32 并发，失败重试
+- 离线登录（UUID v3），自动挑选合适的 Java（JAVA_HOME / PATH / 常见安装目录）
+- **版本隔离**：每个版本用 `versions/<id>/` 作为游戏目录，存档与 mods 互不干扰（可关闭）
+- **游戏默认中文**：首次启动写入 `options.txt` 的 `lang:zh_cn`
+- 未实现：微软正版登录、Java 自动下载、Fabric / Forge / NeoForge
+
 ## 目标平台
 
 | 平台 | 状态 |
