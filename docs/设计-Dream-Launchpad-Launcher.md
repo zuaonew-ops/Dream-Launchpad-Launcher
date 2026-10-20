@@ -516,3 +516,18 @@ java -Xms512M -Xmx2048M
 | 微软登录 | `MicrosoftAuthService`（设备码 → Xbox Live → XSTS → Minecraft）+ `AccountStore`（AES-GCM，密钥仅当前用户可读）；左下角账号弹窗登录 |
 | 内存滑杆 | 去掉刻度吸附，512–16384 MB 平滑调节 |
 | 日志页 | 删除页面与导航项；日志仍写 `logs/launcher-*.log` |
+
+
+## 附录 D：2026-10-20 缺陷修复记录
+
+| 现象 | 根因 | 修复 |
+| --- | --- | --- |
+| 1.13+ 版本安装直接报 JsonException | `arguments.game` 是字符串数组，模型按对象解析 | `ArgumentConverter` 同时接受字符串与 `{rules,value}` |
+| Fabric 安装后启动 ClassNotFoundException: KnotClient | profile JSON 只有 `{name,url}`，库从未下载 | `Library.Url` + maven 拼接下载；安装后调用 `GameInstaller` |
+| Fabric 元数据解析失败 | `+0000` 时间戳不符合 ISO | `LenientDateTimeOffsetConverter` |
+| 1.20.1 下载 arm64/x86 natives、安装中断 | 新版 natives 是普通库，仅按 os.name 过滤 | 按本机架构过滤 `natives-windows-arm64/-x86` |
+| 1.20.1 启动找不到 lwjgl | 新式 natives 未解压 | 名字含 `:natives-windows` 的库下载后解压 |
+| 并发解压 IOException（META-INF/MANIFEST.MF） | 多个原生库都带同名文件 | 跳过 META-INF，解压加重试 |
+| 镜像 SSL 失败无限重试同一地址 | 无回退 | 失败立即改官方地址，最终失败再回退一轮 |
+| 加载器版本无法启动（Forge 1.12.2 lwjgl64） | 无自己的 jar / natives | classpath 与 natives 回退父版本 |
+| 内存滑杆可设超过物理内存 | 上限写死 16384 | 按 `GC.GetGCMemoryInfo()` 夹紧 |
