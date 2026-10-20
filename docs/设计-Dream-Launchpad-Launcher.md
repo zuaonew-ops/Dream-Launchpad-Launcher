@@ -77,7 +77,7 @@
 **解决方案结构**
 
 ~~~
-DreamLaunchpad.sln
+DreamLaunchpad.slnx
 ├─ src/
 │  ├─ DLP.Core/            # 领域 + 服务（无 WPF）
 │  │  ├─ Minecraft/        # VersionJson、Library、Rule、AssetIndex
