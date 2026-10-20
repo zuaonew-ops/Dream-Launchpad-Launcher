@@ -44,3 +44,9 @@ install-*.log
 _*.json
 # 本地截图
 _*.png
+# 本地运行输出
+ui-run.log
+# 他人临时探针产物
+_*.cjs
+_*.jsonl
+_*/

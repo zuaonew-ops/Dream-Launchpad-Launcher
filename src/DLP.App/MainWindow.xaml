@@ -3,47 +3,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Dream Launchpad Launcher"
-        Width="1160" Height="760" MinWidth="980" MinHeight="640"
+        Width="1240" Height="800" MinWidth="1060" MinHeight="680"
         WindowStyle="None" WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BgBrush}" Foreground="{StaticResource TextBrush}"
+        Background="#0B0818" Foreground="White"
         FontFamily="Microsoft YaHei UI, Segoe UI">
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="46" ResizeBorderThickness="7" GlassFrameThickness="0"
+        <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="7" GlassFrameThickness="0"
                             CornerRadius="0" UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="46" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <Image Source="pack://application:,,,/Assets/background.png" Stretch="UniformToFill" />
+        <Rectangle>
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#B3000000" Offset="0" />
+                    <GradientStop Color="#33000000" Offset="0.45" />
+                    <GradientStop Color="#99000000" Offset="1" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
 
-        <!-- 标题栏 -->
-        <Grid Grid.Row="0" Background="{StaticResource PanelBrush}">
-            <StackPanel Orientation="Horizontal" Margin="20,0,0,0" VerticalAlignment="Center">
-                <Border Width="24" Height="24" CornerRadius="6" Background="{StaticResource AccentBrush}" />
-                <TextBlock Text="Dream Launchpad" Margin="10,0,0,0" VerticalAlignment="Center"
-                           FontSize="13" FontWeight="SemiBold" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                <Button Style="{StaticResource GhostButton}" Click="Minimize_Click" Width="46" Height="46" Padding="0"
-                        Content="&#xE921;" FontFamily="Segoe MDL2 Assets" FontSize="10" />
-                <Button Style="{StaticResource GhostButton}" Click="Maximize_Click" Width="46" Height="46" Padding="0"
-                        Content="&#xE922;" FontFamily="Segoe MDL2 Assets" FontSize="10" />
-                <Button Style="{StaticResource GhostButton}" Click="Close_Click" Width="46" Height="46" Padding="0"
-                        Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10" />
-            </StackPanel>
-        </Grid>
-
-        <!-- 主体 -->
-        <Grid Grid.Row="1">
+        <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="96" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+            <!-- 左侧图标栏 -->
+            <Border Grid.Column="0" Background="#12FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="0,0,1,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -51,31 +39,93 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="本地启动器" Margin="22,22,0,10" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                    <Border Width="48" Height="48" CornerRadius="16" Margin="0,22,0,18" Background="{StaticResource AccentGradient}">
+                        <TextBlock Text="D" FontSize="22" FontWeight="Bold" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
 
                     <ListBox Grid.Row="1" ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}"
-                             Style="{StaticResource NavListStyle}" VerticalAlignment="Top">
+                             Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Bd" Background="Transparent" CornerRadius="16" Margin="10,4" Padding="0,10">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#1FFFFFFF" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentGradient}" />
+                                                    <Setter TargetName="Bd" Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="#A855F7" BlurRadius="26" ShadowDepth="0" Opacity="0.5" />
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="15"
-                                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Title}" Margin="12,0,0,0" FontSize="13" VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="19"
+                                               Foreground="White" HorizontalAlignment="Center" />
+                                    <TextBlock Text="{Binding Title}" FontSize="10.5" Foreground="#E6E1F5"
+                                               HorizontalAlignment="Center" Margin="0,6,0,0" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <Border Grid.Row="2" Margin="16,0,16,16" Padding="12" Background="{StaticResource CardBrush}" CornerRadius="10">
-                        <StackPanel>
-                            <TextBlock Text="离线账号" FontSize="11" Foreground="{StaticResource MutedBrush}" />
-                            <TextBlock Text="{Binding AccountName}" FontSize="13" Margin="0,4,0,0" />
-                        </StackPanel>
+                    <Border Grid.Row="2" Width="44" Height="44" CornerRadius="22" Margin="0,0,0,22"
+                            Background="#26FFFFFF" BorderBrush="#40FFFFFF" BorderThickness="1"
+                            ToolTip="{Binding AccountName}">
+                        <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                 </Grid>
             </Border>
 
-            <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+            <!-- 主区域 -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="44" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <TextBlock Text="DREAM LAUNCHPAD" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"
+                               Margin="32,0,0,0" FontSize="10.5" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Border Style="{StaticResource Chip}" Margin="0,0,14,0" Padding="12,5" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding AccountName}" Margin="7,0,0,0" FontSize="11.5"
+                                           Foreground="White" VerticalAlignment="Center" />
+                                <Border Width="6" Height="6" CornerRadius="3" Background="#6EE7B7" Margin="8,0,0,0"
+                                        VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Button Style="{StaticResource IconButton}" Content="&#xE921;" Width="40" Height="32"
+                                Click="Minimize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                        <Button Style="{StaticResource IconButton}" Content="&#xE922;" Width="40" Height="32"
+                                Click="Maximize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                        <Button Style="{StaticResource IconButton}" Content="&#xE8BB;" Width="40" Height="32"
+                                Click="Close_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                    </StackPanel>
+                </Grid>
+
+                <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" Margin="0,0,0,0" />
+            </Grid>
         </Grid>
     </Grid>
 </Window>

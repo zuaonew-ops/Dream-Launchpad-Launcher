@@ -93,6 +93,9 @@ public sealed class HomeViewModel : ObservableObject
 
     public bool HasVersions => InstalledVersions.Count > 0;
     public bool HasNoVersions => InstalledVersions.Count == 0;
+    public int InstalledVersionCount => InstalledVersions.Count;
+    public int InstanceCount => Instances.Count;
+    public string DataRoot => _services.Paths.Root;
 
     public void Refresh()
     {
@@ -119,6 +122,8 @@ public sealed class HomeViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasVersions));
         OnPropertyChanged(nameof(HasNoVersions));
+        OnPropertyChanged(nameof(InstalledVersionCount));
+        OnPropertyChanged(nameof(InstanceCount));
         LaunchCommand.RaiseCanExecuteChanged();
     }
 

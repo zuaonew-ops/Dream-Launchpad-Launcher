@@ -3,19 +3,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
         <Style x:Key="VersionItemStyle" TargetType="ListBoxItem">
-            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Bd" Background="Transparent" CornerRadius="8" Margin="0,2" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="12" Margin="0,2" Padding="14,11">
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#2A2A33" />
+                                <Setter TargetName="Bd" Property="Background" Value="#24FFFFFF" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#2F2A4E" />
+                                <Setter TargetName="Bd" Property="Background" Value="#40A855F7" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -24,7 +24,7 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="34,28,34,34">
+    <Grid Style="{StaticResource PageRootStyle}" Margin="40,16,40,32">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -32,19 +32,21 @@
 
         <Grid>
             <StackPanel>
-                <TextBlock Text="版本" Style="{StaticResource PageTitle}" />
-                <TextBlock Text="{Binding Status}" Style="{StaticResource PageSubtitle}" />
+                <TextBlock Text="版本库" Style="{StaticResource H1}" />
+                <TextBlock Text="{Binding Status}" Style="{StaticResource BodyText}" Margin="0,8,0,0" />
             </StackPanel>
+            <Button HorizontalAlignment="Right" VerticalAlignment="Top" Style="{StaticResource GlassButton}"
+                    Command="{Binding LoadCommand}" Content="刷新清单" />
         </Grid>
 
-        <Grid Grid.Row="1" Margin="0,20,0,0">
+        <Grid Grid.Row="1" Margin="0,22,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="380" />
-                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="400" />
+                <ColumnDefinition Width="20" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Style="{StaticResource CardStyle}" Padding="14">
+            <Border Style="{StaticResource GlassCard}" Padding="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -52,10 +54,10 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
-                             Tag="搜索版本" />
+                             Tag="搜索版本号…" />
                     <ComboBox Grid.Row="1" Style="{StaticResource ComboBoxStyle}" Margin="0,10,0,0"
                               ItemsSource="{Binding TypeFilters}" SelectedItem="{Binding TypeFilter}" />
-                    <ListBox Grid.Row="2" Margin="0,10,0,0" Background="Transparent" BorderThickness="0"
+                    <ListBox Grid.Row="2" Margin="0,12,0,0" Background="Transparent" BorderThickness="0"
                              ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}"
                              ItemContainerStyle="{StaticResource VersionItemStyle}"
                              VirtualizingPanel.IsVirtualizing="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -63,11 +65,18 @@
                             <DataTemplate>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Id}" FontSize="13" />
-                                    <TextBlock Grid.Column="1" Text="{Binding ReleaseTime, StringFormat=yyyy-MM-dd}"
+                                    <Border Width="34" Height="34" CornerRadius="10" Background="#22FFFFFF"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="&#xE7FC;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{Binding Id}" Margin="12,0,0,0" FontSize="13"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding ReleaseTime, StringFormat=yyyy-MM-dd}"
                                                FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                 </Grid>
                             </DataTemplate>
@@ -76,7 +85,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+            <Border Grid.Column="2" Style="{StaticResource GlassCard}" Padding="30">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -86,31 +95,38 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="{Binding SelectedTitle}" FontSize="22" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding SelectedMeta}" Style="{StaticResource PageSubtitle}" />
+                        <TextBlock Text="当前选择" Style="{StaticResource Eyebrow}" />
+                        <TextBlock Text="{Binding SelectedTitle}" Margin="0,10,0,0" FontSize="34" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Border Style="{StaticResource Chip}">
+                                <TextBlock Text="{Binding SelectedMeta}" FontSize="12" />
+                            </Border>
+                            <Border Style="{StaticResource Chip}" Margin="8,0,0,0"
+                                    Visibility="{Binding IsInstalled, Converter={StaticResource BoolToVisibility}}"
+                                    Background="#268B5CF6">
+                                <TextBlock Text="已安装" FontSize="12" />
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,20,0,0">
-                        <Button Content="安装此版本" Style="{StaticResource AccentButton}" Command="{Binding InstallCommand}" />
-                        <TextBlock Text="已安装" Margin="14,0,0,0" VerticalAlignment="Center" FontSize="12"
-                                   Foreground="{StaticResource AccentBrush}"
-                                   Visibility="{Binding IsInstalled, Converter={StaticResource BoolToVisibility}}" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,26,0,0">
+                        <Button Content="安装此版本" Style="{StaticResource PrimaryButton}" Command="{Binding InstallCommand}" />
                     </StackPanel>
 
-                    <StackPanel Grid.Row="2" Margin="0,18,0,0">
+                    <StackPanel Grid.Row="2" Margin="0,24,0,0">
                         <ProgressBar Style="{StaticResource ProgressBarStyle}" Value="{Binding Progress}" />
-                        <TextBlock Margin="0,10,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                        <TextBlock Margin="0,12,0,0" FontSize="12.5" Foreground="{StaticResource MutedBrush}"
                                    Text="{Binding Status}" TextWrapping="Wrap" />
                     </StackPanel>
 
-                    <Border Grid.Row="3" Background="{StaticResource InputBrush}" CornerRadius="10" Padding="16"
-                            VerticalAlignment="Bottom" Margin="0,20,0,0">
+                    <Border Grid.Row="3" Background="#14FFFFFF" CornerRadius="14" Padding="18" VerticalAlignment="Bottom"
+                            Margin="0,24,0,0">
                         <StackPanel>
-                            <TextBlock Text="关于安装" FontSize="13" FontWeight="SemiBold" />
+                            <TextBlock Text="安装说明" FontSize="13" FontWeight="SemiBold" />
                             <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
-                                       Text="安装会下载客户端、全部依赖库、资源文件与你所需版本的 Java 运行时。所有文件都会做 SHA1 校验，重复安装只会补齐缺失文件。" />
-                            <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
-                                       Text="安装完成后回到「首页」即可选择该版本启动。" />
+                                       Text="安装会下载客户端、全部依赖库、资源文件与所需 Java 运行时，所有文件均做 SHA1 校验。" />
+                            <TextBlock Margin="0,6,0,0" FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                       Text="重复安装只会补齐缺失文件；安装完成后回首页即可启动。" />
                         </StackPanel>
                     </Border>
                 </Grid>
