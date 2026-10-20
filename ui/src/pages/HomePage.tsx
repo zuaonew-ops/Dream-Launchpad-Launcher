@@ -12,6 +12,7 @@ export default function HomePage() {
   const latest = selectLatestReleases(state);
   const installed = state.versions.filter((v) => v.installed).length;
   const running = state.game;
+  const empty = !state.loading && installed === 0;
 
   const primary = () => {
     if (!selected) return;
@@ -25,7 +26,41 @@ export default function HomePage() {
       ? "游戏运行中"
       : selected?.installed
         ? "启动游戏"
-        : "安装并准备";
+        : "去下载";
+
+  if (empty) {
+    return (
+      <div className="page">
+        <header className="hero">
+          <div>
+            <p className="eyebrow">DREAM LAUNCHPAD</p>
+            <h1>准备起飞</h1>
+            <p className="desc">还没有可启动的游戏</p>
+          </div>
+        </header>
+
+        <section className="panel empty-state">
+          <h2>没有扫描到游戏</h2>
+          <p className="hint">
+            当前数据目录下的 <code>versions/</code> 是空的。可以：
+          </p>
+          <ul className="empty-list">
+            <li>去「下载」页装一个原版（可顺便加装模组加载器 / OptiFine）</li>
+            <li>把已有的 <code>.minecraft/versions</code> 整个复制进来</li>
+          </ul>
+          <code className="path">{state.environment?.data_dir ?? "…"}</code>
+          <div className="inline">
+            <button type="button" className="ghost" onClick={() => void actions.openDir("data")}>
+              打开数据目录
+            </button>
+            <button type="button" className="ghost" onClick={() => void actions.refresh()}>
+              重新扫描
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

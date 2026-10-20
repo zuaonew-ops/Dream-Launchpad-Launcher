@@ -10,15 +10,21 @@
 //! - [`minecraft`]  版本清单、版本 JSON（继承链）、规则求值
 //! - [`net`]        并行下载与校验
 //! - [`install`]    安装编排（元数据 / 依赖库 / natives / 资源）
+//! - [`content`]    mods / 存档 / 日志
+//! - [`settings`]   每版本独立设置
 //! - [`launch`]     启动参数构建与进程拉起
+//! - [`loader`]     模组加载器与 OptiFine 安装
 
 pub mod auth;
+pub mod content;
 pub mod install;
 pub mod java;
 pub mod launch;
+pub mod loader;
 pub mod minecraft;
 pub mod net;
 pub mod paths;
+pub mod settings;
 
 pub use paths::Paths;
 

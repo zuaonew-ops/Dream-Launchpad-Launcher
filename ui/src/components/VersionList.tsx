@@ -13,11 +13,7 @@ export default function VersionList({ groups, selected, loading, onSelect }: Pro
       <div className="list-wrap">
         <div className="skeletons">
           {Array.from({ length: 7 }, (_, i) => (
-            <div
-              key={i}
-              className="skeleton"
-              style={{ animationDelay: `${i * 60}ms` }}
-            />
+            <div key={i} className="skeleton" style={{ animationDelay: `${i * 60}ms` }} />
           ))}
         </div>
       </div>
@@ -43,13 +39,14 @@ export default function VersionList({ groups, selected, loading, onSelect }: Pro
                 >
                   <span className="bar" />
                   <span className="vid">{version.id}</span>
+                  {version.local && <span className="kind local">本地</span>}
                   <span className={version.kind === "release" ? "kind" : "kind snapshot"}>
-                    {version.kind === "release" ? "正式" : "快照"}
+                    {version.kind === "release" ? "正式" : version.kind === "snapshot" ? "快照" : "其它"}
                   </span>
                   <span className={version.installed ? "state on" : "state"}>
                     {version.installed ? "已安装" : "未安装"}
                   </span>
-                  <span className="time">{version.release_time.slice(0, 10)}</span>
+                  <span className="time">{version.release_time.slice(0, 10) || "—"}</span>
                 </button>
               </li>
             ))}

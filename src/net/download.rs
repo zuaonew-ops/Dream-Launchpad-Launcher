@@ -6,7 +6,9 @@ use sha1::{Digest, Sha1};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
+use reqwest::header::{CONTENT_RANGE, RANGE};
+use reqwest::StatusCode;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 #[derive(Clone, Debug)]
 pub struct Job {
@@ -140,7 +142,49 @@ async fn fetch_one(client: &Client, job: &Job) -> Result<(), String> {
     Err(last_error)
 }
 
+/// 超过这个大小才考虑分片（小文件分片反而更慢）
+const MULTIPART_THRESHOLD: u64 = 4 * 1024 * 1024;
+/// 分片数：再多会被镜像限速，收益不明显
+const MULTIPART_PARTS: usize = 4;
+
+/// 下载一个文件：大文件且服务端支持 Range 时走分片多连接，否则单连接。
 async fn download_to(client: &Client, url: &str, dest: &Path) -> Result<(), String> {
+    if let Some(size) = probe_size(client, url).await {
+        if size >= MULTIPART_THRESHOLD {
+            if std::env::var_os("DLP_DEBUG_DOWNLOAD").is_some() {
+                eprintln!("[download] 分片 {MULTIPART_PARTS} 连接 · {size} 字节 · {url}");
+            }
+            if download_multipart(client, url, dest, size).await.is_ok() {
+                return Ok(());
+            }
+            if std::env::var_os("DLP_DEBUG_DOWNLOAD").is_some() {
+                eprintln!("[download] 分片失败，退回单连接 · {url}");
+            }
+            // 分片失败（镜像限流 / 中途断开）就退回单连接，别让整个安装挂掉
+            let _ = tokio::fs::remove_file(dest.with_extension("part")).await;
+        }
+    }
+    download_single(client, url, dest).await
+}
+
+/// 探测文件大小：用 Range 请求首字节，206 且有 Content-Range 才算支持分片。
+async fn probe_size(client: &Client, url: &str) -> Option<u64> {
+    let response = client
+        .get(url)
+        .header(RANGE, "bytes=0-0")
+        .send()
+        .await
+        .ok()?;
+    if response.status() != StatusCode::PARTIAL_CONTENT {
+        return None;
+    }
+    let value = response.headers().get(CONTENT_RANGE)?.to_str().ok()?;
+    // 形如 "bytes 0-0/1234567"
+    let total = value.rsplit('/').next()?.trim().parse::<u64>().ok()?;
+    (total > 0).then_some(total)
+}
+
+async fn download_single(client: &Client, url: &str, dest: &Path) -> Result<(), String> {
     let response = client
         .get(url)
         .send()
@@ -156,6 +200,94 @@ async fn download_to(client: &Client, url: &str, dest: &Path) -> Result<(), Stri
     tokio::fs::rename(&tmp, dest)
         .await
         .map_err(|e| format!("重命名到 {} 失败: {e}", dest.display()))?;
+    Ok(())
+}
+
+/// 分片下载：每个分片一个 Range 请求，并发写入同一文件的对应偏移。
+async fn download_multipart(
+    client: &Client,
+    url: &str,
+    dest: &Path,
+    size: u64,
+) -> Result<(), String> {
+    let tmp = dest.with_extension("part");
+    let file = tokio::fs::File::create(&tmp)
+        .await
+        .map_err(|e| format!("创建 {} 失败: {e}", tmp.display()))?;
+    file.set_len(size)
+        .await
+        .map_err(|e| format!("预分配 {} 失败: {e}", tmp.display()))?;
+    drop(file);
+
+    let parts = MULTIPART_PARTS.min((size / 1024 / 1024).max(1) as usize);
+    let chunk = size.div_ceil(parts as u64);
+
+    let results: Vec<Result<(), String>> = stream::iter(0..parts)
+        .map(|index| {
+            let client = client.clone();
+            let tmp = tmp.clone();
+            let start = chunk * index as u64;
+            let end = ((start + chunk).min(size)).saturating_sub(1);
+            async move { fetch_range(&client, url, &tmp, start, end).await }
+        })
+        .buffer_unordered(parts)
+        .collect()
+        .await;
+
+    for result in results {
+        result?;
+    }
+
+    tokio::fs::rename(&tmp, dest)
+        .await
+        .map_err(|e| format!("重命名到 {} 失败: {e}", dest.display()))?;
+    Ok(())
+}
+
+async fn fetch_range(
+    client: &Client,
+    url: &str,
+    tmp: &Path,
+    start: u64,
+    end: u64,
+) -> Result<(), String> {
+    let response = client
+        .get(url)
+        .header(RANGE, format!("bytes={start}-{end}"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if response.status() != StatusCode::PARTIAL_CONTENT {
+        return Err(format!("{url} 不支持分片（HTTP {}）", response.status()));
+    }
+
+    let mut writer = tokio::fs::OpenOptions::new()
+        .write(true)
+        .open(tmp)
+        .await
+        .map_err(|e| format!("打开 {} 失败: {e}", tmp.display()))?;
+    writer
+        .seek(std::io::SeekFrom::Start(start))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut written = 0u64;
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| e.to_string())?;
+        writer
+            .write_all(&chunk)
+            .await
+            .map_err(|e| format!("写入分片失败: {e}"))?;
+        written += chunk.len() as u64;
+    }
+    writer.flush().await.map_err(|e| e.to_string())?;
+    drop(writer);
+
+    let expected = end - start + 1;
+    if written != expected {
+        return Err(format!("分片 {start}-{end} 只有 {written} 字节，应为 {expected}"));
+    }
     Ok(())
 }
 

@@ -3,8 +3,10 @@
 pub mod manifest;
 pub mod platform;
 pub mod rules;
+pub mod scan;
 pub mod version;
 
 pub use manifest::{fetch, VersionEntry, VersionManifest};
 pub use rules::allowed;
+pub use scan::LocalVersion;
 pub use version::{load as load_version, VersionJson};

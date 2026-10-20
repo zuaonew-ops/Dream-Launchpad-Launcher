@@ -1,6 +1,6 @@
 [package]
 name = "dlp-core"
-version = "0.7.0"
+version = "0.8.0"
 description = "Dream Launchpad Launcher 核心逻辑（无 GUI 依赖，可独立测试）"
 edition = "2021"
 rust-version = "1.77"

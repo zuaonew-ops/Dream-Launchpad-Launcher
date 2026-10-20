@@ -2,6 +2,28 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.8.0] - 2026-10-20
+
+参考 PCL2 CE 的功能取舍：只搬常用的，界面保持简约 + 过渡动画。
+
+### 新增
+
+- **扫描本地版本**：直接读 `versions/` 目录，别的启动器装的版本也能出现在列表（标「本地」）；
+  一个都没有时给出明确空态和数据目录入口，不再是空白列表
+- **每个版本独立的启动设置**：内存、Java、版本隔离、额外 JVM 参数；
+  `"*"` 是全局默认，版本设置覆盖全局，改完立即落盘（`<root>/dlp/version-settings.json`）
+- **分片多线程下载**：单文件 ≥4MB 且服务端支持 Range 时切 4 条连接并发写，失败自动退回单连接
+- **模组加载器**：Fabric / Quilt（官方 meta profile）、Forge / NeoForge（官方 installer + `--installClient`）
+- **OptiFine 高清修复**：从 BMCLAPI 下载安装器，用 headless + `%APPDATA%` 重定向静默安装
+- **内容页**：mods 启用 / 禁用（`.disabled` 后缀，和 PCL 一致）、删除，存档列表与打开目录
+- **日志查看**：工具页直接看 `logs/` 下的日志尾部
+- **浅色主题**：设置里切换，带颜色过渡动画
+
+### 修复
+
+- 加载器安装器需要 `launcher_profiles.json`，Forge 之前会直接报 "no Minecraft launcher profile"
+- NeoForge 1.20.1 用的是 legacy 命名（`1.20.1-47.1.105`，产物目录 `1.20.1-forge-…`），按接口给的 `installerPath` 下载
+
 ## [0.7.0] - 2026-10-20
 
 ### 变更

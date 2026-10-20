@@ -1,14 +1,29 @@
-import { actions, useLauncher } from "../store";
+import { actions, selectSelectedVersion, useLauncher } from "../store";
+import type { VersionSettings } from "../types";
+
+const FALLBACK: VersionSettings = {
+  memory_mb: 2048,
+  java_path: null,
+  isolate: true,
+  extra_jvm_args: [],
+};
 
 export default function SettingsPage() {
   const state = useLauncher();
-  const activeJava = state.javas.find((j) => j.path === state.javaPath) ?? null;
+  const installed = state.versions.filter((v) => v.installed);
+  const selected = selectSelectedVersion(state);
+  const key = state.settingsKey || selected?.id || "*";
+  const settings = state.settings ?? FALLBACK;
+
+  const save = (patch: Partial<VersionSettings>) => {
+    void actions.saveSettings(key, { ...settings, ...patch });
+  };
 
   return (
     <div className="page">
       <header className="page-head">
         <h1>设置</h1>
-        <p className="desc">修改后立即生效，保存在本地</p>
+        <p className="desc">每个版本一套设置，改完立即保存</p>
       </header>
 
       <div className="grid">
@@ -25,22 +40,59 @@ export default function SettingsPage() {
             />
           </label>
           <p className="hint">离线登录只在本地生成 UUID（UUID v3），不联网校验</p>
+
+          <label className="switch-row">
+            <div>
+              <span className="label">浅色主题</span>
+              <p className="hint">深色更护眼；切换有过渡动画</p>
+            </div>
+            <input
+              className="switch"
+              type="checkbox"
+              checked={state.theme === "light"}
+              onChange={(e) => actions.setTheme(e.target.checked ? "light" : "dark")}
+            />
+          </label>
         </section>
 
         <section className="panel">
-          <h2>性能</h2>
+          <h2>适用版本</h2>
+          <label className="field">
+            <span className="label">正在编辑</span>
+            <select
+              className="input"
+              value={key}
+              onChange={(e) => void actions.loadSettings(e.target.value)}
+            >
+              <option value="*">全局默认（所有版本的兜底值）</option>
+              {installed.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="hint">
+            {key === "*"
+              ? "这里改的是兜底值；某个版本单独设过就以那个为准"
+              : `下面的设置只对 ${key} 生效`}
+          </p>
+        </section>
+
+        <section className="panel">
+          <h2>内存与 Java</h2>
           <label className="field">
             <span className="label">内存上限</span>
             <div className="inline">
               <input
                 type="range"
                 min={1024}
-                max={8192}
+                max={16384}
                 step={512}
-                value={state.memory}
-                onChange={(e) => actions.setMemory(Number(e.target.value))}
+                value={settings.memory_mb ?? 2048}
+                onChange={(e) => save({ memory_mb: Number(e.target.value) })}
               />
-              <span className="value">{state.memory} MB</span>
+              <span className="value">{settings.memory_mb ?? 2048} MB</span>
             </div>
           </label>
 
@@ -48,8 +100,8 @@ export default function SettingsPage() {
             <span className="label">Java 运行时</span>
             <select
               className="input"
-              value={state.javaPath}
-              onChange={(e) => actions.setJavaPath(e.target.value)}
+              value={settings.java_path ?? ""}
+              onChange={(e) => save({ java_path: e.target.value || null })}
             >
               <option value="">自动选择（按版本要求）</option>
               {state.javas.map((j) => (
@@ -59,13 +111,10 @@ export default function SettingsPage() {
               ))}
             </select>
           </label>
-          <p className="hint">
-            {activeJava ? `已固定使用 ${activeJava.path}` : "自动模式会按版本要求挑最低可用版本"}
-          </p>
         </section>
 
         <section className="panel">
-          <h2>存储</h2>
+          <h2>启动</h2>
           <label className="switch-row">
             <div>
               <span className="label">版本隔离</span>
@@ -74,8 +123,27 @@ export default function SettingsPage() {
             <input
               className="switch"
               type="checkbox"
-              checked={state.isolate}
-              onChange={(e) => actions.setIsolate(e.target.checked)}
+              checked={settings.isolate ?? true}
+              onChange={(e) => save({ isolate: e.target.checked })}
+            />
+          </label>
+
+          <label className="field">
+            <span className="label">额外 JVM 参数（一行一个）</span>
+            <textarea
+              className="input area"
+              rows={3}
+              spellCheck={false}
+              placeholder="-XX:+UseG1GC"
+              value={settings.extra_jvm_args.join("\n")}
+              onChange={(e) =>
+                save({
+                  extra_jvm_args: e.target.value
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .filter(Boolean),
+                })
+              }
             />
           </label>
 

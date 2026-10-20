@@ -53,3 +53,6 @@ release/
 
 # 本地测试数据（便携模式 .minecraft 等）
 .data/
+
+# 本地探针产物
+/dlp-bin/

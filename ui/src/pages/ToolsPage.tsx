@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { actions, useLauncher } from "../store";
 
 export default function ToolsPage() {
@@ -5,11 +6,15 @@ export default function ToolsPage() {
   const installed = state.versions.filter((v) => v.installed).length;
   const env = state.environment;
 
+  useEffect(() => {
+    void actions.loadLogs();
+  }, []);
+
   return (
     <div className="page">
       <header className="page-head">
         <h1>工具</h1>
-        <p className="desc">目录与运行环境</p>
+        <p className="desc">目录、日志与运行环境</p>
       </header>
 
       <section className="panel">
@@ -20,7 +25,7 @@ export default function ToolsPage() {
             <span className="tool-hint">存档 / 配置 / mods</span>
           </button>
           <button type="button" className="tool" onClick={() => void actions.openDir("logs")}>
-            <span className="tool-title">日志</span>
+            <span className="tool-title">日志目录</span>
             <span className="tool-hint">启动器与游戏输出</span>
           </button>
           <button type="button" className="tool" onClick={() => void actions.openDir("versions")}>
@@ -28,6 +33,30 @@ export default function ToolsPage() {
             <span className="tool-hint">每个版本一个文件夹</span>
           </button>
         </div>
+      </section>
+
+      <section className="panel log-panel">
+        <div className="log-head">
+          <h2>日志</h2>
+          <div className="inline">
+            <select
+              className="input small"
+              value={state.logName}
+              onChange={(e) => void actions.loadLogs(e.target.value)}
+            >
+              {state.logs.length === 0 && <option value="">没有日志</option>}
+              {state.logs.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="ghost" onClick={() => void actions.loadLogs()}>
+              刷新
+            </button>
+          </div>
+        </div>
+        <pre className="log-view">{state.logText || "（空）"}</pre>
       </section>
 
       <section className="panel">
@@ -63,8 +92,6 @@ export default function ToolsPage() {
           </div>
         </dl>
       </section>
-
-      <p className="todo">更多工具（皮肤、日志分析、存档备份）开发中</p>
     </div>
   );
 }

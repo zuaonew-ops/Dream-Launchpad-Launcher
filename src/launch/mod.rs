@@ -21,6 +21,8 @@ pub struct LaunchOptions<'a> {
     pub memory_mb: u32,
     /// 版本隔离：每个版本用自己的游戏目录（saves / mods 互不干扰）
     pub isolate: bool,
+    /// 该版本额外的 JVM 参数
+    pub extra_jvm_args: &'a [String],
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +77,9 @@ pub fn build(
         for value in &arguments.jvm {
             args::collect(value, &vars, &mut argv);
         }
+    }
+    for extra in options.extra_jvm_args {
+        argv.push(extra.clone());
     }
     argv.push(format!("-Xmx{}M", options.memory_mb));
     argv.push(format!("-Djava.library.path={}", natives.display()));

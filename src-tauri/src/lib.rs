@@ -1,4 +1,7 @@
-use dlp_core::{install, java, launch, minecraft, net::Progress, paths::Paths};
+use dlp_core::{
+    content, install, java, launch, loader, minecraft, net::Progress, paths::Paths, settings::Store,
+};
+use std::collections::HashSet;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -17,6 +20,8 @@ struct VersionSummary {
     kind: String,
     release_time: String,
     installed: bool,
+    /// true = 只存在于本地 versions/ 目录（别的启动器装的 / 手动放的）
+    local: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -64,18 +69,44 @@ async fn list_versions(
     state: State<'_, AppState>,
     include_snapshots: bool,
 ) -> Result<Vec<VersionSummary>, String> {
+    let paths = state.paths.clone();
     let manifest = minecraft::fetch(&state.client).await?;
-    Ok(manifest
+    let local = minecraft::scan::scan(&paths);
+    let installable: HashSet<&str> = local
+        .iter()
+        .filter(|v| v.has_json)
+        .map(|v| v.id.as_str())
+        .collect();
+
+    let mut out: Vec<VersionSummary> = manifest
         .versions
         .into_iter()
         .filter(|v| include_snapshots || v.is_release())
         .map(|v| VersionSummary {
-            installed: state.paths.is_installed(&v.id),
+            installed: installable.contains(v.id.as_str()) || paths.is_installed(&v.id),
             id: v.id,
             kind: v.kind,
             release_time: v.release_time,
+            local: false,
         })
-        .collect())
+        .collect();
+
+    // 清单里没有的本地版本也要显示出来，否则别的启动器装的游戏看不见
+    let listed: HashSet<String> = out.iter().map(|v| v.id.clone()).collect();
+    for version in local {
+        if listed.contains(&version.id) || !version.has_json {
+            continue;
+        }
+        out.push(VersionSummary {
+            id: version.id,
+            kind: version.kind,
+            release_time: version.release_time,
+            installed: true,
+            local: true,
+        });
+    }
+
+    Ok(out)
 }
 
 #[tauri::command]
@@ -127,19 +158,18 @@ async fn launch_game(
     state: State<'_, AppState>,
     id: String,
     username: String,
-    memory_mb: u32,
-    java_path: Option<String>,
-    isolate: bool,
 ) -> Result<u32, String> {
     let paths = state.paths.clone();
     let version = minecraft::load_version(&paths, &id)?;
+    // 每个版本有自己的设置，读不到就用全局默认
+    let settings = Store::load(&paths).merged(&id);
     let required = version
         .java_version
         .as_ref()
         .map(|j| j.major_version)
         .unwrap_or(8);
 
-    let java_bin = match java_path {
+    let java_bin = match settings.java_path.clone() {
         Some(path) => PathBuf::from(path),
         None => {
             let found = tauri::async_runtime::spawn_blocking(java::detect)
@@ -155,8 +185,9 @@ async fn launch_game(
         id: &id,
         username: &username,
         java: &java_bin,
-        memory_mb,
-        isolate,
+        memory_mb: settings.memory_mb.unwrap_or(2048),
+        isolate: settings.isolate.unwrap_or(true),
+        extra_jvm_args: &settings.extra_jvm_args,
     };
     let plan = launch::build(&paths, &version, &options)?;
 
@@ -192,6 +223,198 @@ async fn launch_game(
     });
 
     Ok(pid)
+}
+
+#[tauri::command]
+fn scan_versions(state: State<'_, AppState>) -> Vec<minecraft::LocalVersion> {
+    minecraft::scan::scan(&state.paths)
+}
+
+#[tauri::command]
+fn version_settings(state: State<'_, AppState>, id: String) -> dlp_core::settings::VersionSettings {
+    Store::load(&state.paths).merged(&id)
+}
+
+#[tauri::command]
+fn save_version_settings(
+    state: State<'_, AppState>,
+    id: String,
+    settings: dlp_core::settings::VersionSettings,
+) -> Result<(), String> {
+    let mut store = Store::load(&state.paths);
+    store.set(&id, settings);
+    store.save(&state.paths)
+}
+
+#[tauri::command]
+async fn loader_candidates(
+    state: State<'_, AppState>,
+    mc: String,
+    kind: String,
+) -> Result<Vec<loader::Candidate>, String> {
+    let kind = loader::LoaderKind::parse(&kind).ok_or_else(|| format!("未知加载器: {kind}"))?;
+    loader::candidates(&state.client, &mc, kind).await
+}
+
+#[tauri::command]
+async fn optifine_candidates(
+    state: State<'_, AppState>,
+    mc: String,
+) -> Result<Vec<loader::Candidate>, String> {
+    loader::optifine_candidates(&state.client, &mc).await
+}
+
+#[tauri::command]
+async fn install_loader(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    mc: String,
+    kind: String,
+    version: String,
+) -> Result<String, String> {
+    let kind = loader::LoaderKind::parse(&kind).ok_or_else(|| format!("未知加载器: {kind}"))?;
+    let paths = state.paths.clone();
+    let progress = Progress::new(move |stage, done, total| {
+        let _ = app.emit(
+            "install-progress",
+            ProgressPayload {
+                stage: stage.to_string(),
+                done,
+                total,
+            },
+        );
+    });
+
+    match kind {
+        loader::LoaderKind::Fabric | loader::LoaderKind::Quilt => {
+            loader::install_meta(&state.client, &paths, &mc, kind, &version, Some(progress)).await
+        }
+        _ => {
+            let java = pick_java(&paths, &mc)?;
+            let installer =
+                loader::resolve_installer_path(&state.client, &mc, kind, &version).await;
+            loader::install_with_installer(
+                &state.client,
+                &paths,
+                &mc,
+                kind,
+                &version,
+                installer,
+                &java,
+                Some(progress),
+            )
+            .await
+        }
+    }
+}
+
+#[tauri::command]
+async fn install_optifine(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    mc: String,
+    edition: String,
+) -> Result<String, String> {
+    let paths = state.paths.clone();
+    let progress = Progress::new(move |stage, done, total| {
+        let _ = app.emit(
+            "install-progress",
+            ProgressPayload {
+                stage: stage.to_string(),
+                done,
+                total,
+            },
+        );
+    });
+    let java = pick_java(&paths, &mc)?;
+    loader::install_optifine(&state.client, &paths, &mc, &edition, &java, Some(progress)).await
+}
+
+/// 挑一个能跑该版本的 Java（安装器 / OptiFine 用）
+fn pick_java(paths: &Paths, mc: &str) -> Result<PathBuf, String> {
+    let required = minecraft::load_version(paths, mc)
+        .ok()
+        .and_then(|v| v.java_version.as_ref().map(|j| j.major_version))
+        .unwrap_or(8);
+    let found = java::detect();
+    java::pick(&found, required)
+        .map(|j| PathBuf::from(&j.path))
+        .ok_or_else(|| format!("没有找到 Java {required} 或更高版本"))
+}
+
+#[tauri::command]
+fn list_mods(state: State<'_, AppState>, id: String) -> Vec<content::ModEntry> {
+    content::list_mods(&game_dir(&state.paths, &id))
+}
+
+#[tauri::command]
+fn set_mod_enabled(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    enabled: bool,
+) -> Result<(), String> {
+    content::set_mod_enabled(&game_dir(&state.paths, &id), &name, enabled)
+}
+
+#[tauri::command]
+fn delete_mod(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
+    content::delete_mod(&game_dir(&state.paths, &id), &name)
+}
+
+#[tauri::command]
+fn list_saves(state: State<'_, AppState>, id: String) -> Vec<content::SaveEntry> {
+    content::list_saves(&game_dir(&state.paths, &id))
+}
+
+#[tauri::command]
+fn list_logs(state: State<'_, AppState>) -> Vec<String> {
+    content::list_logs(&state.paths)
+}
+
+#[tauri::command]
+fn read_log(state: State<'_, AppState>, name: String, lines: usize) -> Result<String, String> {
+    content::read_log(&state.paths, &name, lines.max(20))
+}
+
+/// 打开该版本的游戏目录 / mods / saves
+#[tauri::command]
+fn open_version_dir(state: State<'_, AppState>, id: String, kind: String) -> Result<(), String> {
+    let dir = game_dir(&state.paths, &id);
+    let target = match kind.as_str() {
+        "mods" => dir.join("mods"),
+        "saves" => dir.join("saves"),
+        _ => dir,
+    };
+    std::fs::create_dir_all(&target).map_err(|e| format!("创建目录失败: {e}"))?;
+    open_path(&target)
+}
+
+fn game_dir(paths: &Paths, id: &str) -> PathBuf {
+    let settings = Store::load(paths).merged(id);
+    content::game_dir(paths, id, settings.isolate.unwrap_or(true))
+}
+
+fn open_path(dir: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut c = std::process::Command::new("explorer");
+        c.arg(dir);
+        c
+    };
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(dir);
+        c
+    };
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut c = std::process::Command::new("open");
+        c.arg(dir);
+        c
+    };
+    command.spawn().map(|_| ()).map_err(|e| format!("打开目录失败: {e}"))
 }
 
 #[tauri::command]
@@ -250,6 +473,20 @@ pub fn run() {
             install_version,
             launch_game,
             running_game,
+            scan_versions,
+            version_settings,
+            save_version_settings,
+            loader_candidates,
+            optifine_candidates,
+            install_loader,
+            install_optifine,
+            list_mods,
+            set_mod_enabled,
+            delete_mod,
+            list_saves,
+            list_logs,
+            read_log,
+            open_version_dir,
             open_dir
         ])
         .run(tauri::generate_context!())

@@ -33,6 +33,7 @@ fn main() -> Result<(), String> {
             java: std::path::Path::new(&picked.path),
             memory_mb: 2048,
             isolate: true,
+            extra_jvm_args: &[],
         },
     )?;
     println!("主类/参数数量: {}", plan.args.len());

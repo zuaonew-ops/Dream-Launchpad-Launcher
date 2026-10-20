@@ -2,14 +2,20 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type {
+  Candidate,
   Environment,
   InstallState,
   JavaInfo,
+  LoaderKind,
   ProgressPayload,
+  ModEntry,
+  SaveEntry,
+  Theme,
+  VersionSettings,
   VersionSummary,
 } from "./types";
 
-export type TypeFilter = "release" | "snapshot" | "installed" | "all";
+export type TypeFilter = "release" | "snapshot" | "installed" | "local" | "all";
 
 export interface RunningGame {
   pid: number;
@@ -26,9 +32,6 @@ export interface State {
   javas: JavaInfo[];
   selected: string | null;
   username: string;
-  memory: number;
-  isolate: boolean;
-  javaPath: string;
   search: string;
   filter: TypeFilter;
   loading: boolean;
@@ -37,20 +40,36 @@ export interface State {
   notice: string;
   install: InstallState | null;
   game: RunningGame | null;
+
+  /** 当前选中版本的设置（已合并全局默认） */
+  settings: VersionSettings | null;
+  /** 正在编辑的 key："*" = 全局默认 */
+  settingsKey: string;
+
+  // 安装选项
+  loader: LoaderKind;
+  loaderVersion: string;
+  optifine: boolean;
+  optifineEdition: string;
+  loaderOptions: Candidate[];
+  optifineOptions: Candidate[];
+
+  // 内容管理
+  mods: ModEntry[];
+  saves: SaveEntry[];
+  logs: string[];
+  logName: string;
+  logText: string;
+  theme: Theme;
 }
 
-const KEYS = {
-  username: "dlp.username",
-  memory: "dlp.memory",
-  isolate: "dlp.isolate",
-  java: "dlp.java",
-};
+const KEYS = { username: "dlp.username" };
 
-const stored = {
-  username: localStorage.getItem(KEYS.username) ?? "Steve",
-  memory: Number(localStorage.getItem(KEYS.memory) ?? 2048),
-  isolate: localStorage.getItem(KEYS.isolate) !== "false",
-  java: localStorage.getItem(KEYS.java) ?? "",
+const EMPTY_SETTINGS: VersionSettings = {
+  memory_mb: 2048,
+  java_path: null,
+  isolate: true,
+  extra_jvm_args: [],
 };
 
 let state: State = {
@@ -58,10 +77,7 @@ let state: State = {
   environment: null,
   javas: [],
   selected: null,
-  username: stored.username,
-  memory: stored.memory,
-  isolate: stored.isolate,
-  javaPath: stored.java,
+  username: localStorage.getItem(KEYS.username) ?? "Steve",
   search: "",
   filter: "release",
   loading: false,
@@ -70,6 +86,20 @@ let state: State = {
   notice: "",
   install: null,
   game: null,
+  settings: null,
+  settingsKey: "",
+  loader: "none",
+  loaderVersion: "",
+  optifine: false,
+  optifineEdition: "",
+  loaderOptions: [],
+  optifineOptions: [],
+  mods: [],
+  saves: [],
+  logs: [],
+  logName: "",
+  logText: "",
+  theme: (localStorage.getItem("dlp.theme") as Theme) ?? "dark",
 };
 
 const listeners = new Set<() => void>();
@@ -101,12 +131,14 @@ export function groupKey(id: string): string {
 
 export function selectFiltered(s: State): VersionSummary[] {
   const keyword = s.search.trim().toLowerCase();
-  return s.versions.filter((v) => {
-    if (s.filter === "installed" && !v.installed) return false;
-    if (s.filter === "release" && v.kind !== "release") return false;
-    if (s.filter === "snapshot" && v.kind === "release") return false;
-    return !keyword || v.id.toLowerCase().includes(keyword);
-  });
+  return s.versions.filter((v) => v.local || v.kind !== undefined)
+    .filter((v) => {
+      if (s.filter === "installed" && !v.installed) return false;
+      if (s.filter === "local" && !v.local) return false;
+      if (s.filter === "release" && v.kind !== "release") return false;
+      if (s.filter === "snapshot" && v.kind === "release") return false;
+      return !keyword || v.id.toLowerCase().includes(keyword);
+    });
 }
 
 export function selectGroups(s: State): { key: string; items: VersionSummary[] }[] {
@@ -129,7 +161,7 @@ export function selectSelectedVersion(s: State): VersionSummary | null {
 }
 
 export function selectLatestReleases(s: State): VersionSummary[] {
-  return s.versions.filter((v) => v.kind === "release").slice(0, 4);
+  return s.versions.filter((v) => v.kind === "release" && !v.local).slice(0, 4);
 }
 
 export function javaLabel(javas: JavaInfo[]): string {
@@ -141,14 +173,6 @@ export function javaLabel(javas: JavaInfo[]): string {
 
 // ---- 动作 ----
 
-function persist(patch: Partial<State>) {
-  set(patch);
-  if (patch.username !== undefined) localStorage.setItem(KEYS.username, patch.username);
-  if (patch.memory !== undefined) localStorage.setItem(KEYS.memory, String(patch.memory));
-  if (patch.isolate !== undefined) localStorage.setItem(KEYS.isolate, String(patch.isolate));
-  if (patch.javaPath !== undefined) localStorage.setItem(KEYS.java, patch.javaPath);
-}
-
 async function refresh() {
   set({ loading: true, error: "" });
   try {
@@ -159,7 +183,7 @@ async function refresh() {
     ]);
     const current = state.selected;
     const fallback =
-      versions.find((v) => v.kind === "release" && v.installed)?.id ??
+      versions.find((v) => v.installed && v.kind === "release")?.id ??
       versions.find((v) => v.kind === "release")?.id ??
       versions[0]?.id ??
       null;
@@ -169,6 +193,7 @@ async function refresh() {
       javas,
       selected: current && versions.some((v) => v.id === current) ? current : fallback,
     });
+    if (state.selected) void loadSettings(state.selected);
   } catch (e) {
     set({ error: String(e) });
   } finally {
@@ -176,21 +201,87 @@ async function refresh() {
   }
 }
 
+/** 选中版本变化时把它的设置拉下来 */
+async function loadSettings(id: string) {
+  set({ settingsKey: id });
+  try {
+    const settings = await invoke<VersionSettings>("version_settings", { id });
+    set({ settings });
+  } catch (e) {
+    set({ error: String(e), settings: { ...EMPTY_SETTINGS } });
+  }
+}
+
+async function saveSettings(id: string, settings: VersionSettings) {
+  set({ settings });
+  try {
+    await invoke("save_version_settings", { id, settings });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function loadLoaderOptions(mc: string, kind: LoaderKind) {
+  if (kind === "none") {
+    set({ loaderOptions: [], loaderVersion: "" });
+    return;
+  }
+  set({ loader: kind, loaderVersion: "", loaderOptions: [] });
+  try {
+    const list = await invoke<Candidate[]>("loader_candidates", { mc, kind });
+    set({ loaderOptions: list, loaderVersion: list[0]?.version ?? "" });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function loadOptifineOptions(mc: string, enabled: boolean) {
+  set({ optifine: enabled });
+  if (!enabled) {
+    set({ optifineOptions: [], optifineEdition: "" });
+    return;
+  }
+  try {
+    const list = await invoke<Candidate[]>("optifine_candidates", { mc });
+    set({ optifineOptions: list, optifineEdition: list[0]?.version ?? "" });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 async function installSelected() {
   const target = selectSelectedVersion(state);
-  if (!target || state.busy) return;
+  if (!target || state.busy) {
+    return;
+  }
   set({
     busy: true,
     error: "",
     notice: "",
     install: { id: target.id, stage: "准备中", done: 0, total: 0, percent: 0 },
   });
+
+  let finalId = target.id;
   try {
     await invoke("install_version", { id: target.id });
-    set({
-      versions: state.versions.map((v) => (v.id === target.id ? { ...v, installed: true } : v)),
-      notice: `${target.id} 安装完成`,
-    });
+    if (state.loader !== "none" && state.loaderVersion) {
+      set({ install: { ...state.install!, stage: `安装 ${state.loader}`, percent: 0 } });
+      finalId = await invoke<string>("install_loader", {
+        mc: target.id,
+        kind: state.loader,
+        version: state.loaderVersion,
+      });
+    }
+    if (state.optifine && state.optifineEdition) {
+      set({ install: { ...state.install!, stage: "安装 OptiFine", percent: 0 } });
+      await invoke<string>("install_optifine", {
+        mc: target.id,
+        edition: state.optifineEdition,
+      });
+    }
+    set({ notice: finalId === target.id ? `${target.id} 安装完成` : `已安装 ${finalId}` });
+    await refresh();
+    set({ selected: finalId });
   } catch (e) {
     set({ error: String(e) });
   } finally {
@@ -210,9 +301,6 @@ async function launchSelected() {
     const pid = await invoke<number>("launch_game", {
       id: target.id,
       username: state.username.trim(),
-      memoryMb: state.memory,
-      isolate: state.isolate,
-      javaPath: state.javaPath || null,
     });
     set({ game: { pid, id: target.id }, notice: `已启动 ${target.id}，进程 ${pid}` });
   } catch (e) {
@@ -250,37 +338,115 @@ async function init() {
     });
   });
 
-  // 游戏进程退出：清掉运行状态，否则界面一直显示「运行中 + pid」
   await listen<GameExit>("game-exit", (event) => {
     if (state.game?.pid !== event.payload.pid) return;
     const code = event.payload.code;
     set({
       game: null,
-      notice: code === null || code === 0 ? `${event.payload.id} 已退出` : `${event.payload.id} 异常退出（退出码 ${code}）`,
+      notice:
+        code === null || code === 0
+          ? `${event.payload.id} 已退出`
+          : `${event.payload.id} 异常退出（退出码 ${code}）`,
     });
   });
 
   await refresh();
+  if (state.selected) void loadContent(state.selected);
 
   try {
     const running = await invoke<RunningGame | null>("running_game");
     if (running) set({ game: running });
   } catch {
-    // 老版本后端没有这个命令，忽略
+    // 老后端没有这个命令
   }
 }
 
+async function loadContent(id: string) {
+  try {
+    const [mods, saves] = await Promise.all([
+      invoke<ModEntry[]>("list_mods", { id }),
+      invoke<SaveEntry[]>("list_saves", { id }),
+    ]);
+    set({ mods, saves });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function toggleMod(id: string, name: string, enabled: boolean) {
+  try {
+    await invoke("set_mod_enabled", { id, name, enabled });
+    await loadContent(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function deleteMod(id: string, name: string) {
+  try {
+    await invoke("delete_mod", { id, name });
+    await loadContent(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function loadLogs(preferred?: string) {
+  try {
+    const logs = await invoke<string[]>("list_logs");
+    const name = preferred || state.logName || logs[0] || "";
+    set({ logs, logName: name });
+    if (name) {
+      const logText = await invoke<string>("read_log", { name, lines: 400 });
+      set({ logText });
+    }
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function openVersionDir(id: string, kind: "root" | "mods" | "saves") {
+  try {
+    await invoke("open_version_dir", { id, kind });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+function setTheme(theme: Theme) {
+  localStorage.setItem("dlp.theme", theme);
+  set({ theme });
+}
+
 export const actions = {
+  loadContent,
+  toggleMod,
+  deleteMod,
+  loadLogs,
+  openVersionDir,
+  setTheme,
   init,
   refresh,
   installSelected,
   launchSelected,
   openDir,
+  loadSettings,
+  saveSettings,
+  loadLoaderOptions,
+  loadOptifineOptions,
   setSearch: (search: string) => set({ search }),
   setFilter: (filter: TypeFilter) => set({ filter }),
-  setSelected: (selected: string) => set({ selected }),
-  setUsername: (username: string) => persist({ username }),
-  setMemory: (memory: number) => persist({ memory }),
-  setIsolate: (isolate: boolean) => persist({ isolate }),
-  setJavaPath: (javaPath: string) => persist({ javaPath }),
+  setUsername: (username: string) => {
+    localStorage.setItem(KEYS.username, username);
+    set({ username });
+  },
+  setSelected: (selected: string) => {
+    set({ selected });
+    void loadSettings(selected);
+    void loadContent(selected);
+  },
+  setLoader: (loader: LoaderKind, mc: string) => void loadLoaderOptions(mc, loader),
+  setLoaderVersion: (loaderVersion: string) => set({ loaderVersion }),
+  setOptifine: (mc: string, enabled: boolean) => void loadOptifineOptions(mc, enabled),
+  setOptifineEdition: (optifineEdition: string) => set({ optifineEdition }),
 };

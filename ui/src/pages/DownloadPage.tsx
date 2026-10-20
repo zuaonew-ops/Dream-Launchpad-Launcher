@@ -8,6 +8,15 @@ import {
   selectSelectedVersion,
   useLauncher,
 } from "../store";
+import type { LoaderKind } from "../types";
+
+const loaders: { value: LoaderKind; label: string }[] = [
+  { value: "none", label: "不装加载器" },
+  { value: "fabric", label: "Fabric" },
+  { value: "quilt", label: "Quilt" },
+  { value: "forge", label: "Forge" },
+  { value: "neoforge", label: "NeoForge" },
+];
 
 export default function DownloadPage() {
   const state = useLauncher();
@@ -15,13 +24,16 @@ export default function DownloadPage() {
   const total = selectFiltered(state).length;
   const selected = selectSelectedVersion(state);
   const running = state.game?.id === selected?.id;
+  const mc = selected?.id ?? "";
+
+  const loaderVersionDisabled = state.loader === "none" || state.loaderOptions.length === 0;
 
   return (
     <div className="page">
       <header className="page-head">
         <div>
           <h1>下载</h1>
-          <p className="desc">选择版本安装，原版文件经 BMCLAPI 镜像下载</p>
+          <p className="desc">扫描 .minecraft 目录与官方清单，可加装模组加载器</p>
         </div>
         <span className="pill">{total} 个版本</span>
       </header>
@@ -43,6 +55,68 @@ export default function DownloadPage() {
           onSelect={actions.setSelected}
         />
       </section>
+
+      {selected && (
+        <section className="panel options">
+          <div className="option">
+            <span className="label">模组加载器</span>
+            <select
+              className="input small"
+              value={state.loader}
+              onChange={(e) => actions.setLoader(e.target.value as LoaderKind, mc)}
+            >
+              {loaders.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="option">
+            <span className="label">加载器版本</span>
+            <select
+              className="input small"
+              value={state.loaderVersion}
+              disabled={loaderVersionDisabled}
+              onChange={(e) => actions.setLoaderVersion(e.target.value)}
+            >
+              {state.loaderOptions.length === 0 && <option value="">—</option>}
+              {state.loaderOptions.map((c) => (
+                <option key={c.version} value={c.version}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <label className="option check">
+            <input
+              type="checkbox"
+              checked={state.optifine}
+              onChange={(e) => actions.setOptifine(mc, e.target.checked)}
+            />
+            <span className="label">高清修复 OptiFine</span>
+          </label>
+
+          <div className="option">
+            <span className="label">OptiFine 版本</span>
+            <select
+              className="input small"
+              value={state.optifineEdition}
+              disabled={!state.optifine || state.optifineOptions.length === 0}
+              onChange={(e) => actions.setOptifineEdition(e.target.value)}
+            >
+              {state.optifineOptions.length === 0 && <option value="">—</option>}
+              {state.optifineOptions.map((c) => (
+                <option key={c.version} value={c.version}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+      )}
 
       <footer className="action">
         <div className="picked">
@@ -68,7 +142,7 @@ export default function DownloadPage() {
           ) : null}
         </div>
 
-        {selected?.installed ? (
+        {selected?.installed && state.loader === "none" && !state.optifine ? (
           <button
             type="button"
             className="primary"
@@ -84,7 +158,7 @@ export default function DownloadPage() {
             disabled={state.busy || state.loading || !selected}
             onClick={() => void actions.installSelected()}
           >
-            安装
+            {selected?.installed ? "安装扩展" : "安装"}
           </button>
         )}
       </footer>
