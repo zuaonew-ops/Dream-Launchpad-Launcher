@@ -32,3 +32,13 @@ _worklog*.md
 _*.js
 _*.ps1
 _*.sh
+# .NET
+bin/
+obj/
+artifacts/
+*.user
+
+# 本地运行数据
+install-*.log
+# 临时 API 载荷
+_*.json
