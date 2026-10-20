@@ -1,0 +1,30 @@
+:root {
+  --bg: #0f1116;
+  --bg-soft: #171a22;
+  --line: #262b36;
+  --text: #e8ecf3;
+  --muted: #8c95a6;
+  --accent: #4c8dff;
+
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(1200px 600px at 15% -10%, #1b2740 0%, var(--bg) 55%);
+}

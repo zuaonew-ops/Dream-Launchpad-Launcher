@@ -42,3 +42,8 @@ artifacts/
 install-*.log
 # 临时 API 载荷
 _*.json
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+target/

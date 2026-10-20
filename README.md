@@ -2,40 +2,58 @@
 
 从零设计的 Minecraft: Java Edition 启动器（代号 **DLP**）。
 
-## 当前进度
+- 核心：Rust（`dlp-core`，无 GUI 依赖，可单测）
+- 桌面壳：[Tauri 2](https://tauri.app/)
+- 界面：Vue 3 + Vite + TypeScript
 
-- [x] 设计文档
-- [x] 解决方案骨架（DLP.Core / DLP.Cli / DLP.App / 测试）
-- [x] 版本清单获取与缓存
-- [x] 原版安装：client jar、依赖库、natives、资源、日志配置
-- [x] Java 扫描 / 选择 / Mojang 运行时下载
-- [x] 离线账号（UUID v3）与启动参数构建
-- [ ] WPF 界面（进行中）
-- [ ] 微软登录、Fabric/Quilt、整合包导入
+## 目标平台
+
+| 平台 | 状态 |
+| --- | --- |
+| Windows 10 1809+ (x64) | 主要目标 |
+| Linux x86_64 | 主要目标 |
+| Linux arm64 | 主要目标（游戏本体在 arm64 上的可运行性待实测） |
+| Windows 7 | **不做**（见 [REQ-001](docs/requirements/REQ-001-启动器骨架.md) §4） |
+| macOS | 本期不做 |
 
 ## 结构
 
-~~~
-DreamLaunchpad.slnx
-├─ src/DLP.Core    核心库（清单、下载、安装、Java、认证、启动）
-├─ src/DLP.Cli     命令行（调试与自动化）
-├─ src/DLP.App     WPF 界面
-└─ tests/DLP.Core.Tests
-~~~
+```
+Cargo.toml          # Rust workspace
+src/                # dlp-core：核心逻辑（清单 / 下载 / 校验 / Java / 启动 / 账号）
+src-tauri/          # Tauri 壳：窗口、命令、打包配置、图标
+ui/                 # Vue 3 前端源码（构建产物输出到根目录 dist/）
+docs/               # 需求、调研、设计
+scripts/            # 开发辅助脚本（图标生成等）
+```
 
-## 命令行
+## 本地开发
 
-~~~bash
-dotnet run --project src/DLP.Cli -- versions          # 列出版本
-dotnet run --project src/DLP.Cli -- install 1.12.2    # 安装
-dotnet run --project src/DLP.Cli -- run 1.12.2 --username Steve --memory 2048
-~~~
+```bash
+npm install                 # 前端依赖
+npm run tauri dev           # 起开发环境（Vite + Tauri 窗口）
+npm run build               # 只构建前端
+cargo test -p dlp-core      # 核心库单测
+npm run tauri build         # 打包安装包（Windows: NSIS）
+```
 
-## 数据目录
+### 本机（Windows + MinGW）注意事项
 
-默认 %APPDATA%\DreamLaunchpad；exe 同级放 portable.txt 切换为便携模式。
+这台机器没有 MSVC，Rust 走 `x86_64-pc-windows-gnu`，编译前需要：
+
+```powershell
+$env:CARGO_HOME='D:\rust\cargo'; $env:RUSTUP_HOME='D:\rust\rustup'
+$env:RUSTC='D:\rust\bin2\rustc.exe'; $env:RUSTDOC='D:\rust\bin2\rustdoc.exe'
+$env:PATH="D:\toolchain\mingw64\bin;D:\toolchain\nasm\nasm-2.16.03;$env:PATH"
+```
+
+- **项目路径必须是纯 ASCII**：MinGW 的 `ld.exe` / `windres.exe` 不认中文路径
+- `ring`（rustls 依赖）需要 NASM
+- `[lib] crate-type` 不能含 `cdylib`，否则 Windows 导出序号溢出
 
 ## 文档
 
-- [设计文档](docs/设计-Dream-Launchpad-Launcher.md)
+- [REQ-001 启动器骨架](docs/requirements/REQ-001-启动器骨架.md)
+- [C 语言 GUI 框架调研](docs/research/C-GUI框架调研.md)
 - [PCL / PCL-CE 参考调研](docs/PCL-参考仓库调研.md)
+- [上一版 .NET 设计（已归档）](docs/legacy/设计-DotNet版.md)
