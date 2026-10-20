@@ -3,7 +3,7 @@
 从零设计的 Minecraft 启动器（**Dream Launchpad Launcher**，简称 DLP）。
 
 > 本仓库为自研项目，仅参考公开的设计思路与 Apache-2.0 许可的代码，不包含 PCL 的受限代码。
-
+后面会创建自己的镜像源
 ## 目录
 
 - `docs/` 设计文档
