@@ -40,8 +40,8 @@ public sealed class VersionJson
     [JsonPropertyName("javaVersion")] public JavaVersion? JavaVersion { get; set; }
     [JsonPropertyName("logging")] public LoggingConfig? Logging { get; set; }
     [JsonPropertyName("minimumLauncherVersion")] public int? MinimumLauncherVersion { get; set; }
-    [JsonPropertyName("releaseTime")] public DateTimeOffset? ReleaseTime { get; set; }
-    [JsonPropertyName("time")] public DateTimeOffset? Time { get; set; }
+    [JsonPropertyName("releaseTime"), JsonConverter(typeof(LenientDateTimeOffsetConverter))] public DateTimeOffset? ReleaseTime { get; set; }
+    [JsonPropertyName("time"), JsonConverter(typeof(LenientDateTimeOffsetConverter))] public DateTimeOffset? Time { get; set; }
 }
 
 public sealed class VersionDownloads
@@ -74,6 +74,8 @@ public sealed class Library
     [JsonPropertyName("natives")] public Dictionary<string, string>? Natives { get; set; }
     [JsonPropertyName("rules")] public List<Rule>? Rules { get; set; }
     [JsonPropertyName("extract")] public ExtractRule? Extract { get; set; }
+    /// <summary>Fabric/Quilt profile 里没有 downloads，只有 maven 仓库地址。</summary>
+    [JsonPropertyName("url")] public string? Url { get; set; }
 }
 
 public sealed class LibraryDownloads
@@ -107,6 +109,7 @@ public sealed class VersionArguments
     [JsonPropertyName("jvm")] public List<Argument> Jvm { get; set; } = [];
 }
 
+[JsonConverter(typeof(ArgumentConverter))]
 public sealed class Argument
 {
     public List<Rule>? Rules { get; set; }
@@ -131,6 +134,65 @@ public sealed class Argument
                 foreach (var v in value.EnumerateArray()) arg.Values.Add(v.GetString() ?? "");
         }
         return arg;
+    }
+}
+
+/// <summary>arguments.game/jvm 既可能是字符串，也可能是 { rules, value } 对象，需要自定义转换器。</summary>
+public sealed class ArgumentConverter : JsonConverter<Argument>
+{
+    public override Argument Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        return Argument.FromJson(doc.RootElement);
+    }
+
+    public override void Write(Utf8JsonWriter writer, Argument value, JsonSerializerOptions options)
+    {
+        if (value.Rules is null || value.Rules.Count == 0)
+        {
+            if (value.Values.Count == 1) writer.WriteStringValue(value.Values[0]);
+            else
+            {
+                writer.WriteStartArray();
+                foreach (var item in value.Values) writer.WriteStringValue(item);
+                writer.WriteEndArray();
+            }
+            return;
+        }
+
+        writer.WriteStartObject();
+        writer.WritePropertyName("rules");
+        JsonSerializer.Serialize(writer, value.Rules, options);
+        writer.WritePropertyName("value");
+        if (value.Values.Count == 1) writer.WriteStringValue(value.Values[0]);
+        else
+        {
+            writer.WriteStartArray();
+            foreach (var item in value.Values) writer.WriteStringValue(item);
+            writer.WriteEndArray();
+        }
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>兼容 Fabric/Quilt 元数据里的 "+0000" 写法（标准 ISO 需要 "+00:00"）。</summary>
+public sealed class LenientDateTimeOffsetConverter : JsonConverter<DateTimeOffset?>
+{
+    public override DateTimeOffset? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null) return null;
+        var text = reader.GetString();
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (System.Text.RegularExpressions.Regex.IsMatch(text, @"[+-]\d{4}$"))
+            text = text[..^2] + ":" + text[^2..];
+        return DateTimeOffset.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var value) ? value : null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTimeOffset? value, JsonSerializerOptions options)
+    {
+        if (value is null) writer.WriteNullValue();
+        else writer.WriteStringValue(value.Value);
     }
 }
 

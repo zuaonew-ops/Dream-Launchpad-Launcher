@@ -20,11 +20,15 @@ public sealed class HomeViewModel : ObservableObject
     private bool _isBusy;
     private bool _isRunning;
 
+    /// <summary>物理内存上限（MB），避免滑杆允许超过本机内存导致启动失败。</summary>
+    public int MaxMemoryMb { get; } = Math.Clamp(
+        (int)(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024 / 1024), 1024, 65536);
+
     public HomeViewModel(AppServices services)
     {
         _services = services;
         _username = services.Settings.Username;
-        _memoryMb = services.Settings.MemoryMb;
+        _memoryMb = Math.Clamp(services.Settings.MemoryMb, 512, MaxMemoryMb);
 
         InstalledVersions = [];
         LaunchCommand = new AsyncRelayCommand(LaunchAsync, () => !IsBusy && SelectedVersion is not null);

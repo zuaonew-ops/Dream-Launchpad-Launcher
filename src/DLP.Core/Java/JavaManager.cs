@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using DLP.Core.Download;
+using DLP.Core.Download;
 using DLP.Core.Infrastructure;
 using DLP.Core.Minecraft;
 
@@ -139,7 +140,7 @@ public sealed class JavaManager(GamePaths paths, HttpClient http, DownloadClient
 
     private async Task<string> DownloadRuntimeAsync(string component, CancellationToken ct)
     {
-        var allJson = await http.GetStringAsync(RuntimeManifestUrl, ct);
+        var allJson = await http.GetStringAsync(Mirrors.Rewrite(RuntimeManifestUrl), ct);
         using var doc = JsonDocument.Parse(allJson);
         var platform = doc.RootElement.GetProperty("windows-x64");
         if (!platform.TryGetProperty(component, out var entries))
@@ -147,7 +148,7 @@ public sealed class JavaManager(GamePaths paths, HttpClient http, DownloadClient
 
         var manifestUrl = entries[0].GetProperty("manifest").GetProperty("url").GetString()
                           ?? throw new InvalidOperationException("运行时清单缺少 URL");
-        var manifestJson = await http.GetStringAsync(manifestUrl, ct);
+        var manifestJson = await http.GetStringAsync(Mirrors.Rewrite(manifestUrl), ct);
         var manifest = JsonSerializer.Deserialize<JavaRuntimeManifest>(manifestJson)
                        ?? throw new InvalidOperationException("运行时清单无效");
 

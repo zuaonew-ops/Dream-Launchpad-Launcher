@@ -16,7 +16,7 @@ public sealed record LoaderVersion(string Id, string DisplayName, string? Minecr
 public sealed class LoaderException(string message, Exception? inner = null) : Exception(message, inner);
 
 /// <summary>Fabric / Quilt / Forge / NeoForge 的版本查询与安装。</summary>
-public sealed class LoaderService(GamePaths paths, HttpClient http)
+public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstaller? installer = null)
 {
     private const int MaxAttempts = 3; // 首次 + 2 次重试
     private const string Bmclapi = "https://bmclapi2.bangbang93.com";
@@ -177,6 +177,19 @@ public sealed class LoaderService(GamePaths paths, HttpClient http)
         await File.WriteAllTextAsync(target, profile.ToJsonString(IndentedJson), ct);
 
         status?.Report($"已写入 {target}");
+
+        // profile 里只有库清单，需要把 fabric/loader 等库真正下载下来，否则启动会 ClassNotFoundException。
+        if (installer is not null)
+        {
+            if (!File.Exists(paths.VersionJson(mcVersion)))
+            {
+                status?.Report($"先安装父版本 {mcVersion}");
+                await installer.InstallAsync(mcVersion, null, ct);
+            }
+            status?.Report($"正在下载 {newId} 的依赖库");
+            await installer.InstallAsync(newId, null, ct);
+        }
+
         return newId;
     }
 

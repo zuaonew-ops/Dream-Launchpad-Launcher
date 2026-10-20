@@ -12,6 +12,7 @@ public sealed class DownloadClient(HttpClient http, Log log)
 
     public async Task DownloadAsync(string url, string destination, string? sha1 = null, long? size = null, CancellationToken ct = default)
     {
+        var originalUrl = url;
         url = Mirrors.Rewrite(url);
         if (IsValid(destination, sha1, size)) return;
 
@@ -37,8 +38,25 @@ public sealed class DownloadClient(HttpClient http, Log log)
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 TryDelete(temp);
+                // 镜像 SSL 握手失败时立刻换官方地址，不再反复重试镜像。
+                if (attempt < MaxAttempts && !string.Equals(url, originalUrl, StringComparison.OrdinalIgnoreCase)
+                    && ex is HttpRequestException && ex.Message.Contains("SSL", StringComparison.OrdinalIgnoreCase))
+                {
+                    log.Warn($"镜像 SSL 失败，改用官方地址：{originalUrl}");
+                    url = originalUrl;
+                }
+
                 if (attempt == MaxAttempts)
+                {
+                    // 镜像不可用时回退官方地址再试一轮。
+                    if (!string.Equals(url, originalUrl, StringComparison.OrdinalIgnoreCase))
+                    {
+                        log.Warn($"镜像下载失败，回退官方地址：{originalUrl}");
+                        await DownloadAsync(originalUrl, destination, sha1, size, ct);
+                        return;
+                    }
                     throw new DownloadException($"下载失败（{attempt} 次）：{url}\n{ex.Message}", ex);
+                }
                 log.Warn($"下载重试 {attempt}/{MaxAttempts - 1}：{url}（{ex.Message}）");
                 await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)), ct);
             }

@@ -40,6 +40,7 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
         foreach (var library in version.Libraries)
         {
             if (!RuleEvaluator.IsAllowed(library.Rules, OsContext.Windows)) continue;
+            if (IsOtherArchNative(library.Name)) continue;
 
             if (library.Natives is not null)
             {
@@ -62,17 +63,65 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
                 continue;
             }
 
-            if (library.Downloads?.Artifact is not { } artifact) continue;
-            var libPath = Path.Combine(paths.Libraries, artifact.Path ?? MavenCoordinate.Parse(library.Name).ToPath());
+            string? artifactUrl;
+            string relativePath;
+            string? artifactSha1;
+            long? artifactSize;
+            if (library.Downloads?.Artifact is { } artifact)
+            {
+                relativePath = artifact.Path ?? MavenCoordinate.Parse(library.Name).ToPath();
+                artifactUrl = artifact.Url;
+                artifactSha1 = artifact.Sha1;
+                artifactSize = artifact.Size;
+            }
+            else if (!string.IsNullOrWhiteSpace(library.Url))
+            {
+                // Fabric / Quilt 的 profile 只给 maven 仓库地址。
+                relativePath = MavenCoordinate.Parse(library.Name).ToPath();
+                artifactUrl = library.Url!.TrimEnd('/') + "/" + relativePath;
+                artifactSha1 = null;
+                artifactSize = null;
+            }
+            else continue;
+
+            var libPath = Path.Combine(paths.Libraries, relativePath);
+            var isNative = IsWindowsNative(library.Name);
             await gate.WaitAsync(ct);
             jobs.Add(Task.Run(async () =>
             {
-                try { await downloader.DownloadAsync(artifact.Url, libPath, artifact.Sha1, artifact.Size, ct); }
+                try
+                {
+                    await downloader.DownloadAsync(artifactUrl!, libPath, artifactSha1, artifactSize, ct);
+                    // 1.13+ 把 natives 写成普通库（名字带 :natives-windows），这里顺手解压到 natives 目录。
+                    if (isNative) ExtractNatives(libPath, nativesDir, library.Extract);
+                }
                 finally { gate.Release(); }
             }, ct));
         }
 
         await Task.WhenAll(jobs);
+    }
+
+    /// <summary>Windows 原生库（新版清单用普通库条目表示）。</summary>
+    private static bool IsWindowsNative(string name)
+        => name.Contains(":natives-windows", StringComparison.OrdinalIgnoreCase)
+           && !IsOtherArchNative(name);
+
+    /// <summary>其它架构（arm64 / x86）的 natives：x64 机器上跳过，避免下载用不上的原生库。</summary>
+    private static bool IsOtherArchNative(string name)
+    {
+        var lower = name.ToLowerInvariant();
+        if (!lower.Contains("natives-")) return false;
+
+        var isArm64Machine = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+            == System.Runtime.InteropServices.Architecture.Arm64;
+        var isX64Machine = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+            == System.Runtime.InteropServices.Architecture.X64;
+
+        if (!isArm64Machine && lower.Contains("natives-windows-arm64")) return true;
+        if (isArm64Machine && lower.Contains("natives-windows-x86")) return true;
+        if (isX64Machine && lower.Contains("natives-windows-x86")) return true;
+        return false;
     }
 
     private static void ExtractNatives(string jarPath, string nativesDir, ExtractRule? extract)
@@ -82,6 +131,8 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
         foreach (var entry in zip.Entries)
         {
             if (entry.FullName.EndsWith('/')) continue;
+            // 多个原生库都带 META-INF/MANIFEST.MF，并发解压会互相锁文件，直接跳过元数据。
+            if (entry.FullName.StartsWith("META-INF/", StringComparison.OrdinalIgnoreCase)) continue;
             if (excludes.Any(e => entry.FullName.StartsWith(e, StringComparison.OrdinalIgnoreCase))) continue;
 
             var destination = Path.GetFullPath(Path.Combine(nativesDir, entry.FullName));
@@ -89,7 +140,11 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
                 continue; // Zip Slip 防护
 
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            entry.ExtractToFile(destination, overwrite: true);
+            for (var attempt = 0; ; attempt++)
+            {
+                try { entry.ExtractToFile(destination, overwrite: true); break; }
+                catch (IOException) when (attempt < 5) { Thread.Sleep(120); }
+            }
         }
     }
 

@@ -113,8 +113,10 @@ public sealed class GameLauncher(GamePaths paths, Log log)
         {
             if (!RuleEvaluator.IsAllowed(library.Rules, OsContext.Windows)) continue;
             if (library.Natives is not null) continue;
-            if (library.Downloads?.Artifact is not { } artifact) continue;
-            var path = Path.Combine(paths.Libraries, artifact.Path ?? MavenCoordinate.Parse(library.Name).ToPath());
+            var relative = library.Downloads?.Artifact?.Path ?? MavenCoordinate.Parse(library.Name).ToPath();
+            var path = Path.Combine(paths.Libraries, relative);
+            // Fabric/Quilt 这类只有 maven 地址的库：文件存在才加入，避免 classpath 里出现不存在的路径。
+            if (library.Downloads?.Artifact is null && !File.Exists(path)) continue;
             entries.Add(path);
         }
         var ownJar = paths.VersionJar(version.Id);

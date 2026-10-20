@@ -73,7 +73,7 @@ DLP 命令行
                 _ => throw new ArgumentException($"未知加载器：{typeName}")
             };
 
-            var loaders = new LoaderService(paths, http);
+            var loaders = new LoaderService(paths, http, installer);
             if (rest.Length < 3)
             {
                 var list = await loaders.ListAsync(loaderType, mcVersion, CancellationToken.None);

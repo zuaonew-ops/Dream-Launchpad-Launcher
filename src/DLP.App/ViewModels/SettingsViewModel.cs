@@ -18,7 +18,8 @@ public sealed class SettingsViewModel : ObservableObject
     public SettingsViewModel(AppServices services)
     {
         _services = services;
-        _memoryMb = services.Settings.MemoryMb;
+        MaxMemoryMb = Math.Clamp((int)(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024 / 1024), 1024, 65536);
+        _memoryMb = Math.Clamp(services.Settings.MemoryMb, 512, MaxMemoryMb);
         _username = services.Settings.Username;
         _javaPath = services.Settings.JavaPath ?? "";
         _downloadSource = services.Settings.DownloadSource;
@@ -73,11 +74,12 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     public string DataRoot => _services.Paths.Root;
+    public int MaxMemoryMb { get; }
 
     private void Save()
     {
         var settings = _services.Settings;
-        settings.MemoryMb = MemoryMb;
+        settings.MemoryMb = Math.Clamp(MemoryMb, 512, MaxMemoryMb);
         settings.Username = string.IsNullOrWhiteSpace(Username) ? "Steve" : Username;
         settings.JavaPath = string.IsNullOrWhiteSpace(JavaPath) ? null : JavaPath;
         settings.DownloadSource = DownloadSource;

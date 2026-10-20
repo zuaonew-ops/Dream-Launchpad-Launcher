@@ -292,6 +292,8 @@ public sealed class DownloadViewModel : ObservableObject
                 Status = p.Stage;
             }));
 
+            _services.NotifyInstalledVersionsChanged();
+
             if (CurrentLoaderType is { } type)
             {
                 var loaderVersion = SelectedLoaderVersion?.Id;
