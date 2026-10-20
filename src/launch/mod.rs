@@ -8,6 +8,8 @@ use crate::minecraft::VersionJson;
 use crate::paths::Paths;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 /// 游戏内默认语言（首次启动时写入 options.txt）。
 pub const DEFAULT_LANGUAGE: &str = "zh_cn";
@@ -173,11 +175,16 @@ pub fn spawn(plan: &LaunchPlan, paths: &Paths) -> Result<u32, String> {
         .try_clone()
         .map_err(|e| format!("复制日志句柄失败: {e}"))?;
 
-    let child = Command::new(&plan.program)
+    let mut command = Command::new(&plan.program);
+    command
         .args(&plan.args)
         .current_dir(&plan.cwd)
         .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
+        .stderr(Stdio::from(stderr));
+    // CREATE_NO_WINDOW：GUI 进程拉 console 程序时别弹黑框
+    #[cfg(windows)]
+    command.creation_flags(0x0800_0000);
+    let child = command
         .spawn()
         .map_err(|e| format!("启动 Java 失败: {e}"))?;
 

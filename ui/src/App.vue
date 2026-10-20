@@ -1,359 +1,192 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from "vue";
-import SidePanel from "./components/SidePanel.vue";
-import VersionToolbar from "./components/VersionToolbar.vue";
-import VersionList from "./components/VersionList.vue";
-import ProgressPanel from "./components/ProgressPanel.vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import DownloadPage from "./pages/DownloadPage.vue";
+import HomePage from "./pages/HomePage.vue";
+import SettingsPage from "./pages/SettingsPage.vue";
+import ToolsPage from "./pages/ToolsPage.vue";
 import { useLauncher } from "./composables/useLauncher";
 
-const {
-  filtered,
-  environment,
-  javas,
-  selected,
-  selectedVersion,
-  username,
-  memory,
-  isolate,
-  javaPath,
-  includeSnapshots,
-  search,
-  loading,
-  busy,
-  error,
-  notice,
-  install,
-  launchPid,
-  refresh,
-  subscribe,
-  installSelected,
-  launchSelected,
-  openDataDir,
-} = useLauncher();
+type PageKey = "home" | "download" | "settings" | "tools";
+
+const { environment, refresh, subscribe } = useLauncher();
+const page = ref<PageKey>("home");
+
+const pages = {
+  home: HomePage,
+  download: DownloadPage,
+  settings: SettingsPage,
+  tools: ToolsPage,
+} as const;
+
+const current = computed(() => pages[page.value]);
+
+const nav: { key: PageKey; label: string }[] = [
+  { key: "home", label: "主页" },
+  { key: "download", label: "下载" },
+  { key: "settings", label: "设置" },
+  { key: "tools", label: "工具" },
+];
 
 let unlisten: (() => void) | undefined;
-
 onMounted(async () => {
-  unlisten = await subscribe();
+  unlisten = subscribe();
   await refresh();
 });
-
 onUnmounted(() => unlisten?.());
 </script>
 
 <template>
   <div class="app">
-    <header class="top">
-      <div class="brand">
-        <div class="mark">DLP</div>
-        <div class="titles">
-          <h1>Dream Launchpad</h1>
-          <p class="sub">Minecraft: Java Edition</p>
-        </div>
-      </div>
-      <div v-if="environment" class="env">
-        {{ environment.os }} · {{ environment.arch }} · Tauri {{ environment.tauri }} · core
-        {{ environment.core }}
-      </div>
-    </header>
+    <nav class="rail">
+      <div class="logo">DLP</div>
 
-    <main class="body">
-      <SidePanel
-        v-model:username="username"
-        v-model:memory="memory"
-        v-model:isolate="isolate"
-        v-model:java-path="javaPath"
-        :javas="javas"
-        :environment="environment"
-        @open-dir="openDataDir"
-      />
-
-      <section class="panel main">
-        <VersionToolbar
-          v-model:keyword="search"
-          v-model:snapshots="includeSnapshots"
-          :loading="loading"
-          :total="filtered.length"
-          @refresh="refresh"
-        />
-        <VersionList
-          :versions="filtered"
-          :selected="selected"
-          :loading="loading"
-          @select="selected = $event"
-        />
-      </section>
-    </main>
-
-    <footer class="bottom">
-      <div class="action">
-        <div class="picked">
-          <span class="label">当前版本</span>
-          <strong>{{ selectedVersion?.id ?? "未选择" }}</strong>
-          <span v-if="selectedVersion && !selectedVersion.installed" class="badge">未安装</span>
-          <span v-else-if="launchPid" class="badge ok">运行中 · {{ launchPid }}</span>
-        </div>
-
-        <div class="progress-slot">
-          <ProgressPanel
-            v-if="install"
-            :stage="install.stage"
-            :percent="install.percent"
-            :done="install.done"
-            :total="install.total"
-          />
-          <p v-else-if="busy" class="muted-line">正在处理…</p>
-        </div>
-
-        <div class="buttons">
-          <button
-            v-if="selectedVersion && !selectedVersion.installed"
-            class="primary"
-            :disabled="busy || loading"
-            @click="installSelected"
-          >
-            安装
-          </button>
-          <button
-            v-else
-            class="primary"
-            :disabled="busy || loading || !selectedVersion?.installed"
-            @click="launchSelected"
-          >
-            启动
-          </button>
-        </div>
+      <div class="nav">
+        <button
+          v-for="item in nav"
+          :key="item.key"
+          class="nav-item"
+          :class="{ active: page === item.key }"
+          @click="page = item.key"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <template v-if="item.key === 'home'">
+              <path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z" />
+            </template>
+            <template v-else-if="item.key === 'download'">
+              <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
+            </template>
+            <template v-else-if="item.key === 'settings'">
+              <path d="M5 8h14M5 16h14" />
+              <circle cx="9" cy="8" r="2" />
+              <circle cx="15" cy="16" r="2" />
+            </template>
+            <template v-else>
+              <path d="M12 3 3 7.5v9L12 21l9-4.5v-9L12 3zM3 7.5 12 12l9-4.5M12 12v9" />
+            </template>
+          </svg>
+          <span>{{ item.label }}</span>
+        </button>
       </div>
 
-      <Transition name="toast">
-        <p v-if="error" class="msg error">{{ error }}</p>
-        <p v-else-if="notice" class="msg ok">{{ notice }}</p>
+      <div class="rail-foot">
+        <span v-if="environment">v{{ environment.core }}</span>
+      </div>
+    </nav>
+
+    <main class="view">
+      <Transition name="page" mode="out-in">
+        <component :is="current" :key="page" />
       </Transition>
-    </footer>
+    </main>
   </div>
 </template>
 
 <style scoped>
 .app {
-  height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: 20px 24px 16px;
-  gap: 14px;
+  grid-template-columns: 88px 1fr;
+  height: 100%;
 }
 
-.top {
+.rail {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  animation: rise 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  gap: 18px;
+  padding: 18px 0 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008));
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
+.logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.4px;
   color: #fff;
-  background: linear-gradient(135deg, #4c8dff, #22c1a4);
-  box-shadow: 0 10px 26px -10px rgba(76, 141, 255, 0.8);
-  transition: transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  background: linear-gradient(135deg, #5b8cff, #3ad9b0);
+  box-shadow: 0 10px 24px -10px rgba(91, 140, 255, 0.9);
 }
 
-.mark:hover {
-  transform: rotate(-4deg) scale(1.04);
-}
-
-h1 {
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: 0.2px;
-}
-
-.sub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.env {
-  font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.body {
-  display: grid;
-  grid-template-columns: 292px 1fr;
-  gap: 14px;
-  min-height: 0;
-}
-
-.panel {
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-}
-
-.main {
+.nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  min-height: 0;
-  animation: rise 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: 110ms;
-}
-
-.bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  animation: rise 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: 160ms;
-}
-
-.action {
-  display: grid;
-  grid-template-columns: minmax(150px, auto) 1fr auto;
-  align-items: center;
-  gap: 18px;
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 12px 16px;
-}
-
-.picked {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.picked strong {
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
-.label {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.badge {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--muted);
-}
-
-.badge.ok {
-  color: #4fd8b8;
-  background: rgba(34, 193, 164, 0.12);
-}
-
-.progress-slot {
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-}
-
-.progress-slot > * {
+  gap: 6px;
   width: 100%;
+  padding: 0 10px;
 }
 
-.muted-line {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.buttons {
+.nav-item {
   display: flex;
-  gap: 10px;
-}
-
-.primary {
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 0;
   border: none;
-  border-radius: 11px;
-  padding: 11px 26px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
   cursor: pointer;
-  background: linear-gradient(135deg, #4c8dff, #3a7bdd);
-  box-shadow: 0 10px 24px -12px rgba(76, 141, 255, 0.9);
-  transition: transform 160ms cubic-bezier(0.2, 0.9, 0.3, 1.3), box-shadow 160ms ease,
-    filter 160ms ease;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
-.primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px -12px rgba(76, 141, 255, 1);
+.nav-item svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.primary:active:not(:disabled) {
-  transform: translateY(0) scale(0.98);
+.nav-item:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.primary:disabled {
-  filter: grayscale(0.5) brightness(0.7);
-  cursor: not-allowed;
+.nav-item.active {
+  color: #fff;
+  background: linear-gradient(160deg, rgba(91, 140, 255, 0.25), rgba(58, 217, 176, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(91, 140, 255, 0.35);
 }
 
-.msg {
-  font-size: 12px;
-  padding: 2px 4px;
+.rail-foot {
+  margin-top: auto;
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.msg.error {
-  color: #ff8080;
+.view {
+  min-width: 0;
+  min-height: 0;
+  padding: 20px 24px;
+  overflow: hidden;
 }
 
-.msg.ok {
-  color: #4fd8b8;
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
-.toast-enter-active,
-.toast-leave-active {
-  transition: opacity 200ms ease, transform 200ms ease;
-}
-
-.toast-enter-from,
-.toast-leave-to {
+.page-enter-from {
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(8px);
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .top,
-  .main,
-  .bottom {
-    animation: none;
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
   }
 }
 </style>

@@ -6,13 +6,21 @@
 - 桌面壳：[Tauri 2](https://tauri.app/)
 - 界面：Vue 3 + Vite + TypeScript
 
-## 当前功能（0.3.0）
+## 当前功能（0.6.0）
 
-- 拉取版本清单，列出正式版本
-- 安装原版：客户端 jar / 依赖库 / natives / 资源文件，SHA1 校验，16–32 并发，失败重试
-- 离线登录（UUID v3），自动挑选合适的 Java（JAVA_HOME / PATH / 常见安装目录）
-- **版本隔离**：每个版本用 `versions/<id>/` 作为游戏目录，存档与 mods 互不干扰（可关闭）
-- **游戏默认中文**：首次启动写入 `options.txt` 的 `lang:zh_cn`
+四个页面：
+
+- **主页**：当前版本、账号、Java 概况、推荐版本一键选择
+- **下载**：版本按主版本分组（26 / 1.21 / 1.20 …），支持正式版 / 快照 / 已安装筛选、搜索、安装
+- **设置**：离线昵称、内存上限、Java 运行时、版本隔离、数据目录
+- **工具**：打开游戏 / 日志 / 版本目录，环境信息
+
+能力：
+
+- 原版安装（客户端 jar / 依赖库 / natives / 资源），SHA1 校验、16–32 并发、失败重试
+- 离线登录（UUID v3），自动挑选合适的 Java
+- 版本隔离（默认开）与游戏默认中文（`lang:zh_cn`）
+- 下载走 BMCLAPI 镜像，失败回退官方；便携模式（exe 同目录 `.minecraft`）
 - 未实现：微软正版登录、Java 自动下载、Fabric / Forge / NeoForge
 
 ## 目标平台
@@ -40,7 +48,7 @@
 Cargo.toml          # Rust workspace
 src/                # dlp-core：核心逻辑（清单 / 下载 / 校验 / Java / 启动 / 账号）
 src-tauri/          # Tauri 壳：窗口、命令、打包配置、图标
-ui/                 # Vue 3 前端源码（构建产物输出到根目录 dist/）
+ui/                 # Vue 3 前端源码：pages/（四个页面）+ components/ + composables/（构建产物输出到根目录 dist/）
 docs/               # 需求、调研、设计
 scripts/            # 开发辅助脚本（图标生成等）
 ```

@@ -50,3 +50,6 @@ target/
 
 # 本地构建产物（安装包 / 便携版）
 release/
+
+# 本地测试数据（便携模式 .minecraft 等）
+.data/

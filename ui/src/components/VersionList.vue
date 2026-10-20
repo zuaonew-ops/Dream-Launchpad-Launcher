@@ -2,7 +2,7 @@
 import type { VersionSummary } from "../types";
 
 defineProps<{
-  versions: VersionSummary[];
+  groups: { key: string; items: VersionSummary[] }[];
   selected: string | null;
   loading: boolean;
 }>();
@@ -13,26 +13,37 @@ const emit = defineEmits<{ select: [id: string] }>();
 <template>
   <div class="list-wrap">
     <div v-if="loading" class="skeletons">
-      <div v-for="i in 6" :key="i" class="skeleton" :style="{ animationDelay: `${i * 60}ms` }" />
+      <div v-for="i in 7" :key="i" class="skeleton" :style="{ animationDelay: `${i * 60}ms` }" />
     </div>
 
-    <TransitionGroup v-else tag="ul" name="row" class="rows">
-      <li
-        v-for="(version, index) in versions"
-        :key="version.id"
-        class="row"
-        :class="{ active: version.id === selected }"
-        :style="{ '--delay': `${Math.min(index, 20) * 22}ms` }"
-        @click="emit('select', version.id)"
-      >
-        <span class="dot" :class="{ on: version.installed }" />
-        <span class="id">{{ version.id }}</span>
-        <span class="tag">{{ version.installed ? "已安装" : "未安装" }}</span>
-        <span class="time">{{ version.release_time.slice(0, 10) }}</span>
-      </li>
-    </TransitionGroup>
+    <div v-else class="groups">
+      <section v-for="group in groups" :key="group.key" class="group">
+        <header class="group-head">
+          <span class="group-name">{{ group.key }}</span>
+          <span class="group-count">{{ group.items.length }}</span>
+        </header>
 
-    <p v-if="!loading && versions.length === 0" class="empty">没有可显示的版本</p>
+        <ul class="rows">
+          <li
+            v-for="version in group.items"
+            :key="version.id"
+            class="row"
+            :class="{ active: version.id === selected }"
+            @click="emit('select', version.id)"
+          >
+            <span class="bar" />
+            <span class="id">{{ version.id }}</span>
+            <span class="kind" :class="version.kind">{{ version.kind === "release" ? "正式" : "快照" }}</span>
+            <span class="state" :class="{ on: version.installed }">
+              {{ version.installed ? "已安装" : "未安装" }}
+            </span>
+            <span class="time">{{ version.release_time.slice(0, 10) }}</span>
+          </li>
+        </ul>
+      </section>
+
+      <p v-if="groups.length === 0" class="empty">没有匹配的版本</p>
+    </div>
   </div>
 </template>
 
@@ -40,6 +51,40 @@ const emit = defineEmits<{ select: [id: string] }>();
 .list-wrap {
   min-height: 0;
   height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.group {
+  margin-bottom: 6px;
+}
+
+.group-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px 6px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+  background: linear-gradient(180deg, var(--bg-soft) 70%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.group-name {
+  font-weight: 600;
+}
+
+.group-count {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  letter-spacing: 0;
 }
 
 .rows {
@@ -48,52 +93,50 @@ const emit = defineEmits<{ select: [id: string] }>();
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  overflow-y: auto;
-  height: 100%;
-  padding-right: 6px;
+  gap: 3px;
 }
 
 .row {
+  position: relative;
   display: grid;
-  grid-template-columns: 10px 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px;
-  border-radius: 11px;
+  padding: 10px 14px 10px 18px;
+  border-radius: 10px;
   border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    transform 160ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
-  animation: row-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--delay, 0ms);
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
 .row:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.045);
   border-color: rgba(255, 255, 255, 0.08);
   transform: translateX(3px);
 }
 
 .row.active {
-  background: linear-gradient(90deg, rgba(76, 141, 255, 0.16), rgba(34, 193, 164, 0.07));
-  border-color: rgba(76, 141, 255, 0.45);
+  background: linear-gradient(90deg, rgba(91, 140, 255, 0.18), rgba(58, 217, 176, 0.06));
+  border-color: rgba(91, 140, 255, 0.42);
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #3a4152;
-  transition: background 200ms ease, box-shadow 200ms ease;
+.bar {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5b8cff, #3ad9b0);
+  transform: translateY(-50%);
+  transition: height 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
-.dot.on {
-  background: #22c1a4;
-  box-shadow: 0 0 0 3px rgba(34, 193, 164, 0.16);
+.row.active .bar {
+  height: 18px;
 }
 
 .id {
@@ -101,56 +144,53 @@ const emit = defineEmits<{ select: [id: string] }>();
   font-variant-numeric: tabular-nums;
 }
 
-.tag,
-.time {
+.kind {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: #8fa4c8;
+  background: rgba(91, 140, 255, 0.1);
+}
+
+.kind.snapshot {
+  color: #c8a4ff;
+  background: rgba(168, 120, 255, 0.12);
+}
+
+.state {
   font-size: 12px;
   color: var(--muted);
 }
 
+.state.on {
+  color: #3ad9b0;
+}
+
 .time {
+  font-size: 12px;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .empty {
   color: var(--muted);
   font-size: 13px;
-  padding: 24px 4px;
+  padding: 30px 6px;
+  text-align: center;
 }
 
 .skeletons {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .skeleton {
-  height: 42px;
-  border-radius: 11px;
-  background: linear-gradient(90deg, #1a1e27 25%, #232936 37%, #1a1e27 63%);
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #161a23 25%, #1e2430 37%, #161a23 63%);
   background-size: 400% 100%;
   animation: shimmer 1.4s ease infinite;
-}
-
-.row-enter-active,
-.row-leave-active {
-  transition: opacity 200ms ease, transform 200ms ease;
-}
-
-.row-enter-from,
-.row-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
-@keyframes row-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes shimmer {
@@ -163,8 +203,8 @@ const emit = defineEmits<{ select: [id: string] }>();
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row,
-  .skeleton {
+  .skeleton,
+  .row {
     animation: none;
   }
 }
