@@ -17,17 +17,17 @@
                         <Grid Margin="0,16,0,0">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="36" Height="36" CornerRadius="18" Background="#E4E6E8">
-                                    <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                    <TextBlock Text="{Binding AccountInitial, FallbackValue=?}" FontSize="14" FontWeight="SemiBold"
                                                Foreground="{StaticResource TextSecondary}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Username}" FontSize="13" FontWeight="SemiBold" />
-                                    <TextBlock Text="离线模式" Style="{StaticResource SmallText}" Margin="0,1,0,0" />
+                                    <TextBlock Text="{Binding AccountName}" FontSize="13" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding AccountKind}" Style="{StaticResource SmallText}" Margin="0,1,0,0" />
                                 </StackPanel>
                             </StackPanel>
                             <Border Style="{StaticResource Chip}" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <TextBlock Text="离线账号" FontSize="11" Foreground="{StaticResource TextSecondary}" />
+                                <TextBlock Text="左下角切换账号" FontSize="11" Foreground="{StaticResource TextSecondary}" />
                             </Border>
                         </Grid>
 
@@ -37,8 +37,8 @@
 
                         <TextBlock Text="内存上限" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
                         <Grid>
-                            <Slider Style="{StaticResource SliderStyle}" Minimum="512" Maximum="8192"
-                                    TickFrequency="512" IsSnapToTickEnabled="True" Value="{Binding MemoryMb}" />
+                            <Slider Style="{StaticResource SliderStyle}" Minimum="512" Maximum="16384"
+                                    SmallChange="128" LargeChange="1024" Value="{Binding MemoryMb}" />
                             <TextBlock Text="{Binding MemoryMb, StringFormat={}{0} MB}" HorizontalAlignment="Right"
                                        VerticalAlignment="Top" Margin="0,-2,0,0" FontSize="11.5"
                                        Foreground="{StaticResource TextTertiary}" />
@@ -47,9 +47,8 @@
                         <Button Content="启动游戏" Style="{StaticResource PrimaryButton}" Height="42" Margin="0,22,0,0"
                                 FontSize="14" Command="{Binding LaunchCommand}" AutomationProperties.Name="启动游戏" />
 
-                        <TextBlock Text="{Binding Status}" Style="{StaticResource SmallText}" Margin="0,12,0,0"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="未安装任何版本，请先到「版本」页安装。" Style="{StaticResource SmallText}"
+                        <TextBlock Text="{Binding Status}" Style="{StaticResource SmallText}" Margin="0,12,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="还没有安装版本，去「下载」页安装一个。" Style="{StaticResource SmallText}"
                                    Foreground="{StaticResource Danger}" Margin="0,6,0,0" TextWrapping="Wrap"
                                    Visibility="{Binding HasNoVersions, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
@@ -59,8 +58,8 @@
                     <StackPanel>
                         <TextBlock Text="使用提示" Style="{StaticResource H2}" />
                         <TextBlock Text="· 离线账号只能进入离线游戏与本地世界，不能连接正版服务器。" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,12,0,0" />
-                        <TextBlock Text="· 启动参数与游戏输出会实时写入「日志」页。" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
-                        <TextBlock Text="· 实例之间 mods、存档、配置完全隔离。" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock Text="· 微软账号在左下角切换账号里登录，登录后可进入正版服务器。" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock Text="· 每个版本都有独立的 game 目录，mods、存档、配置互不影响。" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -68,12 +67,11 @@
             <StackPanel Grid.Column="2">
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="实例" Style="{StaticResource H2}" />
-                        <ComboBox Style="{StaticResource ComboBoxStyle}" Margin="0,14,0,0"
-                                  ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}" />
-                        <Button Content="打开实例目录" Style="{StaticResource SecondaryButton}" Margin="0,10,0,0"
+                        <TextBlock Text="版本隔离目录" Style="{StaticResource H2}" />
+                        <TextBlock Text="{Binding GameDir}" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                        <Button Content="打开游戏目录" Style="{StaticResource SecondaryButton}" Margin="0,10,0,0"
                                 Command="{Binding OpenFolderCommand}" />
-                        <TextBlock Text="每个实例拥有独立的 mods、存档与配置。" Style="{StaticResource SmallText}"
+                        <TextBlock Text="mods、资源包、光影、存档都放在这里。" Style="{StaticResource SmallText}"
                                    TextWrapping="Wrap" Margin="0,10,0,0" />
                     </StackPanel>
                 </Border>
@@ -82,6 +80,7 @@
                     <StackPanel>
                         <TextBlock Text="数据目录" Style="{StaticResource H2}" />
                         <TextBlock Text="{Binding DataRoot}" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                        <TextBlock Text="全部数据都在启动器所在文件夹内。" Style="{StaticResource SmallText}" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -89,7 +88,6 @@
                     <StackPanel>
                         <TextBlock Text="统计" Style="{StaticResource H2}" />
                         <TextBlock Text="{Binding InstalledVersionCount, StringFormat=已安装版本：{0} 个}" Style="{StaticResource BodyText}" Margin="0,10,0,0" />
-                        <TextBlock Text="{Binding InstanceCount, StringFormat=实例数量：{0} 个}" Style="{StaticResource BodyText}" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
             </StackPanel>

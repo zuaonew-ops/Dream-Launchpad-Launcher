@@ -13,10 +13,9 @@ public partial class App : Application
         var viewModel = new MainViewModel(
             services,
             new HomeViewModel(services),
+            new DownloadViewModel(services),
             new VersionsViewModel(services),
-            new InstancesViewModel(services),
-            new SettingsViewModel(services),
-            new LogViewModel(services));
+            new SettingsViewModel(services));
 
         var window = new MainWindow { DataContext = viewModel };
         MainWindow = window;

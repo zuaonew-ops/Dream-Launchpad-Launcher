@@ -40,7 +40,7 @@ DLP 命令行
   dlp versions [--all] [-n 20]      列出可安装版本
   dlp install <versionId>            安装原版
   dlp java [<versionId>]             扫描/检查 Java（给版本 ID 时确保该版本所需 Java）
-  dlp run <versionId> [--username 名字] [--memory 2048] [--instance 名称] [--java 路径]
+  dlp run <versionId> [--username 名字] [--memory 2048] [--java 路径]
   dlp info <versionId>               查看版本详情
 """);
             break;
@@ -102,8 +102,7 @@ DLP 命令行
             var id = rest.FirstOrDefault() ?? throw new ArgumentException("缺少版本 ID");
             var username = Option(args, "--username") ?? "Steve";
             var memory = int.TryParse(Option(args, "--memory"), out var m) ? m : 2048;
-            var instance = Option(args, "--instance") ?? id;
-            var version = await versions.ResolveAsync(id);
+                        var version = await versions.ResolveAsync(id);
 
             if (!File.Exists(paths.VersionJar(id)) || !File.Exists(paths.VersionJson(id)))
             {
@@ -115,7 +114,7 @@ DLP 命令行
                 ? new JavaRuntime(javaPath, 0, true, "manual", javaPath)
                 : await java.EnsureAsync(version);
 
-            var gameDir = paths.InstanceGameDir(instance);
+            var gameDir = paths.GameDir(id);
             Directory.CreateDirectory(gameDir);
             var options = new LaunchOptions
             {

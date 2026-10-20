@@ -9,8 +9,10 @@ public sealed class AppSettings
     public int MemoryMb { get; set; } = 2048;
     public string Username { get; set; } = "Steve";
     public string? JavaPath { get; set; }
-    public string DownloadSource { get; set; } = "official";
-    public string LastInstance { get; set; } = "default";
+    public string DownloadSource { get; set; } = "bmclapi";
+    public bool VersionIsolation { get; set; } = true;
+    public string? MicrosoftClientId { get; set; }
+    public string? SelectedAccount { get; set; }
 
     private static string FilePath => Path.Combine(GamePaths.CreateDefault().Root, "config.json");
 

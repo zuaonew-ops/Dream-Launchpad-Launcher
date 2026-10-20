@@ -1,19 +1,18 @@
+using System.Diagnostics;
 using System.IO;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Windows;
 using DLP.App.Mvvm;
 using DLP.App.Services;
+using DLP.Core.Auth;
 using DLP.Core.Java;
 using DLP.Core.Launch;
-using DLP.Core.Auth;
 
 namespace DLP.App.ViewModels;
 
 public sealed class HomeViewModel : ObservableObject
 {
     private readonly AppServices _services;
-    private string? _selectedInstance;
     private string? _selectedVersion;
     private string _username;
     private int _memoryMb;
@@ -27,13 +26,18 @@ public sealed class HomeViewModel : ObservableObject
         _username = services.Settings.Username;
         _memoryMb = services.Settings.MemoryMb;
 
-        Instances = [];
         InstalledVersions = [];
         LaunchCommand = new AsyncRelayCommand(LaunchAsync, () => !IsBusy && SelectedVersion is not null);
         RefreshCommand = new RelayCommand(Refresh);
-        OpenFolderCommand = new RelayCommand(OpenInstanceFolder);
+        OpenFolderCommand = new RelayCommand(OpenGameFolder);
 
         _services.InstalledVersionsChanged += () => Application.Current.Dispatcher.Invoke(Refresh);
+        _services.Accounts.Changed += () =>
+        {
+            OnPropertyChanged(nameof(AccountName));
+            OnPropertyChanged(nameof(AccountKind));
+            OnPropertyChanged(nameof(AccountInitial));
+        };
         _services.Log.Written += (level, line) =>
         {
             if (level == DLP.Core.Infrastructure.LogLevel.Error)
@@ -43,23 +47,25 @@ public sealed class HomeViewModel : ObservableObject
         Refresh();
     }
 
-    public ObservableCollection<string> Instances { get; }
     public ObservableCollection<string> InstalledVersions { get; }
     public AsyncRelayCommand LaunchCommand { get; }
     public RelayCommand RefreshCommand { get; }
     public RelayCommand OpenFolderCommand { get; }
 
-    public string? SelectedInstance
-    {
-        get => _selectedInstance;
-        set { if (SetProperty(ref _selectedInstance, value)) _services.Settings.LastInstance = value ?? "default"; }
-    }
-
     public string? SelectedVersion
     {
         get => _selectedVersion;
-        set { if (SetProperty(ref _selectedVersion, value)) LaunchCommand.RaiseCanExecuteChanged(); }
+        set
+        {
+            if (!SetProperty(ref _selectedVersion, value)) return;
+            LaunchCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(GameDir));
+        }
     }
+
+    public string AccountName => _services.Accounts.CurrentName;
+    public string AccountKind => _services.Accounts.CurrentKind;
+    public string AccountInitial => _services.Accounts.CurrentInitial;
 
     public string Username
     {
@@ -94,43 +100,30 @@ public sealed class HomeViewModel : ObservableObject
     public bool HasVersions => InstalledVersions.Count > 0;
     public bool HasNoVersions => InstalledVersions.Count == 0;
     public int InstalledVersionCount => InstalledVersions.Count;
-    public int InstanceCount => Instances.Count;
     public string DataRoot => _services.Paths.Root;
+    public string GameDir => SelectedVersion is { } id ? _services.Paths.GameDir(id) : "";
 
     public void Refresh()
     {
-        var instances = _services.GetInstances();
-        var versions = _services.GetInstalledVersions();
-
-        var previousInstance = SelectedInstance;
-        var previousVersion = SelectedVersion;
-
-        Instances.Clear();
-        foreach (var instance in instances) Instances.Add(instance);
-        if (Instances.Count == 0)
-        {
-            var defaultName = "default";
-            Directory.CreateDirectory(_services.Paths.InstanceGameDir(defaultName));
-            Instances.Add(defaultName);
-        }
-        SelectedInstance = previousInstance ?? _services.Settings.LastInstance;
-        if (!Instances.Contains(SelectedInstance ?? "")) SelectedInstance = Instances[0];
-
+        var previous = SelectedVersion;
         InstalledVersions.Clear();
-        foreach (var version in versions) InstalledVersions.Add(version);
-        SelectedVersion = previousVersion ?? InstalledVersions.FirstOrDefault();
+        foreach (var version in _services.GetInstalledVersions()) InstalledVersions.Add(version);
+        SelectedVersion = previous is not null && InstalledVersions.Contains(previous)
+            ? previous
+            : InstalledVersions.FirstOrDefault();
 
         OnPropertyChanged(nameof(HasVersions));
         OnPropertyChanged(nameof(HasNoVersions));
         OnPropertyChanged(nameof(InstalledVersionCount));
-        OnPropertyChanged(nameof(InstanceCount));
         LaunchCommand.RaiseCanExecuteChanged();
     }
 
-    private void OpenInstanceFolder()
+    private void OpenGameFolder()
     {
-        var dir = _services.Paths.InstanceGameDir(SelectedInstance ?? "default");
-        Directory.CreateDirectory(dir);
+        if (SelectedVersion is not { } id) return;
+        var dir = _services.Paths.GameDir(id);
+        foreach (var sub in new[] { "mods", "saves", "resourcepacks", "shaderpacks", "logs" })
+            Directory.CreateDirectory(Path.Combine(dir, sub));
         Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
     }
 
@@ -145,7 +138,7 @@ public sealed class HomeViewModel : ObservableObject
         {
             var version = await _services.Versions.ResolveAsync(versionId);
             var required = version.JavaVersion?.MajorVersion ?? 8;
-            JavaRuntime? runtime = null;
+            JavaRuntime? runtime;
             if (_services.Settings.JavaPath is { } manual && File.Exists(manual))
                 runtime = new JavaRuntime(manual, 0, true, "manual", manual);
             else
@@ -161,14 +154,16 @@ public sealed class HomeViewModel : ObservableObject
             _services.Settings.MemoryMb = MemoryMb;
             _services.Settings.Save();
 
-            var instance = SelectedInstance ?? "default";
-            var gameDir = _services.Paths.InstanceGameDir(instance);
+            var gameDir = _services.Paths.GameDir(versionId);
             foreach (var dir in new[] { "mods", "saves", "resourcepacks", "shaderpacks", "logs" })
                 Directory.CreateDirectory(Path.Combine(gameDir, dir));
 
+            if (_services.Accounts.Current?.Kind != "msa")
+                _services.Accounts.SetOffline(string.IsNullOrWhiteSpace(Username) ? "Steve" : Username);
+
             var options = new LaunchOptions
             {
-                Account = LaunchAccount.Offline(string.IsNullOrWhiteSpace(Username) ? "Steve" : Username),
+                Account = _services.Accounts.GetLaunchAccount(),
                 JavaPath = runtime.Path,
                 GameDirectory = gameDir,
                 MemoryMb = MemoryMb

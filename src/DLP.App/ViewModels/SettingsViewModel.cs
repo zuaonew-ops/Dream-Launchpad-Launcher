@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
-using System.Windows;
 using DLP.App.Mvvm;
 using DLP.App.Services;
+using DLP.Core.Download;
 
 namespace DLP.App.ViewModels;
 
@@ -12,6 +12,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _username;
     private string _javaPath;
     private string _downloadSource;
+    private string _clientId;
     private string _status = "";
 
     public SettingsViewModel(AppServices services)
@@ -21,6 +22,7 @@ public sealed class SettingsViewModel : ObservableObject
         _username = services.Settings.Username;
         _javaPath = services.Settings.JavaPath ?? "";
         _downloadSource = services.Settings.DownloadSource;
+        _clientId = services.Settings.MicrosoftClientId ?? "";
         SaveCommand = new RelayCommand(Save);
         BrowseJavaCommand = new RelayCommand(BrowseJava);
         ScanJavaCommand = new RelayCommand(ScanJava);
@@ -32,7 +34,7 @@ public sealed class SettingsViewModel : ObservableObject
     public RelayCommand BrowseJavaCommand { get; }
     public RelayCommand ScanJavaCommand { get; }
     public ObservableCollection<string> DetectedJava { get; }
-    public string[] Sources { get; } = ["official", "bmclapi"];
+    public string[] Sources { get; } = ["bmclapi", "official"];
 
     public int MemoryMb
     {
@@ -58,6 +60,12 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetProperty(ref _downloadSource, value);
     }
 
+    public string MicrosoftClientId
+    {
+        get => _clientId;
+        set => SetProperty(ref _clientId, value);
+    }
+
     public string Status
     {
         get => _status;
@@ -73,7 +81,9 @@ public sealed class SettingsViewModel : ObservableObject
         settings.Username = string.IsNullOrWhiteSpace(Username) ? "Steve" : Username;
         settings.JavaPath = string.IsNullOrWhiteSpace(JavaPath) ? null : JavaPath;
         settings.DownloadSource = DownloadSource;
+        settings.MicrosoftClientId = string.IsNullOrWhiteSpace(MicrosoftClientId) ? null : MicrosoftClientId.Trim();
         settings.Save();
+        Mirrors.Enabled = DownloadSource != "official";
         Status = "已保存";
     }
 

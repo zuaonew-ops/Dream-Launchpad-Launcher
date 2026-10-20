@@ -100,41 +100,34 @@ DreamLaunchpad.slnx
 
 ## 5. 数据目录布局
 
-默认根目录 %APPDATA%\DreamLaunchpad；若 exe 同级存在 portable.txt 则使用 exe 目录（便携模式）。
+便携模式：根目录固定为启动器 exe 所在文件夹，启动器只管理这个文件夹里的内容（不再使用 %APPDATA%）。
 
 ~~~
-DreamLaunchpad/
-├─ config.json                  # 全局设置
-├─ accounts.json                # 账号（token 用 DPAPI 加密）
-├─ instances/
-│  └─ <实例名>/
-│     ├─ instance.json          # 实例配置
-│     ├─ minecraft/             # 游戏目录（隔离）
-│     │  ├─ mods/ saves/ resourcepacks/ shaderpacks/ config/
-│     │  └─ options.txt
-│     └─ logs/
+<启动器文件夹>/
+├─ DLP.App.exe                  # 启动器
+├─ config.json                  # 全局设置（内存、用户名、下载源、微软 client_id…）
+├─ accounts.json                # 账号列表（令牌 AES-GCM 加密）
+├─ accounts.key                 # 32 字节随机密钥，仅当前用户可读
 ├─ versions/
 │  └─ <版本ID>/
-│     ├─ <版本ID>.json          # 版本清单（含继承链合并结果另存 merged.json）
+│     ├─ <版本ID>.json          # 版本清单（加载器版本含 inheritsFrom）
 │     ├─ <版本ID>.jar           # client jar
 │     ├─ natives/               # 解压后的 native 库
-│     └─ install.json           # 安装回执（文件 → sha1，用于修复）
+│     └─ game/                  # 版本隔离的游戏目录
+│        ├─ mods/ saves/ resourcepacks/ shaderpacks/ config/ logs/
+│        └─ options.txt
 ├─ libraries/                   # 共享库，Maven 布局
 ├─ assets/
 │  ├─ indexes/<索引ID>.json
 │  ├─ objects/<前2位>/<剩余38位>
 │  └─ virtual/legacy/           # 1.7 以前的虚拟资源
 ├─ runtime/                     # Mojang JRE
-│  └─ <组件名>/windows-x64/<版本>/
-├─ cache/
-│  ├─ version_manifest_v2.json
-│  └─ downloads/                # 未完成下载（.part）
-└─ logs/
-   ├─ launcher-2026-10-20.log
-   └─ crash-<时间>.zip
+├─ cache/                       # 版本清单缓存
+└─ logs/                        # 启动器日志（界面不提供日志页）
 ~~~
 
-**隔离策略**：libraries/assets/versions/runtime 全局共享；mods/saves/config 按实例隔离。实例可复用同一版本 JSON，避免重复下载。
+**隔离策略**：libraries / assets / runtime 全局共享；mods / saves / config 按版本隔离在 `versions/<id>/game`。
+加载器版本（Fabric/Quilt/Forge/NeoForge）通过 `inheritsFrom` 继承原版版本，共用 libraries 与 assets。
 
 ---
 
@@ -357,34 +350,29 @@ GET https://api.github.com/repos/<org>/<repo>/releases/latest → 比较版本 �
 
 ## 8. UI 设计
 
-**主窗口**：无边框 + 自绘标题栏（可拖动、最小化/最大化/关闭），左侧导航 220px，右侧内容区。
+**主窗口**：原生标题栏，左侧导航 190px，右侧内容区；左下角为账号区（点击弹出账号切换）。
 
 ~~~
 ┌──────────┬──────────────────────────────────────┐
 │  DLP     │  内容区                               │
 │ ○ 首页    │                                       │
-│ ○ 版本    │                                       │
-│ ○ 实例    │                                       │
 │ ○ 下载    │                                       │
+│ ○ 游戏版本 │                                       │
 │ ○ 设置    │                                       │
-│ ○ 日志    │                                       │
 │          │                                       │
-│ [头像]    │                                       │
+│ [头像] 昵称│  ← 点击切换账号 / 添加微软账号         │
 └──────────┴──────────────────────────────────────┘
 ~~~
 
 **页面**
-1. **首页**：实例卡片网格（图标、版本、上次游玩时间、启动按钮），右下角账号切换
-2. **版本**：已安装版本列表 + 详情（安装状态、Java 版本、删除/修复/打开目录）
-3. **下载**：版本清单（正式版/快照/全部筛选、搜索），选中后展示“安装”按钮与进度条
-4. **实例**：实例列表、创建、编辑（内存、Java、JVM 参数、分辨率）
-5. **设置**：账户、Java 路径、下载源、并发数、语言、主题（深/浅）、便携模式开关
-6. **日志**：实时滚动日志 + 复制 / 打开日志目录
+1. **首页**：当前账号、启动版本下拉、内存上限滑杆（512–16384 MB，平滑无刻度吸附）、启动按钮与状态、版本隔离目录、数据目录、统计
+2. **下载**：左侧分类（游戏版本 / 模组 / 整合包 / 光影 / 资源包 / 数据包）；右侧顶部为游戏版本 + 模组加载器 + 加载器版本，版本页直接安装，内容页搜索后下载到对应版本目录
+3. **游戏版本**：已安装版本列表 + 详情（版本目录、隔离游戏目录、打开目录、删除版本）
+4. **设置**：默认内存、离线用户名、下载源（BMCLAPI / 官方）、微软客户端 ID、Java 路径与扫描、数据目录
 
-**状态机**（首页启动按钮）：
-Idle → CheckingFiles → Downloading → Launching → Running → Exited / Failed
+**移除**：实例概念（改为「游戏版本」+ 版本隔离）、日志页（日志仍写入 `logs/`，仅不设界面）。
 
-**样式**：深色为主、强调色可配（默认紫蓝色 #6C5CE7），圆角 8px，字体 Microsoft YaHei UI。不采用 PCL 的蓝色主色相与界面结构，避免与 PCL 混淆。
+**样式**：扁平浅色，`#F6F6F7` 窗口底色、白色卡片、`#E2E3E6` 1px 分隔线、8px 圆角、`#2F9E63` 绿色强调色，正文 12–14px，无渐变/玻璃/发光效果。
 
 ---
 
@@ -513,3 +501,18 @@ java -Xms512M -Xmx2048M
 | MC 档案 | https://api.minecraftservices.com/minecraft/profile |
 | Fabric Meta | https://meta.fabricmc.net/v2/versions/loader/<mc> |
 | 镜像（备用） | https://bmclapi2.bangbang93.com/ |
+
+---
+
+## 附录 C：本轮功能变更（2026-10-20）
+
+| 项 | 变更 |
+| --- | --- |
+| 数据位置 | 改为便携：`GamePaths.CreateDefault()` 固定使用 `AppContext.BaseDirectory`，删除 `%APPDATA%` 与 `portable.txt` 逻辑 |
+| 实例 → 游戏版本 | 删除实例模型与页面；版本隔离目录为 `versions/<id>/game`，Home/Versions/CLI 统一使用 `paths.GameDir(id)` |
+| 下载页 | 新增分类：游戏版本 / 模组 / 整合包 / 光影 / 资源包 / 数据包；内容走 Modrinth API v2 |
+| 模组加载器 | `LoaderService` 支持 Fabric / Quilt / Forge / NeoForge；Forge/NeoForge 走安装器，自动补 `launcher_profiles.json` |
+| 镜像 | `Mirrors.Rewrite` 接入 `DownloadClient` 与版本清单请求，默认 BMCLAPI，可切官方源 |
+| 微软登录 | `MicrosoftAuthService`（设备码 → Xbox Live → XSTS → Minecraft）+ `AccountStore`（AES-GCM，密钥仅当前用户可读）；左下角账号弹窗登录 |
+| 内存滑杆 | 去掉刻度吸附，512–16384 MB 平滑调节 |
+| 日志页 | 删除页面与导航项；日志仍写 `logs/launcher-*.log` |

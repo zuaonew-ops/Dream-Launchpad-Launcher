@@ -1,29 +1,6 @@
 <UserControl x:Class="DLP.App.Views.VersionsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <UserControl.Resources>
-        <Style x:Key="VersionItemStyle" TargetType="ListBoxItem">
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Bd" Background="Transparent" CornerRadius="4" Margin="0,1" Padding="8,6">
-                            <ContentPresenter />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#F4F5F6" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
-
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -32,90 +9,87 @@
 
         <Grid>
             <StackPanel>
-                <TextBlock Text="版本库" Style="{StaticResource H1}" />
+                <TextBlock Text="游戏版本" Style="{StaticResource H1}" />
                 <TextBlock Text="{Binding Status}" Style="{StaticResource BodyText}" Margin="0,6,0,0" />
             </StackPanel>
             <Button HorizontalAlignment="Right" VerticalAlignment="Top" Style="{StaticResource SecondaryButton}"
-                    Command="{Binding LoadCommand}" Content="刷新清单" />
+                    Content="刷新" Command="{Binding RefreshCommand}" />
         </Grid>
 
         <Grid Grid.Row="1" Margin="0,18,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="320" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Style="{StaticResource Card}" Padding="12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" />
-                    <ComboBox Grid.Row="1" Style="{StaticResource ComboBoxStyle}" Margin="0,8,0,0"
-                              ItemsSource="{Binding TypeFilters}" SelectedItem="{Binding TypeFilter}" />
-                    <ListBox Grid.Row="2" Margin="0,10,0,0" Background="Transparent" BorderThickness="0"
-                             ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}"
-                             ItemContainerStyle="{StaticResource VersionItemStyle}"
-                             VirtualizingPanel.IsVirtualizing="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Id}" FontSize="12.5" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1" Text="{Binding ReleaseTime, StringFormat=yyyy-MM-dd}"
-                                               FontSize="11" Foreground="{StaticResource TextTertiary}" VerticalAlignment="Center" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Grid>
+            <Border Style="{StaticResource Card}" Padding="10">
+                <ListBox Background="Transparent" BorderThickness="0" ItemsSource="{Binding InstalledVersions}"
+                         SelectedItem="{Binding Selected}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Margin="0,1" Padding="10,9">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#F4F5F6" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding}" FontSize="13" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Style="{StaticResource Chip}">
+                                    <TextBlock Text="已安装" FontSize="10.5" Foreground="{StaticResource TextSecondary}" />
+                                </Border>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </Border>
 
             <Border Grid.Column="2" Style="{StaticResource Card}" Padding="24">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+                <StackPanel>
+                    <TextBlock Text="版本信息" Style="{StaticResource SmallText}" />
+                    <TextBlock Text="{Binding Selected, TargetNullValue=未选择版本}" FontSize="24" FontWeight="SemiBold" Margin="0,8,0,0" />
 
-                    <StackPanel>
-                        <TextBlock Text="当前选择" Style="{StaticResource SmallText}" />
-                        <TextBlock Text="{Binding SelectedTitle}" Margin="0,8,0,0" FontSize="26" FontWeight="SemiBold" />
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <Border Style="{StaticResource Chip}">
-                                <TextBlock Text="{Binding SelectedMeta}" FontSize="11" Foreground="{StaticResource TextSecondary}" />
-                            </Border>
-                            <Border Style="{StaticResource Chip}" Margin="6,0,0,0" Background="{StaticResource AccentSoft}"
-                                    Visibility="{Binding IsInstalled, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="已安装" FontSize="11" Foreground="{StaticResource Accent}" />
-                            </Border>
-                        </StackPanel>
+                    <TextBlock Text="版本目录" Style="{StaticResource FieldLabel}" Margin="0,20,0,4" />
+                    <TextBlock Text="{Binding VersionDir}" Style="{StaticResource BodyText}" TextWrapping="Wrap" />
+
+                    <TextBlock Text="隔离游戏目录（mods / saves / 配置）" Style="{StaticResource FieldLabel}" Margin="0,12,0,4" />
+                    <TextBlock Text="{Binding GameDir}" Style="{StaticResource BodyText}" TextWrapping="Wrap" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,22,0,0">
+                        <Button Content="打开版本目录" Style="{StaticResource SecondaryButton}" Command="{Binding OpenVersionFolderCommand}" />
+                        <Button Content="打开游戏目录" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Command="{Binding OpenGameFolderCommand}" />
+                        <Button Content="删除版本" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Command="{Binding DeleteCommand}" />
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Margin="0,22,0,0">
-                        <Button Content="安装此版本" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"
-                                Command="{Binding InstallCommand}" AutomationProperties.Name="安装此版本" />
-                        <ProgressBar Style="{StaticResource ProgressBarStyle}" Margin="0,18,0,0" Value="{Binding Progress}" />
-                        <TextBlock Margin="0,10,0,0" Style="{StaticResource SmallText}" Text="{Binding Status}" TextWrapping="Wrap" />
-                    </StackPanel>
-
-                    <Border Grid.Row="2" Background="#F7F8F9" CornerRadius="6" Padding="14" VerticalAlignment="Bottom" Margin="0,20,0,0">
+                    <Border Background="#F7F8F9" CornerRadius="6" Padding="14" Margin="0,22,0,0">
                         <StackPanel>
-                            <TextBlock Text="安装说明" FontSize="12.5" FontWeight="SemiBold" />
-                            <TextBlock Margin="0,8,0,0" Style="{StaticResource BodyText}" TextWrapping="Wrap"
-                                       Text="安装会下载客户端、全部依赖库、资源文件与所需 Java 运行时，所有文件均做 SHA1 校验。" />
-                            <TextBlock Margin="0,6,0,0" Style="{StaticResource BodyText}" TextWrapping="Wrap"
-                                       Text="重复安装只会补齐缺失文件；安装完成后回首页即可启动。" />
+                            <TextBlock Text="版本隔离" FontSize="12.5" FontWeight="SemiBold" />
+                            <TextBlock Text="每个版本都使用独立的 game 目录，mods、存档、配置互不影响；启动器数据全部保存在 exe 所在文件夹。"
+                                       Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                         </StackPanel>
                     </Border>
-                </Grid>
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

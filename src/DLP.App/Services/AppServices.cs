@@ -22,6 +22,8 @@ public sealed class AppServices
     public GameInstaller Installer { get; }
     public GameLauncher Launcher { get; }
     public AppSettings Settings { get; }
+    public AccountManager Accounts { get; }
+    public ModrinthService Modrinth { get; }
 
     public event Action? InstalledVersionsChanged;
 
@@ -33,7 +35,7 @@ public sealed class AppServices
         {
             Timeout = TimeSpan.FromMinutes(10)
         };
-        Http.DefaultRequestHeaders.UserAgent.ParseAdd("DreamLaunchpad/0.1");
+        Http.DefaultRequestHeaders.UserAgent.ParseAdd("DreamLaunchpad/0.3");
         Downloader = new DownloadClient(Http, Log);
         Manifests = new VersionManifestService(Http, Paths, Log);
         Versions = new VersionRepository(Paths, Downloader, Manifests);
@@ -41,6 +43,9 @@ public sealed class AppServices
         Installer = new GameInstaller(Paths, Downloader, Versions, Log);
         Launcher = new GameLauncher(Paths, Log);
         Settings = AppSettings.Load();
+        Mirrors.Enabled = Settings.DownloadSource != "official";
+        Accounts = new AccountManager(Paths, Settings, Http);
+        Modrinth = new ModrinthService(Http);
     }
 
     public IReadOnlyList<string> GetInstalledVersions()
@@ -51,17 +56,6 @@ public sealed class AppServices
             .Where(name => name is not null
                            && File.Exists(Paths.VersionJson(name))
                            && File.Exists(Paths.VersionJar(name)))
-            .Select(name => name!)
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    public IReadOnlyList<string> GetInstances()
-    {
-        if (!Directory.Exists(Paths.Instances)) return [];
-        return Directory.EnumerateDirectories(Paths.Instances)
-            .Select(Path.GetFileName)
-            .Where(name => name is not null)
             .Select(name => name!)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();

@@ -307,14 +307,11 @@
             <DataTemplate DataType="{x:Type vm:VersionsViewModel}">
                 <views:VersionsPage />
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:InstancesViewModel}">
-                <views:InstancesPage />
+            <DataTemplate DataType="{x:Type vm:DownloadViewModel}">
+                <views:DownloadPage />
             </DataTemplate>
             <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
                 <views:SettingsPage />
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:LogViewModel}">
-                <views:LogPage />
             </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>

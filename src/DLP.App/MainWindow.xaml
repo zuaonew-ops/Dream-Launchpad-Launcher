@@ -54,27 +54,66 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding Title}" FontSize="12.5" Margin="10,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="16,12">
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="28" Height="28" CornerRadius="14" Background="#DEE0E3">
-                            <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                       Foreground="{StaticResource TextSecondary}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding AccountName}" FontSize="12" />
-                            <TextBlock Text="离线账号" Style="{StaticResource SmallText}" Margin="0,1,0,0" />
-                        </StackPanel>
-                    </StackPanel>
+                <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+                    <Button x:Name="AccountButton" Click="Account_Click" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="Transparent" Padding="14,10">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="30" Height="30" CornerRadius="15" Background="#DEE0E3">
+                                            <TextBlock Text="{Binding AccountInitial}" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextSecondary}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Margin="9,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding AccountName}" FontSize="12" />
+                                            <TextBlock Text="{Binding AccountKind}" Style="{StaticResource SmallText}" Margin="0,1,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                   Foreground="{StaticResource TextTertiary}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#E5E6E9" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </Border>
+
+                <Popup x:Name="AccountPopup" PlacementTarget="{Binding ElementName=AccountButton}" Placement="Top"
+                       StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" HorizontalOffset="8">
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                            CornerRadius="8" Padding="8" Width="230">
+                        <StackPanel>
+                            <TextBlock Text="切换账号" Style="{StaticResource SmallText}" Margin="8,4,8,6" />
+                            <ListBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding CurrentAccount}"
+                                     Background="Transparent" BorderThickness="0" MaxHeight="180">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Username}" FontSize="12.5" />
+                                            <TextBlock Text="{Binding KindLabel}" Style="{StaticResource SmallText}" Margin="0,1,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Border Height="1" Background="{StaticResource Line}" Margin="6,6" />
+                            <Button Content="添加微软账号" Style="{StaticResource SecondaryButton}" Click="AddMicrosoft_Click" />
+                            <TextBlock Text="离线用户名可在首页修改" Style="{StaticResource SmallText}" Margin="4,8,4,2" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
             </Grid>
         </Border>
 

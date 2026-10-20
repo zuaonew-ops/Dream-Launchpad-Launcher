@@ -12,6 +12,7 @@ public sealed class DownloadClient(HttpClient http, Log log)
 
     public async Task DownloadAsync(string url, string destination, string? sha1 = null, long? size = null, CancellationToken ct = default)
     {
+        url = Mirrors.Rewrite(url);
         if (IsValid(destination, sha1, size)) return;
 
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);

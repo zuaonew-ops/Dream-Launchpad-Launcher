@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using DLP.Core.Download;
 using DLP.Core.Infrastructure;
 
 namespace DLP.Core.Minecraft;
@@ -24,7 +25,7 @@ public sealed class VersionManifestService(HttpClient http, GamePaths paths, Log
         }
 
         var etag = File.Exists(_etagFile) ? File.ReadAllText(_etagFile).Trim() : null;
-        var request = new HttpRequestMessage(HttpMethod.Get, OfficialUrl);
+        var request = new HttpRequestMessage(HttpMethod.Get, Mirrors.Rewrite(OfficialUrl));
         if (etag is not null) request.Headers.TryAddWithoutValidation("If-None-Match", etag);
 
         try
