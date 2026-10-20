@@ -1,7 +1,7 @@
 <UserControl x:Class="DLP.App.Views.SettingsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Style="{StaticResource PageRootStyle}" Margin="40,16,40,32">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -9,86 +9,82 @@
 
         <StackPanel>
             <TextBlock Text="设置" Style="{StaticResource H1}" />
-            <TextBlock Text="全局默认值，可在启动前临时调整" Style="{StaticResource BodyText}" Margin="0,8,0,0" />
+            <TextBlock Text="全局默认值，可在启动前临时调整" Style="{StaticResource BodyText}" Margin="0,6,0,0" />
         </StackPanel>
 
-        <ScrollViewer Grid.Row="1" Margin="0,22,0,0" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="16" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Style="{StaticResource GlassCard}">
+                <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="通用" Style="{StaticResource H2}" FontSize="19" />
+                        <TextBlock Text="通用" Style="{StaticResource H2}" />
 
-                        <Grid Margin="0,22,0,0">
-                            <TextBlock Text="默认内存上限" Style="{StaticResource FieldLabel}" />
-                            <TextBlock HorizontalAlignment="Right" Margin="0,0,0,7" FontSize="12" Foreground="White">
-                                <Run Text="{Binding MemoryMb, Mode=OneWay}" /><Run Text=" MB" />
-                            </TextBlock>
+                        <TextBlock Text="默认内存上限" Style="{StaticResource FieldLabel}" Margin="0,18,0,6" />
+                        <Grid>
+                            <Slider Style="{StaticResource SliderStyle}" Minimum="512" Maximum="8192"
+                                    TickFrequency="512" IsSnapToTickEnabled="True" Value="{Binding MemoryMb}" />
+                            <TextBlock Text="{Binding MemoryMb, StringFormat={}{0} MB}" HorizontalAlignment="Right"
+                                       FontSize="11.5" Foreground="{StaticResource TextTertiary}" />
                         </Grid>
-                        <Slider Style="{StaticResource SliderStyle}" Minimum="512" Maximum="8192"
-                                TickFrequency="512" IsSnapToTickEnabled="True" Value="{Binding MemoryMb}" />
 
-                        <TextBlock Text="默认离线用户名" Style="{StaticResource FieldLabel}" Margin="0,20,0,7" />
+                        <TextBlock Text="默认离线用户名" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
                         <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
 
-                        <TextBlock Text="下载源" Style="{StaticResource FieldLabel}" Margin="0,20,0,7" />
+                        <TextBlock Text="下载源" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
                         <ComboBox Style="{StaticResource ComboBoxStyle}" ItemsSource="{Binding Sources}"
                                   SelectedItem="{Binding DownloadSource}" />
 
-                        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
                             <Button Content="保存设置" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" />
-                            <TextBlock Text="{Binding Status}" Margin="14,0,0,0" VerticalAlignment="Center"
-                                       FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                            <TextBlock Text="{Binding Status}" Style="{StaticResource SmallText}" Margin="12,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <StackPanel Grid.Column="2">
-                    <Border Style="{StaticResource GlassCard}">
+                    <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="Java 运行时" Style="{StaticResource H2}" FontSize="19" />
-                            <TextBlock Text="留空则自动检测；找不到时会下载 Mojang 运行时" Margin="0,8,0,0" FontSize="12"
-                                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                            <TextBlock Text="Java 运行时" Style="{StaticResource H2}" />
+                            <TextBlock Text="留空则自动检测；找不到时会下载 Mojang 运行时" Style="{StaticResource SmallText}"
+                                       Margin="0,6,0,0" TextWrapping="Wrap" />
 
-                            <TextBlock Text="Java 路径" Style="{StaticResource FieldLabel}" Margin="0,18,0,7" />
+                            <TextBlock Text="Java 路径" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="8" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding JavaPath, UpdateSourceTrigger=PropertyChanged}" />
-                                <Button Grid.Column="2" Content="浏览…" Style="{StaticResource GlassButton}"
+                                <Button Grid.Column="2" Content="浏览…" Style="{StaticResource SecondaryButton}"
                                         Command="{Binding BrowseJavaCommand}" />
                             </Grid>
 
-                            <Grid Margin="0,20,0,0">
-                                <TextBlock Text="已检测到的 Java" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                <Button HorizontalAlignment="Right" Content="重新扫描" Style="{StaticResource GlassButton}"
-                                        Padding="14,8" Command="{Binding ScanJavaCommand}" />
+                            <Grid Margin="0,18,0,0">
+                                <TextBlock Text="已检测到的 Java" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Button HorizontalAlignment="Right" Content="重新扫描" Style="{StaticResource SecondaryButton}"
+                                        Padding="12,6" Command="{Binding ScanJavaCommand}" />
                             </Grid>
-                            <ListBox Margin="0,10,0,0" Background="Transparent" BorderThickness="0" MaxHeight="160"
+                            <ListBox Margin="0,8,0,0" Background="Transparent" BorderThickness="0" MaxHeight="150"
                                      ItemsSource="{Binding DetectedJava}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="{StaticResource MutedBrush}"
-                                                   Margin="0,4" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding}" Style="{StaticResource SmallText}" Margin="0,3" TextTrimming="CharacterEllipsis" />
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource GlassCard}" Margin="0,16,0,0" Padding="20">
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
                         <StackPanel>
-                            <TextBlock Text="数据目录" FontSize="12" Foreground="{StaticResource FaintBrush}" />
-                            <TextBlock Text="{Binding DataRoot}" Margin="0,7,0,0" FontSize="12"
-                                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                            <TextBlock Text="数据目录" Style="{StaticResource H2}" />
+                            <TextBlock Text="{Binding DataRoot}" Style="{StaticResource BodyText}" Margin="0,10,0,0" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

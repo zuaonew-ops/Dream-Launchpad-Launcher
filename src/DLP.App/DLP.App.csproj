@@ -4,10 +4,6 @@
     <ProjectReference Include="..\DLP.Core\DLP.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Resource Include="Assets\background.png" />
-  </ItemGroup>
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
