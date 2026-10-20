@@ -16,7 +16,7 @@
 ## 结构
 
 ~~~
-DreamLaunchpad.sln
+DreamLaunchpad.slnx
 ├─ src/DLP.Core    核心库（清单、下载、安装、Java、认证、启动）
 ├─ src/DLP.Cli     命令行（调试与自动化）
 ├─ src/DLP.App     WPF 界面
