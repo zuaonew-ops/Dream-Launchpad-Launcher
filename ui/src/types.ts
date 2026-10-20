@@ -28,5 +28,7 @@ export interface ProgressPayload {
 export interface InstallState {
   id: string;
   stage: string;
+  done: number;
+  total: number;
   percent: number;
 }

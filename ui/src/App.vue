@@ -1,26 +1,34 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
+import SidePanel from "./components/SidePanel.vue";
+import VersionToolbar from "./components/VersionToolbar.vue";
 import VersionList from "./components/VersionList.vue";
 import ProgressPanel from "./components/ProgressPanel.vue";
 import { useLauncher } from "./composables/useLauncher";
 
 const {
-  versions,
+  filtered,
   environment,
+  javas,
   selected,
   selectedVersion,
   username,
   memory,
   isolate,
+  javaPath,
+  includeSnapshots,
+  search,
   loading,
   busy,
   error,
   notice,
   install,
+  launchPid,
   refresh,
   subscribe,
   installSelected,
   launchSelected,
+  openDataDir,
 } = useLauncher();
 
 let unlisten: (() => void) | undefined;
@@ -44,56 +52,32 @@ onUnmounted(() => unlisten?.());
         </div>
       </div>
       <div v-if="environment" class="env">
-        {{ environment.os }} · {{ environment.arch }} · core {{ environment.core }}
+        {{ environment.os }} · {{ environment.arch }} · Tauri {{ environment.tauri }} · core
+        {{ environment.core }}
       </div>
     </header>
 
     <main class="body">
-      <aside class="panel side">
-        <section class="block">
-          <label class="label" for="nick">离线昵称</label>
-          <input
-            id="nick"
-            v-model="username"
-            class="input"
-            maxlength="16"
-            spellcheck="false"
-            placeholder="Steve"
-          />
-          <p class="hint">离线登录只在本地生成 UUID，不需要账号密码</p>
-        </section>
-
-        <section class="block">
-          <label class="label" for="mem">内存上限</label>
-          <div class="mem">
-            <input id="mem" v-model.number="memory" type="range" min="1024" max="8192" step="512" />
-            <span class="mem-val">{{ memory }} MB</span>
-          </div>
-        </section>
-
-        <section class="block">
-          <label class="switch">
-            <input v-model="isolate" type="checkbox" />
-            <span>版本隔离</span>
-          </label>
-          <p class="hint">开启后每个版本独立存档与 mods（versions/&lt;版本&gt;/）</p>
-        </section>
-
-        <section class="block meta">
-          <span class="label">数据目录</span>
-          <code>{{ environment?.data_dir ?? "…" }}</code>
-        </section>
-      </aside>
+      <SidePanel
+        v-model:username="username"
+        v-model:memory="memory"
+        v-model:isolate="isolate"
+        v-model:java-path="javaPath"
+        :javas="javas"
+        :environment="environment"
+        @open-dir="openDataDir"
+      />
 
       <section class="panel main">
-        <div class="list-head">
-          <span class="label">正式版本</span>
-          <button class="ghost" :disabled="loading" @click="refresh">
-            {{ loading ? "刷新中" : "刷新" }}
-          </button>
-        </div>
+        <VersionToolbar
+          v-model:keyword="search"
+          v-model:snapshots="includeSnapshots"
+          :loading="loading"
+          :total="filtered.length"
+          @refresh="refresh"
+        />
         <VersionList
-          :versions="versions"
+          :versions="filtered"
           :selected="selected"
           :loading="loading"
           @select="selected = $event"
@@ -106,13 +90,20 @@ onUnmounted(() => unlisten?.());
         <div class="picked">
           <span class="label">当前版本</span>
           <strong>{{ selectedVersion?.id ?? "未选择" }}</strong>
+          <span v-if="selectedVersion && !selectedVersion.installed" class="badge">未安装</span>
+          <span v-else-if="launchPid" class="badge ok">运行中 · {{ launchPid }}</span>
         </div>
 
-        <ProgressPanel
-          v-if="install"
-          :stage="install.stage"
-          :percent="install.percent"
-        />
+        <div class="progress-slot">
+          <ProgressPanel
+            v-if="install"
+            :stage="install.stage"
+            :percent="install.percent"
+            :done="install.done"
+            :total="install.total"
+          />
+          <p v-else-if="busy" class="muted-line">正在处理…</p>
+        </div>
 
         <div class="buttons">
           <button
@@ -147,8 +138,8 @@ onUnmounted(() => unlisten?.());
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  padding: 22px 26px 18px;
-  gap: 16px;
+  padding: 20px 24px 16px;
+  gap: 14px;
 }
 
 .top {
@@ -165,9 +156,9 @@ onUnmounted(() => unlisten?.());
 }
 
 .mark {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
   display: grid;
   place-items: center;
   font-size: 13px;
@@ -203,7 +194,7 @@ h1 {
 
 .body {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 292px 1fr;
   gap: 14px;
   min-height: 0;
 }
@@ -212,122 +203,29 @@ h1 {
   background: var(--bg-soft);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 16px;
-  min-height: 0;
-}
-
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  animation: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: 60ms;
 }
 
 .main {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 14px;
+  min-height: 0;
   animation: rise 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: 110ms;
-}
-
-.block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.label {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.input {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--text);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.input:focus {
-  border-color: rgba(76, 141, 255, 0.7);
-  box-shadow: 0 0 0 3px rgba(76, 141, 255, 0.15);
-}
-
-.hint {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.mem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-input[type="range"] {
-  flex: 1;
-  accent-color: #4c8dff;
-}
-
-.mem-val {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  min-width: 66px;
-  text-align: right;
-}
-
-.meta code {
-  font-size: 11px;
-  color: var(--muted);
-  word-break: break-all;
-  line-height: 1.6;
-}
-
-.list-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ghost {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  border-radius: 9px;
-  padding: 5px 11px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: color 160ms ease, border-color 160ms ease, transform 160ms ease;
-}
-
-.ghost:hover:not(:disabled) {
-  color: var(--text);
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
 }
 
 .bottom {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   animation: rise 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: 160ms;
 }
 
 .action {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(150px, auto) 1fr auto;
   align-items: center;
   gap: 18px;
   background: var(--bg-soft);
@@ -338,14 +236,49 @@ input[type="range"] {
 
 .picked {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 92px;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .picked strong {
   font-size: 15px;
   font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
+.badge.ok {
+  color: #4fd8b8;
+  background: rgba(34, 193, 164, 0.12);
+}
+
+.progress-slot {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+}
+
+.progress-slot > * {
+  width: 100%;
+}
+
+.muted-line {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .buttons {
@@ -416,49 +349,8 @@ input[type="range"] {
   }
 }
 
-.switch {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.switch input {
-  appearance: none;
-  width: 36px;
-  height: 20px;
-  border-radius: 999px;
-  background: #2a303c;
-  position: relative;
-  cursor: pointer;
-  transition: background 180ms ease;
-}
-
-.switch input::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #cfd6e4;
-  transition: transform 180ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
-}
-
-.switch input:checked {
-  background: linear-gradient(135deg, #4c8dff, #22c1a4);
-}
-
-.switch input:checked::after {
-  transform: translateX(16px);
-  background: #fff;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .top,
-  .side,
   .main,
   .bottom {
     animation: none;

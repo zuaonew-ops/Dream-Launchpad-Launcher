@@ -140,6 +140,31 @@ async fn launch_game(
     launch::spawn(&plan, &paths)
 }
 
+#[tauri::command]
+fn open_data_dir(state: State<'_, AppState>) -> Result<(), String> {
+    let dir = state.paths.root.clone();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建数据目录失败: {e}"))?;
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut c = std::process::Command::new("explorer");
+        c.arg(&dir);
+        c
+    };
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(&dir);
+        c
+    };
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut c = std::process::Command::new("open");
+        c.arg(&dir);
+        c
+    };
+    command.spawn().map(|_| ()).map_err(|e| format!("打开目录失败: {e}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let paths = Paths::new(Paths::default_root());
@@ -157,7 +182,8 @@ pub fn run() {
             list_versions,
             detect_java,
             install_version,
-            launch_game
+            launch_game,
+            open_data_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

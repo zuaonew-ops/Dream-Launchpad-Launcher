@@ -2,21 +2,22 @@
 defineProps<{
   stage: string;
   percent: number;
+  done: number;
+  total: number;
 }>();
 </script>
 
 <template>
-  <Transition name="panel">
-    <div class="progress">
-      <div class="head">
-        <span class="stage">{{ stage }}</span>
-        <span class="pct">{{ Math.round(percent * 100) }}%</span>
-      </div>
-      <div class="track">
-        <div class="fill" :style="{ width: `${Math.max(3, percent * 100)}%` }" />
-      </div>
+  <div class="progress">
+    <div class="head">
+      <span class="stage">{{ stage }}</span>
+      <span class="count" v-if="total > 0">{{ done }} / {{ total }}</span>
+      <span class="pct">{{ Math.round(percent * 100) }}%</span>
     </div>
-  </Transition>
+    <div class="track">
+      <div class="fill" :style="{ width: `${Math.max(3, percent * 100)}%` }" />
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -29,14 +30,26 @@ defineProps<{
 
 .head {
   display: flex;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
   font-size: 12px;
   color: var(--muted);
 }
 
+.stage {
+  flex: 1;
+  color: var(--text);
+}
+
+.count,
 .pct {
   font-variant-numeric: tabular-nums;
+}
+
+.pct {
   color: var(--text);
+  min-width: 38px;
+  text-align: right;
 }
 
 .track {
@@ -74,17 +87,6 @@ defineProps<{
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.panel-enter-active,
-.panel-leave-active {
-  transition: opacity 200ms ease, transform 200ms ease;
-}
-
-.panel-enter-from,
-.panel-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
 }
 
 @media (prefers-reduced-motion: reduce) {

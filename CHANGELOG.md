@@ -2,6 +2,23 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.5.0] - 2026-10-20
+
+### 新增
+
+- 界面补全：Java 运行时选择（自动 / 指定）、版本搜索、快照开关、数据目录一键打开
+- 安装进度显示阶段 + 已完成 / 总数 + 百分比；启动后显示运行中状态与 pid
+- 无 Java、网络失败、昵称非法等情况给出中文提示
+
+### 变更
+
+- 前端按组件拆分：`SidePanel`（账号 / 内存 / Java / 隔离 / 目录）、`VersionToolbar`（搜索 / 快照 / 刷新）、`VersionList`、`ProgressPanel`；状态与调用集中在 `useLauncher`
+- 新增 `open_data_dir` 命令（Windows 用 explorer，Linux 用 xdg-open，macOS 用 open）
+
+### 构建
+
+- Windows NSIS 安装包 **1.89 MiB**（0.4.0 实测体积；0.5.0 构建记录见 REQ-001 §9）
+
 ## [0.4.0] - 2026-10-20
 
 ### 新增
