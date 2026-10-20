@@ -115,11 +115,11 @@
                                         VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
-                        <Button Style="{StaticResource IconButton}" Content="&#xE921;" Width="40" Height="32"
+                        <Button Style="{StaticResource IconButton}" Content="&#xE921;" Width="40" Height="32" AutomationProperties.Name="最小化"
                                 Click="Minimize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
-                        <Button Style="{StaticResource IconButton}" Content="&#xE922;" Width="40" Height="32"
+                        <Button Style="{StaticResource IconButton}" Content="&#xE922;" Width="40" Height="32" AutomationProperties.Name="最大化"
                                 Click="Maximize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
-                        <Button Style="{StaticResource IconButton}" Content="&#xE8BB;" Width="40" Height="32"
+                        <Button Style="{StaticResource IconButton}" Content="&#xE8BB;" Width="40" Height="32" AutomationProperties.Name="关闭"
                                 Click="Close_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
                     </StackPanel>
                 </Grid>

@@ -45,7 +45,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,30,0,0">
-                        <Button x:Name="LaunchButton" Style="{StaticResource PrimaryButton}"
+                        <Button x:Name="LaunchButton" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="启动游戏"
                                 Command="{Binding LaunchCommand}" Padding="34,17">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="15"
@@ -73,7 +73,7 @@
                     <StackPanel>
                         <Grid>
                             <TextBlock Text="启动配置" Style="{StaticResource H2}" FontSize="19" />
-                            <Button Style="{StaticResource IconButton}" Content="&#xE72C;" Width="32" Height="32"
+                            <Button Style="{StaticResource IconButton}" Content="&#xE72C;" Width="32" Height="32" AutomationProperties.Name="刷新"
                                     HorizontalAlignment="Right" Command="{Binding RefreshCommand}" ToolTip="刷新" />
                         </Grid>
 
