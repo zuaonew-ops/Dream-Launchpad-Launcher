@@ -6,6 +6,22 @@
 - 桌面壳：[Tauri 2](https://tauri.app/)
 - 界面：React 19 + Vite + TypeScript
 
+## 仓库与产物的边界
+
+这个仓库**只放源码**，构建产物和测试数据都不进来：
+
+| 位置 | 放什么 |
+| --- | --- |
+| `D:\mcqdq`（本仓库） | 源码 + 文档；`dist/`、`node_modules/`、`target/` 均被忽略 |
+| `D:\dlp-artifacts\release\<版本>\` | 打包产物：`DreamLaunchpad.exe` + `WebView2Loader.dll`、NSIS 安装包、便携 zip |
+| `D:\dlp-artifacts\test-data\.minecraft` | 本机测试用的游戏目录（`DLP_HOME` 指向这里） |
+
+分支语义也要分清：
+
+- `main` —— .NET 版（历史实现，已停更）
+- `feat/rust-tauri` —— Rust + Tauri 重写版，也就是现在这个产品
+
+
 ## 当前功能（0.8.0）
 
 五个页面：
