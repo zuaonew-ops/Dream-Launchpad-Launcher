@@ -1,0 +1,82 @@
+{
+	"id": "30448aab-06d9-4c05-ae5a-364cb76f7553",
+	"deletedDateTime": null,
+	"appId": "9c8a21d5-5f66-4dba-b90a-42e47d2aaac1",
+	"applicationTemplateId": null,
+	"disabledByMicrosoftStatus": null,
+	"createdByAppId": "18ed3507-a475-4ccb-b669-d66bc9f2a36e",
+	"createdDateTime": "2026-10-21T08:51:39Z",
+	"displayName": "Dream Launchpad",
+	"description": null,
+	"groupMembershipClaims": null,
+	"identifierUris": [],
+	"isDeviceOnlyAuthSupported": null,
+	"isDisabled": null,
+	"isFallbackPublicClient": true,
+	"nativeAuthenticationApisEnabled": null,
+	"notes": null,
+	"publisherDomain": "momol101outlook.onmicrosoft.com",
+	"serviceManagementReference": null,
+	"signInAudience": "PersonalMicrosoftAccount",
+	"tags": [],
+	"tokenEncryptionKeyId": null,
+	"samlMetadataUrl": null,
+	"defaultRedirectUri": null,
+	"certification": null,
+	"optionalClaims": null,
+	"requestSignatureVerification": null,
+	"addIns": [],
+	"api": {
+		"acceptMappedClaims": null,
+		"knownClientApplications": [],
+		"requestedAccessTokenVersion": null,
+		"oauth2PermissionScopes": [],
+		"preAuthorizedApplications": []
+	},
+	"appRoles": [],
+	"info": {
+		"logoUrl": null,
+		"marketingUrl": null,
+		"privacyStatementUrl": null,
+		"supportUrl": null,
+		"termsOfServiceUrl": null
+	},
+	"keyCredentials": [],
+	"parentalControlSettings": {
+		"countriesBlockedForMinors": [],
+		"legalAgeGroupRule": "Allow"
+	},
+	"passwordCredentials": [],
+	"publicClient": {
+		"redirectUris": [
+			"http://localhost"
+		]
+	},
+	"requiredResourceAccess": [],
+	"verifiedPublisher": {
+		"displayName": null,
+		"verifiedPublisherId": null,
+		"addedDateTime": null
+	},
+	"web": {
+		"homePageUrl": null,
+		"logoutUrl": null,
+		"redirectUris": [],
+		"implicitGrantSettings": {
+			"enableAccessTokenIssuance": false,
+			"enableIdTokenIssuance": false
+		},
+		"redirectUriSettings": []
+	},
+	"servicePrincipalLockConfiguration": {
+		"isEnabled": true,
+		"allProperties": true,
+		"credentialsWithUsageVerify": true,
+		"credentialsWithUsageSign": true,
+		"identifierUris": false,
+		"tokenEncryptionKeyId": true
+	},
+	"spa": {
+		"redirectUris": []
+	}
+}
