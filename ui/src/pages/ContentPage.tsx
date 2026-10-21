@@ -37,7 +37,9 @@ export default function ContentPage() {
         <div>
           <h1>内容</h1>
           <p className="desc">
-            {id} · {state.baseVersion || "MC"} · 模组 / 存档 / 资源
+            {id}
+            {state.baseVersion && state.baseVersion !== id ? ` · ${state.baseVersion}` : ""} · 模组 /
+            存档
           </p>
         </div>
         <div className="seg">
@@ -73,7 +75,20 @@ export default function ContentPage() {
 
           {state.mods.length === 0 ? (
             <div className="empty-soft">
-              <p className="hint">这个版本没有模组。去「下载」页的「资源」里搜一个装上。</p>
+              <div className="empty-icon">◍</div>
+              <p className="hint">
+                这个版本还没有模组。到「资源」里搜一个装上，装完会自动出现在这里。
+              </p>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  actions.setDownloadTab("market");
+                  window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" }));
+                }}
+              >
+                去资源页看看
+              </button>
             </div>
           ) : (
             <ul className="content-list">

@@ -43,9 +43,11 @@ export default function VersionList({ groups, selected, loading, onSelect }: Pro
                   <span className="vid">{version.id}</span>
                   {version.local && <span className="kind local">本地</span>}
                   {version.april_fools && <span className="kind april">愚人节</span>}
-                  <span className={version.kind === "release" ? "kind" : "kind snapshot"}>
-                    {version.kind === "release" ? "正式" : version.kind === "snapshot" ? "快照" : "其它"}
-                  </span>
+                  {version.kind !== "release" && (
+                    <span className="kind snapshot">
+                      {version.kind === "snapshot" ? "快照" : "其它"}
+                    </span>
+                  )}
                   <span className={version.installed ? "state on" : "state"}>
                     {version.installed ? "已安装" : "未安装"}
                   </span>

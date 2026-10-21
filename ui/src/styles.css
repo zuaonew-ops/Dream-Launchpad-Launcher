@@ -2227,3 +2227,381 @@ textarea:focus-visible {
   margin-top: auto;
   padding-top: 12px;
 }
+
+/* ---------- 0.15.0 统一层：卡片、标题、控件、列表、空态 ---------- */
+
+.card,
+.panel {
+  padding: 18px 20px;
+  border: 1px solid #e4e9f2;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f0f3f8;
+}
+
+.section-head h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #101828;
+  flex: none;
+  white-space: nowrap;
+}
+
+.section-head .hint {
+  font-size: 11px;
+  color: #98a2b3;
+  margin-left: auto;
+  text-align: right;
+}
+
+/* 控件：统一 32px 高，圆角 8 */
+.input,
+.ghost,
+.primary {
+  height: 32px;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.input {
+  padding: 0 10px;
+  border: 1px solid #e4e9f2;
+  background: #fbfcfe;
+  color: #101828;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3f6ef2;
+  background: #fff;
+}
+
+.ghost {
+  padding: 0 12px;
+  border: 1px solid #e4e9f2;
+  background: #fff;
+  color: #344054;
+}
+
+.ghost:hover:not(:disabled) {
+  border-color: #c7d2e5;
+  background: #f8fafd;
+}
+
+.primary {
+  padding: 0 16px;
+}
+
+/* 版本列表分组 */
+.group {
+  margin-bottom: 4px;
+}
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px 6px;
+}
+
+.group-name {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #98a2b3;
+  text-transform: uppercase;
+}
+
+.group-name::after {
+  content: " 系列";
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.group-count {
+  font-size: 11px;
+  color: #b0b9c6;
+}
+
+.group-count::after {
+  content: " 个版本";
+}
+
+/* 版本行 */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 6px 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 110ms ease, border-color 110ms ease;
+}
+
+.row:hover {
+  background: #f7f9fd;
+  border-color: #e8eef8;
+}
+
+.row.active {
+  background: #eef4ff;
+  border-color: #c9dbfd;
+}
+
+/* 内容页 */
+.list-panel {
+  min-height: 320px;
+}
+
+.content-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f0f3f8;
+}
+
+.content-tools .hint {
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+.content-tools .ghost {
+  margin-left: auto;
+}
+
+.content-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.content-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.content-item:hover {
+  background: #f7f9fd;
+  border-color: #e8eef8;
+}
+
+/* 空态：图标 + 一句说明 + 一个出口 */
+.empty-soft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 56px 20px;
+  text-align: center;
+}
+
+.empty-soft .hint {
+  font-size: 12px;
+  color: #98a2b3;
+  max-width: 420px;
+  line-height: 1.7;
+}
+
+.empty-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #eef4ff;
+  color: #3f6ef2;
+  font-size: 18px;
+}
+
+/* 日志框：白底细框，不要和卡片糊在一起 */
+.log-view {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  background: #fbfcfe;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.75;
+  color: #475467;
+  overflow: auto;
+}
+
+/* 工具卡 */
+.tool {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid #e4e9f2;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.tool:hover {
+  border-color: #c7d2e5;
+  background: #fbfcff;
+}
+
+.tool-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #101828;
+}
+
+.tool-hint {
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+/* 设置页字段 */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field .label {
+  font-size: 11px;
+  color: #667085;
+}
+
+.hint {
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+/* 分段控件统一成一块 */
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  background: #f6f8fc;
+}
+
+.seg-item {
+  height: 26px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  color: #667085;
+  cursor: pointer;
+}
+
+.seg-item.active {
+  background: #fff;
+  color: #101828;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+/* 下载页筛选：改成和内容页一致的分段控件 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #f0f3f8;
+}
+
+.toolbar .tabs {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  background: #f6f8fc;
+  gap: 2px;
+}
+
+.toolbar .tab {
+  height: 26px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  color: #667085;
+  cursor: pointer;
+}
+
+.toolbar .tab.active {
+  background: #fff;
+  color: #101828;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.toolbar .search {
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar .count {
+  font-size: 11px;
+  color: #98a2b3;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 版本行左侧那条蓝线不要了 */
+.rows .row .bar {
+  display: none;
+}
+
+/* 设置页：按钮不要退化成灰底标签，两栏卡片等高 */
+.inline .ghost {
+  background: #fff;
+  border: 1px solid #e4e9f2;
+  color: #344054;
+}
+
+.inline .ghost:hover:not(:disabled) {
+  border-color: #c7d2e5;
+  background: #f8fafd;
+}
+
+.grid {
+  align-items: stretch;
+}
+
+.grid > .panel {
+  display: flex;
+  flex-direction: column;
+}
