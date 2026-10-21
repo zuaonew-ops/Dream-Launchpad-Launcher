@@ -25,6 +25,16 @@ pub struct CrashEntry {
     pub summary: String,
 }
 
+/// 版本概况：给详情页 / 设置页显示「这个版本有多大、装了什么」
+#[derive(Serialize, Clone, Debug)]
+pub struct VersionStats {
+    pub path: String,
+    pub size: u64,
+    pub files: u64,
+    pub mods: usize,
+    pub saves: usize,
+}
+
 #[derive(Serialize, Clone, Debug)]
 pub struct SaveEntry {
     pub name: String,
@@ -195,6 +205,41 @@ fn crash_summary(path: &Path) -> String {
         }
     }
     String::new()
+}
+
+/// 统计版本目录：总大小、文件数、模组数与存档数。
+pub fn version_stats(paths: &Paths, id: &str, isolate: bool) -> VersionStats {
+    let root = paths.version_dir(id);
+    let mut size = 0u64;
+    let mut files = 0u64;
+    collect_size(&root, &mut size, &mut files, 0);
+
+    let game = game_dir(paths, id, isolate);
+    VersionStats {
+        path: root.display().to_string(),
+        size,
+        files,
+        mods: list_mods(&game.join("mods")).iter().filter(|m| m.jar).count(),
+        saves: list_saves(&game.join("saves")).len(),
+    }
+}
+
+fn collect_size(dir: &Path, size: &mut u64, files: &mut u64, depth: usize) {
+    if depth > 8 {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let Ok(meta) = entry.metadata() else { continue };
+        if meta.is_dir() {
+            collect_size(&entry.path(), size, files, depth + 1);
+        } else {
+            *size += meta.len();
+            *files += 1;
+        }
+    }
 }
 
 /// 读日志尾部（默认 400 行），给界面里的日志面板用。

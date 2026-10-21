@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import LoaderPicker from "../components/LoaderPicker";
 import MarketPanel from "../components/MarketPanel";
 import ProgressPanel from "../components/ProgressPanel";
@@ -107,12 +108,23 @@ export default function DownloadPage() {
   );
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(0)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
+}
+
 function VersionDetail({ id }: { id: string }) {
   const state = useLauncher();
   const version = selectSelectedVersion(state);
   const installed = version?.installed ?? false;
   const running = state.game?.id === id;
   const installing = state.install?.id === id;
+
+  useEffect(() => {
+    void actions.loadVersionStats(id);
+  }, [id]);
 
   const loaderLabel = version?.loader
     ? version.loader
@@ -187,6 +199,33 @@ function VersionDetail({ id }: { id: string }) {
         <LoaderPicker mc={id} />
       </section>
 
+
+      {installed && (
+        <section className="panel">
+          <div className="section-head">
+            <h2>版本概况</h2>
+            <span className="hint">{state.versionStats?.path ?? ""}</span>
+          </div>
+          <dl className="stat-grid">
+            <div>
+              <dt>占用空间</dt>
+              <dd>{formatBytes(state.versionStats?.size ?? 0)}</dd>
+            </div>
+            <div>
+              <dt>文件数</dt>
+              <dd>{state.versionStats?.files ?? 0}</dd>
+            </div>
+            <div>
+              <dt>模组</dt>
+              <dd>{state.versionStats?.mods ?? 0}</dd>
+            </div>
+            <div>
+              <dt>存档</dt>
+              <dd>{state.versionStats?.saves ?? 0}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
       {installed && (
         <section className="panel">
           <div className="section-head">
@@ -209,26 +248,6 @@ function VersionDetail({ id }: { id: string }) {
           </div>
         </section>
       )}
-
-      <section className="panel">
-        <div className="section-head">
-          <h2>进度</h2>
-        </div>
-        {state.install && state.install.id === id ? (
-          <ProgressPanel
-            stage={state.install.stage}
-            percent={state.install.percent}
-            done={state.install.done}
-            total={state.install.total}
-          />
-        ) : state.error ? (
-          <p className="msg error">{state.error}</p>
-        ) : state.notice ? (
-          <p className="msg ok">{state.notice}</p>
-        ) : (
-          <p className="hint">空闲。点右上角「安装」开始。</p>
-        )}
-      </section>
     </div>
   );
 }

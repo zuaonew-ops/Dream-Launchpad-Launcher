@@ -34,6 +34,7 @@ fn main() -> Result<(), String> {
             memory_mb: 2048,
             isolate: true,
             extra_jvm_args: &[],
+            game_args: &[],
         },
     )?;
     println!("主类/参数数量: {}", plan.args.len());

@@ -65,6 +65,7 @@ export default function App() {
   const state = useLauncher();
   const Current = pages[page];
   const dark = state.theme === "dark";
+  const job = state.install;
 
   useEffect(() => {
     void actions.init();
@@ -137,6 +138,30 @@ export default function App() {
           <Current />
         </div>
       </main>
+
+      {/* 全局任务条：下载 / 安装 / 修复都在这里看，和当前在哪个页面无关 */}
+      {job && (
+        <div className="job-bar">
+          <span className="job-dot" />
+          <div className="job-text">
+            <strong>{job.id}</strong>
+            <span>{job.stage}</span>
+          </div>
+          <div className="job-meter">
+            <span style={{ width: `${Math.round(job.percent * 100)}%` }} />
+          </div>
+          <span className="job-pct">{Math.round(job.percent * 100)}%</span>
+          <button
+            type="button"
+            className="ghost small"
+            onClick={() => {
+              actions.openVersion(job.id);
+            }}
+          >
+            查看版本
+          </button>
+        </div>
+      )}
     </div>
   );
 }

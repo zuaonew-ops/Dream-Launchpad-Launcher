@@ -13,6 +13,7 @@ const EMPTY: VersionSettings = {
   java_path: null,
   isolate: null,
   extra_jvm_args: [],
+  game_args: [],
 };
 
 /** 单个版本的设置面板：内存 / Java / 隔离 / JVM 参数 + 这个版本的模组。
@@ -22,6 +23,7 @@ export default function VersionSettingsPanel({ id }: { id: string }) {
   const settings = state.settingsKey === id && state.settings ? state.settings : EMPTY;
 
   useEffect(() => {
+    void actions.loadVersionStats(id);
     void actions.loadSettings(id);
     void actions.loadContent(id);
   }, [id]);
@@ -32,6 +34,52 @@ export default function VersionSettingsPanel({ id }: { id: string }) {
 
   return (
     <div className="settings-grid">
+      <section className="panel span-2">
+        <div className="section-head">
+          <h2>版本概况</h2>
+          <span className="hint">{state.versionStats?.path ?? ""}</span>
+        </div>
+        <dl className="stat-grid">
+          <div>
+            <dt>占用空间</dt>
+            <dd>{formatSize(state.versionStats?.size ?? 0)}</dd>
+          </div>
+          <div>
+            <dt>文件数</dt>
+            <dd>{state.versionStats?.files ?? 0}</dd>
+          </div>
+          <div>
+            <dt>模组</dt>
+            <dd>{state.versionStats?.mods ?? 0}</dd>
+          </div>
+          <div>
+            <dt>存档</dt>
+            <dd>{state.versionStats?.saves ?? 0}</dd>
+          </div>
+        </dl>
+        <div className="inline stat-actions">
+          <button type="button" className="ghost" onClick={() => void actions.openVersionDir(id, "root")}>
+            打开版本目录
+          </button>
+          <button type="button" className="ghost" onClick={() => void actions.openVersionDir(id, "saves")}>
+            打开存档目录
+          </button>
+          <button type="button" className="ghost" onClick={() => void actions.openDir("logs")}>
+            打开日志目录
+          </button>
+          <button
+            type="button"
+            className="ghost danger"
+            onClick={() => {
+              if (confirm("把内存 / Java / 隔离 / JVM 参数恢复成全局默认？")) {
+                void actions.saveSettings(id, EMPTY);
+              }
+            }}
+          >
+            恢复默认设置
+          </button>
+        </div>
+      </section>
       <section className="panel">
         <h2>内存</h2>
         <label className="field">
@@ -99,6 +147,23 @@ export default function VersionSettingsPanel({ id }: { id: string }) {
         </div>
 
         <label className="field">
+          <span className="label">额外游戏参数（一行一个，例如 --width 1280）</span>
+          <textarea
+            className="input area"
+            rows={2}
+            spellCheck={false}
+            placeholder="--width 1280"
+            value={settings.game_args.join("\n")}
+            onChange={(e) =>
+              save({
+                game_args: e.target.value
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+
           <span className="label">额外 JVM 参数（一行一个）</span>
           <textarea
             className="input area"

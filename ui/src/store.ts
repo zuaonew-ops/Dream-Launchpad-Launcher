@@ -7,6 +7,7 @@ import type {
   AppSettings,
   Candidate,
   CrashEntry,
+  VersionStats,
   DownloadView,
   Environment,
   InstallState,
@@ -89,6 +90,8 @@ export interface State {
   logText: string;
   /** 崩溃报告（crash-reports/*.txt） */
   crashes: CrashEntry[];
+  /** 当前查看版本的概况（大小/文件数/模组数） */
+  versionStats: VersionStats | null;
   crashName: string;
   crashText: string;
   theme: Theme;
@@ -106,6 +109,7 @@ const EMPTY_SETTINGS: VersionSettings = {
   java_path: null,
   isolate: true,
   extra_jvm_args: [],
+    game_args: [],
 };
 
 let state: State = {
@@ -149,6 +153,7 @@ let state: State = {
   logName: "",
   logText: "",
   crashes: [],
+  versionStats: null,
   crashName: "",
   crashText: "",
   theme: (localStorage.getItem("dlp.theme") as Theme) ?? "light",
@@ -505,6 +510,17 @@ async function setAllMods(id: string, enabled: boolean) {
   }
 }
 
+/** 拉到某版本的概况；切版本时先清空，避免显示上一个版本的数字 */
+async function loadVersionStats(id: string) {
+  set({ versionStats: null });
+  try {
+    const versionStats = await invoke<VersionStats>("version_stats", { id });
+    set({ versionStats });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 async function loadCrashes() {
   try {
     const crashes = await invoke<CrashEntry[]>("crash_reports");
@@ -670,6 +686,7 @@ export const actions = {
   closeVersion: () => set({ downloadView: { name: "list" } }),
   repairVersion,
   deleteVersion,
+  loadVersionStats,
   setAllMods,
   loadCrashes,
   readCrash,

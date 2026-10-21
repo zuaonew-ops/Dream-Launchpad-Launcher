@@ -23,6 +23,8 @@ pub struct LaunchOptions<'a> {
     pub isolate: bool,
     /// 该版本额外的 JVM 参数
     pub extra_jvm_args: &'a [String],
+    /// 额外游戏参数（拼在 main class 之后）
+    pub game_args: &'a [String],
 }
 
 #[derive(Debug, Clone)]
@@ -122,6 +124,11 @@ pub fn build(
         for token in legacy.split_whitespace() {
             argv.push(args::substitute(token, &vars));
         }
+    }
+
+    // 用户追加的游戏参数放最后，能覆盖前面的默认值
+    for extra in options.game_args {
+        argv.push(extra.clone());
     }
 
     Ok(LaunchPlan {

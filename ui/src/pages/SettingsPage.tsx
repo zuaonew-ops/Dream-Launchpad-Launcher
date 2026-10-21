@@ -6,6 +6,7 @@ const FALLBACK: VersionSettings = {
   java_path: null,
   isolate: true,
   extra_jvm_args: [],
+    game_args: [],
 };
 
 export default function SettingsPage() {

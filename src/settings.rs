@@ -22,6 +22,9 @@ pub struct VersionSettings {
     pub isolate: Option<bool>,
     /// 额外 JVM 参数
     pub extra_jvm_args: Vec<String>,
+    /// 额外游戏参数（拼在 main class 之后，例如 --width 1280 --height 720）
+    #[serde(default)]
+    pub game_args: Vec<String>,
 }
 
 impl VersionSettings {
@@ -31,6 +34,11 @@ impl VersionSettings {
             memory_mb: other.memory_mb.or(self.memory_mb),
             java_path: other.java_path.clone().or_else(|| self.java_path.clone()),
             isolate: other.isolate.or(self.isolate),
+            game_args: if other.game_args.is_empty() {
+                self.game_args.clone()
+            } else {
+                other.game_args.clone()
+            },
             extra_jvm_args: if other.extra_jvm_args.is_empty() {
                 self.extra_jvm_args.clone()
             } else {
@@ -126,6 +134,7 @@ mod tests {
             VersionSettings {
                 memory_mb: Some(6144),
                 extra_jvm_args: vec!["-Dfoo=bar".into()],
+                game_args: vec!["--width".into(), "1280".into()],
                 ..Default::default()
             },
         );

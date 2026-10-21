@@ -202,6 +202,7 @@ async fn launch_game(
         memory_mb: settings.memory_mb.unwrap_or(2048),
         isolate: settings.isolate.unwrap_or(true),
         extra_jvm_args: &settings.extra_jvm_args,
+        game_args: &settings.game_args,
     };
     let plan = launch::build(&paths, &version, &options)?;
 
@@ -429,6 +430,12 @@ fn delete_version(state: State<'_, AppState>, id: String) -> Result<(), String> 
         let _ = std::fs::remove_dir_all(&instance);
     }
     Ok(())
+}
+
+#[tauri::command]
+fn version_stats(state: State<'_, AppState>, id: String) -> content::VersionStats {
+    let isolate = Store::load(&state.paths).merged(&id).isolate.unwrap_or(false);
+    content::version_stats(&state.paths, &id, isolate)
 }
 
 #[tauri::command]
@@ -736,6 +743,7 @@ pub fn run() {
             repair_version,
             delete_version,
             all_mods,
+            version_stats,
             crash_reports,
             read_crash,
             open_version_dir,

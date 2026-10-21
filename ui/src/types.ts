@@ -66,6 +66,8 @@ export interface VersionSettings {
   java_path: string | null;
   isolate: boolean | null;
   extra_jvm_args: string[];
+  /** 额外游戏参数，拼在 main class 之后 */
+  game_args: string[];
 }
 
 export interface LocalVersion {
@@ -99,6 +101,15 @@ export interface CrashEntry {
   modified: string;
   size: number;
   summary: string;
+}
+
+/** 版本概况 */
+export interface VersionStats {
+  path: string;
+  size: number;
+  files: number;
+  mods: number;
+  saves: number;
 }
 
 export interface SaveEntry {
