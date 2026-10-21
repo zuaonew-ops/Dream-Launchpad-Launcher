@@ -143,6 +143,49 @@ fn open_url(url: String) -> Result<(), String> {
     open_external(&url)
 }
 
+/// 在 MC 百科里找到某个模组的项目页。
+///
+/// mcmod 没有公开 API，只能走站内搜索页，再从 HTML 里取第一个
+/// `https://www.mcmod.cn/class/NNNN.html` 链接。找不到就返回 None，
+/// 前端会退回到搜索页。
+#[tauri::command]
+async fn mcmod_url(title: String) -> Result<Option<String>, String> {
+    if title.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36              (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        )
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let body = client
+        .get("https://search.mcmod.cn/s")
+        .query(&[("key", title.as_str())])
+        .send()
+        .await
+        .map_err(|e| format!("访问 MC 百科失败: {e}"))?
+        .text()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(first_mcmod_class(&body))
+}
+
+/// 从搜索页 HTML 里取第一个项目链接
+fn first_mcmod_class(html: &str) -> Option<String> {
+    const PREFIX: &str = "https://www.mcmod.cn/class/";
+    let start = html.find(PREFIX)? + PREFIX.len();
+    let rest = &html[start..];
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() || !rest[digits.len()..].starts_with(".html") {
+        return None;
+    }
+    Some(format!("{PREFIX}{digits}.html"))
+}
+
 #[cfg(target_os = "windows")]
 fn open_external(url: &str) -> Result<(), String> {
     use std::ffi::OsStr;
@@ -927,6 +970,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             system_info,
             open_url,
+            mcmod_url,
             msa_start,
             msa_poll,
             msa_refresh,
@@ -973,4 +1017,23 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::first_mcmod_class;
+
+    #[test]
+    fn finds_first_class_link() {
+        let html = r#"<a href="https://www.mcmod.cn/class/8714.html">x</a><a href="https://www.mcmod.cn/class/22671.html">y</a>"#;
+        assert_eq!(
+            first_mcmod_class(html).as_deref(),
+            Some("https://www.mcmod.cn/class/8714.html")
+        );
+    }
+
+    #[test]
+    fn none_without_link() {
+        assert_eq!(first_mcmod_class("<html></html>"), None);
+    }
 }

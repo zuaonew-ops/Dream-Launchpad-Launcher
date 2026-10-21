@@ -444,6 +444,20 @@ function dismissLaunch() {
   set({ launching: null });
 }
 
+/** 打开 MC 百科：先查出该模组的项目页，查不到退回搜索页 */
+async function openMcmod(title: string) {
+  set({ busy: true, error: "" });
+  try {
+    const url = await invoke<string | null>("mcmod_url", { title });
+    const target = url ?? `https://search.mcmod.cn/s?key=${encodeURIComponent(title)}`;
+    await invoke("open_url", { url: target });
+  } catch (e) {
+    set({ error: String(e) });
+  } finally {
+    set({ busy: false });
+  }
+}
+
 /** 用系统浏览器打开 https 链接（后端用 ShellExecuteW，不会闪 cmd 窗口） */
 async function openUrl(url: string) {
   try {
@@ -985,6 +999,7 @@ export const actions = {
   dismissLaunch,
   openDir,
   openUrl,
+  openMcmod,
   loadSettings,
   saveSettings,
   loadLoaderOptions,

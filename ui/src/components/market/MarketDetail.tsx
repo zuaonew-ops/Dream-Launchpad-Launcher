@@ -11,9 +11,6 @@ export default function MarketDetail() {
 
   const mc = state.marketMc || state.baseVersion || state.selected || "";
   const loader = state.marketLoader;
-  const mcmod = project.title_zh
-    ? `https://search.mcmod.cn/s?key=${encodeURIComponent(project.title_zh)}`
-    : null;
 
   // 按《我的世界》版本号分组（一个模组版本可能同时支持多个 MC 版本）
   // 只看适配时只保留当前 MC 版本那组；关掉则全部列出
@@ -52,15 +49,22 @@ export default function MarketDetail() {
             ))}
           </div>
           <div className="detail-actions">
-            {mcmod && (
-              <a className="ghost link" href={mcmod} target="_blank" rel="noreferrer">
-                MC 百科
-              </a>
-            )}
+            <button
+              type="button"
+              className="ghost"
+              disabled={state.busy}
+              onClick={() => void actions.openMcmod(project.title_zh ?? project.title)}
+            >
+              {state.busy ? "正在查…" : "MC 百科"}
+            </button>
             {project.site_url && (
-              <a className="ghost link" href={project.site_url} target="_blank" rel="noreferrer">
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void actions.openUrl(project.site_url)}
+              >
                 项目主页
-              </a>
+              </button>
             )}
           </div>
         </div>

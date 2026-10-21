@@ -44,7 +44,7 @@ export default function McVersionGroup({
   return (
     <li className={best && loaderHit ? "version-row best" : "version-row"}>
       <button type="button" className="version-head" onClick={() => onToggle(key)}>
-        <span className="version-name">我的世界 {mc}</span>
+        <span className="version-name">{mc}</span>
         {best && loaderHit && <span className="tag-best">最适配</span>}
         <span className="version-meta">{files.length} 个文件</span>
         <span className="version-date">{formatDate(versions[0]?.date ?? "")}</span>
