@@ -94,6 +94,8 @@ export interface State {
   marketVersionsLoading: boolean;
   /** 详情里展开的版本 id */
   marketExpanded: string | null;
+  /** 详情页是否只看当前版本 + 加载器适配的版本 */
+  onlyCompatible: boolean;
 
   // 内容管理
   mods: ModEntry[];
@@ -109,6 +111,14 @@ export interface State {
   system: SystemInfo | null;
   /** 正版登录流程（全局，切页面不中断） */
   msa: MsaLogin | null;
+  /** 安装前的确认弹窗：装什么、装到哪 */
+  installAsk: InstallAsk | null;
+  /** 弹窗里选的目标版本 */
+  installTargetId: string;
+  /** 装完的提示文案（弹窗内显示） */
+  installDone: string;
+  /** 市场当前页码（1 起） */
+  marketPage: number;
   /** 正在启动的游戏：步骤 + 进度，null = 没在启动 */
   launching: LaunchProgress | null;
   crashName: string;
@@ -171,6 +181,7 @@ let state: State = {
   marketVersions: [],
   marketVersionsLoading: false,
   marketExpanded: null,
+  onlyCompatible: true,
   mods: [],
   saves: [],
   logs: [],
@@ -180,6 +191,10 @@ let state: State = {
   versionStats: null,
   system: null,
   msa: null,
+  installAsk: null,
+  installTargetId: "",
+  installDone: "",
+  marketPage: 1,
   launching: null,
   crashName: "",
   crashText: "",
@@ -582,6 +597,20 @@ async function setAllMods(id: string, enabled: boolean) {
 
 /** 拉到某版本的概况；切版本时先清空，避免显示上一个版本的数字 */
 /** 建议上限：留 1G 给系统，最多给到物理内存的 80%，向上取整到 256MB */
+/** 安装确认：三种来源共用（列表安装 / 详情文件下载） */
+/** 每页拉多少条 */
+const PAGE_SIZE = 20;
+
+export interface InstallAsk {
+  title: string;
+  kind: MarketKind;
+  /** Modrinth / CurseForge 的项目 id 或 slug（列表安装用） */
+  project?: string;
+  /** 直接下载某个文件的地址（详情页文件用） */
+  url?: string;
+  filename?: string;
+}
+
 export interface LaunchProgress {
   /** 正在启动的版本 */
   id: string;
@@ -744,27 +773,38 @@ async function loadBaseVersion(id: string) {
   }
 }
 
-async function searchMarket() {
-  // 没选版本也照搜 —— 后端会按来源给热门榜，总比空页面强
-  const mc = state.marketMc || state.baseVersion || (state.selected ?? "");
-  set({ marketLoading: true, error: "", marketOpen: null });
+async function searchMarket(page = 1) {
+  // 「不指定」就是不按版本过滤 —— 不要偷偷回退到当前版本，否则结果跟筛了版本一样
+  const mc = state.marketMc;
+  const target = Math.max(1, page);
+  const offset = (target - 1) * PAGE_SIZE;
+  set({ marketLoading: true, error: "", marketOpen: null, marketHits: [] });
   try {
-    const page = await invoke<MarketPage>("search_market", {
+    const result = await invoke<MarketPage>("search_market", {
       query: state.marketQuery,
       kind: state.marketKind,
       mc: mc || null,
       loader: state.marketLoader === "any" ? null : state.marketLoader,
       category: state.marketCategory === "all" ? null : state.marketCategory,
       source: state.marketSource,
-      offset: 0,
-      limit: 30,
+      offset,
+      limit: PAGE_SIZE,
     });
-    set({ marketHits: page.hits, marketTotal: page.total });
+    set({
+      marketHits: result.hits,
+      marketTotal: result.total,
+      marketPage: target,
+      marketLoading: false,
+    });
   } catch (e) {
-    set({ error: String(e), marketHits: [] });
-  } finally {
-    set({ marketLoading: false });
+    set({ error: String(e), marketHits: [], marketTotal: 0, marketLoading: false });
   }
+}
+
+/** 翻到第几页 */
+function goMarketPage(page: number) {
+  if (state.marketLoading) return;
+  void searchMarket(page);
 }
 
 /** 点开一个项目：拉详情 + 该版本/加载器下可用文件 */
@@ -786,28 +826,39 @@ async function openMarketProject(hit: MarketHit) {
     marketVersions: [],
     marketVersionsLoading: true,
     marketExpanded: null,
+  onlyCompatible: true,
   });
 
-  const mc = state.marketMc || state.baseVersion || (state.selected ?? "");
-  const loader = state.marketLoader === "any" ? null : state.marketLoader;
-
   try {
-    const [project, versions] = await Promise.all([
-      invoke<MarketProject>("market_project", { project: hit.slug, source: state.marketSource }),
-      invoke<MarketVersion[]>("market_versions", {
-        project: hit.slug,
-        mc: mc || null,
-        loader,
-        source: state.marketSource,
-      }),
-    ]);
-    set({
-      marketOpen: project,
-      marketVersions: versions,
-      marketExpanded: versions[0]?.version_id ?? null,
+    const project = await invoke<MarketProject>("market_project", {
+      project: hit.slug,
+      source: state.marketSource,
     });
+    set({ marketOpen: project });
+    await loadMarketVersions();
+  } catch (e) {
+    set({ error: String(e), marketVersionsLoading: false });
+  }
+}
+
+/** 拉详情页的版本列表：onlyCompatible 关掉时拿全部版本 */
+async function loadMarketVersions() {
+  const project = state.marketOpen;
+  if (!project) return;
+  const mc = state.marketMc;
+  const loader = state.marketLoader === "any" ? null : state.marketLoader;
+  set({ marketVersionsLoading: true });
+  try {
+    const versions = await invoke<MarketVersion[]>("market_versions", {
+      project: project.slug,
+      mc: state.onlyCompatible ? mc || null : null,
+      loader: state.onlyCompatible ? loader : null,
+      source: project.source ?? state.marketSource,
+    });
+    set({ marketVersions: versions, marketExpanded: versions[0]?.version_id ?? null });
   } catch (e) {
     set({ error: String(e) });
+    set({ marketVersions: [] });
   } finally {
     set({ marketVersionsLoading: false });
   }
@@ -821,42 +872,66 @@ function toggleMarketVersion(id: string) {
   set({ marketExpanded: state.marketExpanded === id ? null : id });
 }
 
-/** 下载详情页里点选的文件，落到当前版本目录 */
-async function installMarketFile(url: string, filename: string) {
-  const gameId = state.selected;
-  if (!gameId) {
-    set({ error: "先在下载页选一个版本，文件会装进它的 mods 目录" });
-    return;
-  }
-  set({ busy: true, error: "", notice: "" });
-  try {
-    const saved = await invoke<string>("install_market_file", {
-      id: gameId,
-      kind: state.marketKind,
-      url,
-      filename,
-    });
-    set({ notice: `已下载 ${saved}` });
-    await loadContent(gameId);
-  } catch (e) {
-    set({ error: String(e) });
-  } finally {
-    set({ busy: false });
-  }
+/** 点「下载」——先弹确认，让用户挑装到哪个版本的 mods 目录 */
+function installMarketFile(url: string, filename: string) {
+  askInstall({ title: filename, kind: state.marketKind, url, filename });
 }
 
-async function installMarket(project: string, kind: MarketKind) {
-  const gameId = state.selected;
-  if (!gameId) return;
-  set({ busy: true, error: "", notice: "" });
+/** 点「安装」——同样先确认 */
+function installMarket(project: string, kind: MarketKind) {
+  askInstall({ title: project, kind, project });
+}
+
+/** 打开安装确认弹窗 */
+function askInstall(ask: InstallAsk) {
+  set({
+    installAsk: ask,
+    installTargetId: state.marketMc || state.selected || "",
+    installDone: "",
+    error: "",
+  });
+}
+
+function cancelInstall() {
+  set({ installAsk: null, install: null, installDone: "" });
+}
+
+function setInstallTargetId(installTargetId: string) {
+  set({ installTargetId });
+}
+
+/** 确认安装：后端会推 install-progress，弹窗里就能看到进度条 */
+async function confirmInstall() {
+  const ask = state.installAsk;
+  const id = state.installTargetId;
+  if (!ask) return;
+  if (!id) {
+    set({ error: "先选一个已安装的版本作为安装目标" });
+    return;
+  }
+
+  set({
+    busy: true,
+    error: "",
+    installDone: "",
+    install: { id, stage: "准备中", done: 0, total: 0, percent: 0 },
+  });
+
   try {
-    const file = await invoke<string>("install_market", { id: gameId, project, kind });
-    set({ notice: `已安装 ${file}` });
-    await loadContent(gameId);
+    const path = await invoke<string>(ask.url ? "install_market_file" : "install_market", {
+      id,
+      kind: ask.kind,
+      ...(ask.url ? { url: ask.url, filename: ask.filename } : { project: ask.project }),
+    });
+    set({
+      busy: false,
+      install: { id, stage: "完成", done: 1, total: 1, percent: 1 },
+      installDone: path,
+      notice: `已安装 ${path}`,
+    });
+    await loadContent(id);
   } catch (e) {
-    set({ error: String(e) });
-  } finally {
-    set({ busy: false });
+    set({ busy: false, error: String(e), install: null });
   }
 }
 
@@ -876,16 +951,25 @@ async function installJava(major: number) {
 export const actions = {
   searchMarket,
   installMarket,
+  askInstall,
+  cancelInstall,
+  setInstallTargetId,
+  confirmInstall,
+  goMarketPage,
   openMarketProject,
   closeMarketProject,
   toggleMarketVersion,
   installMarketFile,
   installJava,
   loadBaseVersion,
-  setMarketQuery: (marketQuery: string) => set({ marketQuery }),
+  setMarketQuery: (marketQuery: string) => set({ marketQuery, marketPage: 1 }),
   setMarketSource: (source: MarketSource) => set({ marketSource: source, marketOpen: null }),
   setMarketKind: (marketKind: MarketKind) => set({ marketKind, marketCategory: "all" }),
   setMarketMc: (marketMc: string) => set({ marketMc }),
+  setOnlyCompatible: (onlyCompatible: boolean) => {
+    set({ onlyCompatible, marketExpanded: "" });
+    void loadMarketVersions();
+  },
   setMarketLoader: (marketLoader: string) => set({ marketLoader }),
   setMarketCategory: (marketCategory: string) => set({ marketCategory }),
   loadContent,

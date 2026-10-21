@@ -73,7 +73,6 @@ export default function MarketPanel() {
 
   if (state.marketOpen) return <MarketDetail />;
 
-  const noVersion = !state.marketMc;
   // 没指定版本时装到当前选中的版本（市场页默认「不指定」，不能因此禁用安装）
   const installTarget = state.marketMc || state.selected || "";
 
@@ -228,10 +227,33 @@ export default function MarketPanel() {
           ))}
         </ul>
       )}
-
-      {state.marketLoader !== "any" && noVersion && (
-        <p className="hint">没指定游戏版本时，加载器筛选可能挡掉结果。</p>
+      {state.marketTotal > 0 && (
+        <div className="pager">
+          <button
+            type="button"
+            className="ghost"
+            disabled={state.marketLoading || state.marketPage <= 1}
+            onClick={() => actions.goMarketPage(state.marketPage - 1)}
+          >
+            上一页
+          </button>
+          <span className="pager-info">
+            第 <strong>{state.marketPage}</strong> / {Math.max(1, Math.ceil(state.marketTotal / 20))} 页
+            <em>共 {state.marketTotal} 条</em>
+          </span>
+          <button
+            type="button"
+            className="ghost"
+            disabled={
+              state.marketLoading || state.marketPage >= Math.ceil(state.marketTotal / 20)
+            }
+            onClick={() => actions.goMarketPage(state.marketPage + 1)}
+          >
+            下一页
+          </button>
+        </div>
       )}
+
     </section>
   );
 }

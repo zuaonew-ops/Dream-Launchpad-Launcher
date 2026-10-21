@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { actions, memoryCeiling, selectSelectedVersion, useLauncher } from "../store";
+import ModPanel from "../components/content/ModPanel";
+import SavePanel from "../components/content/SavePanel";
 import type { VersionSettings } from "../types";
 
 const FALLBACK: VersionSettings = {
@@ -19,12 +22,18 @@ function formatMemory(mb: number): string {
 
 export default function SettingsPage() {
   const state = useLauncher();
+  const [tab, setTab] = useState<"settings" | "mods" | "saves">("settings");
   const installed = state.versions.filter((v) => v.installed);
   const selected = selectSelectedVersion(state);
   const key = state.settingsKey || selected?.id || "*";
   const settings = state.settings ?? FALLBACK;
   const ceiling = memoryCeiling(state.system?.total_mb || 16384);
   const memory = Math.min(settings.memory_mb ?? 2048, ceiling);
+
+  const contentId = state.settingsKey || selected?.id || "";
+  useEffect(() => {
+    if (contentId && (tab === "mods" || tab === "saves")) void actions.loadContent(contentId);
+  }, [contentId, tab]);
 
   const save = (patch: Partial<VersionSettings>) => {
     void actions.saveSettings(key, { ...settings, ...patch });
@@ -33,10 +42,47 @@ export default function SettingsPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <h1>设置</h1>
-        <p className="desc">每个版本一套设置，改完立即保存</p>
+        <div>
+          <h1>版本设置</h1>
+          <p className="desc">
+            {contentId || "全局默认"} · 设置 / 模组 / 存档
+          </p>
+        </div>
+        <div className="seg">
+          <button
+            type="button"
+            className={tab === "settings" ? "seg-item active" : "seg-item"}
+            onClick={() => setTab("settings")}
+          >
+            设置
+          </button>
+          <button
+            type="button"
+            className={tab === "mods" ? "seg-item active" : "seg-item"}
+            onClick={() => setTab("mods")}
+          >
+            模组{state.mods.length > 0 && <span className="seg-count">{state.mods.length}</span>}
+          </button>
+          <button
+            type="button"
+            className={tab === "saves" ? "seg-item active" : "seg-item"}
+            onClick={() => setTab("saves")}
+          >
+            存档{state.saves.length > 0 && <span className="seg-count">{state.saves.length}</span>}
+          </button>
+        </div>
       </header>
 
+      {tab === "mods" && contentId ? (
+        <ModPanel id={contentId} />
+      ) : tab === "saves" && contentId ? (
+        <SavePanel id={contentId} />
+      ) : tab !== "settings" ? (
+        <section className="panel empty-state">
+          <h2>还没有选中版本</h2>
+          <p className="hint">先去「下载」页装一个版本，模组和存档都挂在版本上</p>
+        </section>
+      ) : (
       <div className="grid">
         <section className="panel">
           <h2>账号与主题</h2>
@@ -221,6 +267,7 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+      )}
     </div>
   );
 }
