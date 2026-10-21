@@ -106,6 +106,8 @@ export interface MarketHit {
   id: string;
   slug: string;
   title: string;
+  /** 内置词表命中的中文名；没有就显示英文原名 */
+  title_zh?: string | null;
   description: string;
   downloads: number;
   icon: string | null;

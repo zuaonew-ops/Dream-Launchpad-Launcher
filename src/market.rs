@@ -16,6 +16,8 @@ pub struct Hit {
     pub id: String,
     pub slug: String,
     pub title: String,
+    /// 中文名（内置词表命中才有，界面优先显示它）
+    pub title_zh: Option<String>,
     pub description: String,
     pub downloads: u64,
     pub icon: Option<String>,
@@ -60,9 +62,12 @@ pub async fn search(
     kind: &str,
     mc: Option<&str>,
     loader: Option<&str>,
+    category: Option<&str>,
     offset: u64,
     limit: u64,
 ) -> Result<SearchPage, String> {
+    // 中文关键词按内置词表翻成英文再查（Modrinth 不认中文）
+    let query = crate::market_zh::translate_query(query);
     let mut facets = vec![format!("[\"project_type:{}\"]", project_type(kind))];
     if let Some(mc) = mc.filter(|v| !v.is_empty()) {
         facets.push(format!("[\"versions:{mc}\"]"));
@@ -70,12 +75,15 @@ pub async fn search(
     if let Some(loader) = loader.filter(|v| !v.is_empty() && *v != "vanilla") {
         facets.push(format!("[\"categories:{loader}\"]"));
     }
+    if let Some(category) = category.filter(|v| !v.is_empty() && *v != "all") {
+        facets.push(format!("[\"categories:{category}\"]"));
+    }
 
     let url = format!("{API}/search");
     let response = client
         .get(&url)
         .query(&[
-            ("query", query.to_string()),
+            ("query", query.clone()),
             ("limit", limit.clamp(1, 50).to_string()),
             ("offset", offset.to_string()),
             ("facets", format!("[{}]", facets.join(","))),
@@ -101,10 +109,22 @@ pub async fn search(
         .map(|items| {
             items
                 .iter()
-                .map(|item| Hit {
+                .map(|item| {
+                    let slug = item
+                        .get("slug")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let title = item
+                        .get("title")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    Hit {
                     id: item.get("project_id").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                    slug: item.get("slug").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                    title: item.get("title").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+                    title_zh: crate::market_zh::title_zh(&slug, &title),
+                    slug,
+                    title,
                     description: item
                         .get("description")
                         .and_then(|v| v.as_str())
@@ -112,6 +132,7 @@ pub async fn search(
                         .to_string(),
                     downloads: item.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0),
                     icon: item.get("icon_url").and_then(|v| v.as_str()).map(str::to_string),
+                    }
                 })
                 .collect()
         })

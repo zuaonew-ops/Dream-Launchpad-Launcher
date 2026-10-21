@@ -75,6 +75,10 @@ export interface State {
   marketTotal: number;
   marketLoading: boolean;
   baseVersion: string;
+  /** 资源搜索的三个筛选：先选版本，再选加载器，最后类别 */
+  marketMc: string;
+  marketLoader: string;
+  marketCategory: string;
 
   // 内容管理
   mods: ModEntry[];
@@ -131,6 +135,9 @@ let state: State = {
   marketTotal: 0,
   marketLoading: false,
   baseVersion: "",
+  marketMc: "",
+  marketLoader: "any",
+  marketCategory: "all",
   mods: [],
   saves: [],
   logs: [],
@@ -236,6 +243,7 @@ async function refresh() {
       selected: current && versions.some((v) => v.id === current) ? current : fallback,
     });
     if (state.selected) void loadSettings(state.selected);
+    if (!state.marketMc && state.selected) set({ marketMc: state.selected });
   } catch (e) {
     set({ error: String(e) });
   } finally {
@@ -469,26 +477,20 @@ async function loadBaseVersion(id: string) {
   }
 }
 
-function loaderOf(id: string): string {
-  const lower = id.toLowerCase();
-  if (lower.includes("neoforge")) return "neoforge";
-  if (lower.includes("fabric")) return "fabric";
-  if (lower.includes("quilt")) return "quilt";
-  if (lower.includes("forge")) return "forge";
-  return "";
-}
-
 async function searchMarket() {
-  const gameId = state.selected;
-  if (!gameId) return;
-  const mc = state.baseVersion || gameId;
+  const mc = state.marketMc || state.baseVersion || (state.selected ?? "");
+  if (!mc) {
+    set({ error: "先在资源页选一个游戏版本" });
+    return;
+  }
   set({ marketLoading: true, error: "" });
   try {
     const page = await invoke<MarketPage>("search_market", {
       query: state.marketQuery,
       kind: state.marketKind,
       mc,
-      loader: loaderOf(gameId) || null,
+      loader: state.marketLoader === "any" ? null : state.marketLoader,
+      category: state.marketCategory === "all" ? null : state.marketCategory,
       offset: 0,
       limit: 30,
     });
@@ -534,7 +536,10 @@ export const actions = {
   installJava,
   loadBaseVersion,
   setMarketQuery: (marketQuery: string) => set({ marketQuery }),
-  setMarketKind: (marketKind: MarketKind) => set({ marketKind }),
+  setMarketKind: (marketKind: MarketKind) => set({ marketKind, marketCategory: "all" }),
+  setMarketMc: (marketMc: string) => set({ marketMc }),
+  setMarketLoader: (marketLoader: string) => set({ marketLoader }),
+  setMarketCategory: (marketCategory: string) => set({ marketCategory }),
   loadContent,
   toggleMod,
   deleteMod,

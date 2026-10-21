@@ -514,6 +514,7 @@ async fn search_market(
     kind: String,
     mc: Option<String>,
     loader: Option<String>,
+    category: Option<String>,
     offset: u64,
     limit: u64,
 ) -> Result<market::SearchPage, String> {
@@ -523,6 +524,7 @@ async fn search_market(
         &kind,
         mc.as_deref(),
         loader.as_deref(),
+        category.as_deref(),
         offset,
         limit,
     )

@@ -30,10 +30,18 @@ async fn main() -> Result<(), String> {
 
     match action.as_str() {
         "search" => {
-            let page = market::search(&client, query, kind, Some(mc), loader, 0, 5).await?;
+            let page = market::search(&client, query, kind, Some(mc), loader, None, 0, 5).await?;
             println!("命中 {} 个（显示前 {}）", page.total, page.hits.len());
             for hit in &page.hits {
-                println!("  {}  ({})  {}", hit.title, hit.slug, hit.downloads);
+                println!(
+                    "  {}  ({})  {}",
+                    hit.title_zh.clone().unwrap_or_else(|| hit.title.clone()),
+                    hit.slug,
+                    hit.downloads
+                );
+                if hit.title_zh.is_some() {
+                    println!("      en: {}", hit.title);
+                }
             }
         }
         "install" => {
