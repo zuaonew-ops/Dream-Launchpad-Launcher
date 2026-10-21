@@ -144,20 +144,40 @@ pub fn build(
 }
 
 /// 依赖库 + 客户端 jar 组成的 classpath。
+///
+/// 加载器版本（Fabric/Forge…）的 jar 在**父版本**目录里，自己的目录通常没有 jar ——
+/// 直接用 `versions/<id>/<id>.jar` 会指向一个不存在的文件，JVM 起来就报找不到主类。
 fn classpath(paths: &Paths, version: &VersionJson, id: &str) -> Vec<String> {
-    let mut entries: Vec<String> = version
-        .active_libraries()
-        .filter_map(|lib| lib.downloads.as_ref()?.artifact.as_ref()?.path.as_ref())
-        .map(|p| {
-            paths
-                .libraries()
-                .join(p)
-                .to_string_lossy()
-                .to_string()
-        })
+    // 子版本的库放在前面：Fabric / Forge 的库要和匹配版本的原版库一起用，
+    // 同名库（asm 之类）优先用加载器指定的那一份。
+    let mut libs: Vec<&crate::minecraft::version::Library> = version.active_libraries().collect();
+    libs.reverse();
+    let mut entries: Vec<String> = libs
+        .iter()
+        .filter_map(|lib| lib.relative_path())
+        // 别的平台的 natives jar 不进 classpath：文件不存在会让 JVM 反复报错，
+        // 而且同名类可能来自错误的架构
+        .filter(|path| crate::minecraft::platform::is_usable(path))
+        .map(|p| paths.libraries().join(p).to_string_lossy().to_string())
         .collect();
-    entries.push(paths.client_jar(id).to_string_lossy().to_string());
+
+    entries.push(client_jar(paths, version, id).to_string_lossy().to_string());
     entries
+}
+
+/// 真正含 client jar 的版本：加载器版本向上找父版本
+pub fn client_jar(paths: &Paths, version: &VersionJson, id: &str) -> std::path::PathBuf {
+    let own = paths.client_jar(id);
+    if own.is_file() {
+        return own;
+    }
+    if let Some(parent) = &version.inherits_from {
+        let candidate = paths.client_jar(parent);
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+    own
 }
 
 /// 首次启动时把游戏语言设成中文（只在 options.txt 不存在时写，不覆盖玩家设置）。

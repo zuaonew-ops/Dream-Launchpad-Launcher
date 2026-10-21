@@ -127,6 +127,12 @@ async fn list_versions(
         .map(|v| v.id.as_str())
         .collect();
 
+    let dlp_ids: HashSet<String> = local
+        .iter()
+        .filter(|v| v.dlp_installed)
+        .map(|v| v.id.clone())
+        .collect();
+
     let mut out: Vec<VersionSummary> = manifest
         .versions
         .into_iter()
@@ -135,6 +141,7 @@ async fn list_versions(
             installed: installable.contains(v.id.as_str()) || paths.is_installed(&v.id),
             april_fools: minecraft::is_april_fools(&v.id),
             loader: loader_of(&v.id),
+            dlp_installed: dlp_ids.contains(v.id.as_str()),
             id: v.id,
             kind: v.kind,
             release_time: v.release_time,
@@ -158,6 +165,7 @@ async fn list_versions(
             local: true,
             april_fools,
             loader,
+            dlp_installed: version.dlp_installed,
         });
     }
 

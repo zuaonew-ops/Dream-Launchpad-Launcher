@@ -1,6 +1,7 @@
 //! Minecraft 数据模型：版本清单、版本 JSON、规则求值。
 
 pub mod manifest;
+pub mod maven;
 pub mod platform;
 pub mod rules;
 pub mod scan;

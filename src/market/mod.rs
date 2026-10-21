@@ -12,6 +12,7 @@ mod curseforge;
 mod install;
 mod modrinth;
 mod types;
+pub mod zh;
 
 pub use install::{install, install_file};
 pub use types::{FileChoice, Hit, ProjectDetail, SearchPage, VersionEntry};

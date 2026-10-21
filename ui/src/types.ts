@@ -7,6 +7,8 @@ export interface VersionSummary {
   local: boolean;
   /** 愚人节快照（清单里仍标 release/snapshot，后端按 id 白名单识别） */
   april_fools: boolean;
+  /** 这个版本是 DLP 装的（显示 DLP 徽章） */
+  dlp_installed: boolean;
   /** 从版本 id 推断的加载器，原版为 null */
   loader: string | null;
 }

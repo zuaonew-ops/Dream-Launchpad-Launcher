@@ -61,6 +61,9 @@ pub struct JavaVersion {
 #[serde(rename_all = "camelCase")]
 pub struct Library {
     pub name: String,
+    /// 加载器（Fabric/Quilt）的库只给仓库地址，不给 downloads
+    #[serde(default)]
+    pub url: Option<String>,
     #[serde(default)]
     pub rules: Vec<Rule>,
     #[serde(default)]
@@ -119,6 +122,55 @@ pub struct LoggingClient {
     pub file: Option<Artifact>,
 }
 
+impl Library {
+    /// 库文件在 libraries/ 下的相对路径。
+    ///
+    /// 优先用清单里的 `downloads.artifact.path`；Fabric 这类加载器没写，
+    /// 就从 Maven 坐标（`group:artifact:version`）推出来。
+    pub fn relative_path(&self) -> Option<String> {
+        if let Some(path) = self
+            .downloads
+            .as_ref()
+            .and_then(|d| d.artifact.as_ref())
+            .and_then(|a| a.path.clone())
+        {
+            return Some(path);
+        }
+        crate::minecraft::maven::artifact_path(&self.name)
+    }
+
+    /// 库的下载地址（原版用清单里的，加载器库用 `url` + 坐标）
+    pub fn download_url(&self) -> Option<String> {
+        if let Some(url) = self
+            .downloads
+            .as_ref()
+            .and_then(|d| d.artifact.as_ref())
+            .map(|a| a.url.clone())
+            .filter(|u| !u.is_empty())
+        {
+            return Some(url);
+        }
+        let path = crate::minecraft::maven::artifact_path(&self.name)?;
+        Some(crate::minecraft::maven::download_url(self.url.as_deref(), &path))
+    }
+
+    /// 清单里给的 sha1（加载器库没有）
+    pub fn sha1(&self) -> Option<String> {
+        self.downloads
+            .as_ref()
+            .and_then(|d| d.artifact.as_ref())
+            .and_then(|a| a.sha1.clone())
+    }
+
+    pub fn size(&self) -> u64 {
+        self.downloads
+            .as_ref()
+            .and_then(|d| d.artifact.as_ref())
+            .and_then(|a| a.size)
+            .unwrap_or(0)
+    }
+}
+
 impl VersionJson {
     /// 当前平台生效的库（父版本已合并进来）。
     pub fn active_libraries(&self) -> impl Iterator<Item = &Library> {
@@ -163,7 +215,10 @@ pub fn merge(parent: Value, child: Value) -> Value {
     };
     for (key, value) in child_map {
         match key.as_str() {
-            "inheritsFrom" => {}
+            // 保留下来：启动时要知道父版本是谁（client jar / 资源都在那边）
+            "inheritsFrom" => {
+                out.insert(key, value);
+            }
             "libraries" => {
                 let mut list = out
                     .remove("libraries")

@@ -4,7 +4,7 @@
 
 use super::project_type;
 use super::types::{FileChoice, Hit, ProjectDetail, SearchPage, VersionEntry};
-use crate::market_zh;
+use crate::market::zh as market_zh;
 use reqwest::Client;
 
 const API: &str = "https://api.modrinth.com/v2";

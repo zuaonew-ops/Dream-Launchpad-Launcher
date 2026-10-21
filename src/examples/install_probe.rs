@@ -17,15 +17,19 @@ async fn main() -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let manifest = minecraft::fetch(&client).await?;
-    let entry = manifest
-        .versions
-        .into_iter()
-        .find(|v| v.id == id)
-        .ok_or_else(|| format!("清单里没有 {id}"))?;
-    println!("版本: {} ({})", entry.id, entry.kind);
-
-    install::ensure_version_json(&client, &paths, &entry).await?;
+    // 本地已经有版本 JSON（加载器版本、手动放的）就直接装，不用查清单
+    if paths.version_json(&id).is_file() {
+        println!("版本: {id}（本地 JSON）");
+    } else {
+        let manifest = minecraft::fetch(&client).await?;
+        let entry = manifest
+            .versions
+            .into_iter()
+            .find(|v| v.id == id)
+            .ok_or_else(|| format!("清单里没有 {id}"))?;
+        println!("版本: {} ({})", entry.id, entry.kind);
+        install::ensure_version_json(&client, &paths, &entry).await?;
+    }
 
     let last = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let progress = Progress::new(move |stage, done, total, detail| {

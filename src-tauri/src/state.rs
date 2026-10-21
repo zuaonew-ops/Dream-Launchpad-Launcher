@@ -24,6 +24,8 @@ pub struct VersionSummary {
     pub april_fools: bool,
     /// 从版本 id 推断的加载器（fabric / quilt / forge / neoforge），原版为 None
     pub loader: Option<String>,
+    /// 这个版本是 DLP 装的（界面显示 DLP 徽章）
+    pub dlp_installed: bool,
 }
 
 #[derive(Serialize, Clone)]

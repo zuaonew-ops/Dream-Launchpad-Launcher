@@ -41,6 +41,17 @@ fn main() -> Result<(), String> {
     )?;
     println!("主类/参数数量: {}", plan.args.len());
     println!("前 6 个参数: {:?}", &plan.args[..6.min(plan.args.len())]);
+    // 打印 classpath：排查「找不到主类」就看这里有没有加载器的 jar
+    if let Some(pos) = plan.args.iter().position(|a| a == "-cp" || a == "-classpath") {
+        let cp = &plan.args[pos + 1];
+        let parts: Vec<&str> = cp.split(';').collect();
+        println!("classpath 条目 {} 个", parts.len());
+        for part in parts.iter().filter(|p| p.contains("fabric") || p.contains("26.1") || p.contains("mixin")) {
+            println!("  {part}");
+        }
+    } else {
+        println!("命令行里没有 -cp！");
+    }
 
     let pid = launch::spawn(&plan, &paths)?.id();
     println!("已启动，pid = {pid}");

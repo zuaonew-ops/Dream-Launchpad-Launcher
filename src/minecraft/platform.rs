@@ -36,9 +36,62 @@ pub fn expected_suffix() -> &'static str {
 
 /// 普通库恒为 true；natives 库只有后缀匹配当前平台才为 true。
 pub fn is_usable(path: &str) -> bool {
-    match native_suffix(path) {
+    if let Some(suffix) = native_suffix(path) {
+        return suffix == expected_suffix();
+    }
+    // netty 这类库不用 `-natives-`，直接是 `netty-transport-native-epoll-4.2.7.Final-linux-x86_64.jar`
+    if let Some(platform) = platform_tag(path) {
+        return platform_matches(&platform);
+    }
+    true
+}
+
+/// 从文件名里取平台标记：linux / osx / macos / windows + 架构
+fn platform_tag(path: &str) -> Option<String> {
+    const TAGS: [&str; 6] = ["linux", "osx", "macos", "windows", "freebsd", "openbsd"];
+    let stem = path.strip_suffix(".jar").unwrap_or(path);
+    let lower = stem.to_ascii_lowercase();
+    let tail = lower.rsplit('/').next().unwrap_or(&lower);
+    let mut found = None;
+    for tag in TAGS {
+        if tail.contains(&format!("-{tag}-")) || tail.ends_with(&format!("-{tag}")) {
+            found = Some(tag.to_string());
+            break;
+        }
+    }
+    let mut parts = vec![found?];
+    for arch in ["aarch_64", "x86_64", "arm64", "x86", "arm", "amd64"] {
+        if tail.contains(&format!("-{arch}")) || tail.ends_with(arch) {
+            parts.push(arch.to_string());
+            break;
+        }
+    }
+    Some(parts.join("-"))
+}
+
+fn platform_matches(tag: &str) -> bool {
+    let os = os_name();
+    let arch = os_arch();
+    let (name, arch_part) = match tag.split_once('-') {
+        Some((name, arch)) => (name, Some(arch)),
+        None => (tag, None),
+    };
+    let os_ok = match os {
+        "windows" => name == "windows",
+        "osx" => name == "osx" || name == "macos",
+        "linux" => name == "linux",
+        _ => false,
+    };
+    if !os_ok {
+        return false;
+    }
+    match arch_part {
         None => true,
-        Some(suffix) => suffix == expected_suffix(),
+        Some(arch_tag) => match arch {
+            "x86" => arch_tag == "x86",
+            "arm64" => arch_tag == "arm64" || arch_tag == "aarch_64",
+            _ => arch_tag == "x86_64" || arch_tag == "amd64",
+        },
     }
 }
 

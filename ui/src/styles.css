@@ -1986,6 +1986,12 @@ textarea:focus-visible {
   color: #b42318;
 }
 
+.badge-dlp {
+  background: #e8f7ee;
+  color: #15803d;
+  font-weight: 600;
+}
+
 .badge-none {
   background: #eef1f6;
   color: #98a2b3;

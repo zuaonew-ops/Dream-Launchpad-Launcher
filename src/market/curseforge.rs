@@ -5,7 +5,7 @@
 
 use super::curseforge_class;
 use super::types::{FileChoice, Hit, ProjectDetail, SearchPage, VersionEntry};
-use crate::market_zh;
+use crate::market::zh as market_zh;
 use reqwest::Client;
 
 const API: &str = "https://api.curseforge.com/v1";

@@ -2,6 +2,30 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.26.0] - 2026-10-22
+
+加载器版本终于能启动了；主页能看出哪个版本是 DLP 装的；core 按域整理。
+
+### 修复
+
+- **Fabric/Quilt/Forge 版本启动报 `ClassNotFoundException`**：根因是加载器版本 JSON 里
+  的库只有 Maven 坐标（`name` 字段），没有 `downloads.artifact`，而安装和拼 classpath
+  都只读后者 —— 于是加载器的 jar 从来没被下载、也不在 classpath 里。现在统一按 Maven
+  坐标现推路径与下载地址（新增 `minecraft/maven.rs`），原版与加载器走同一条路
+- 本机实测：装完 `fabric-loader-0.19.5-26.1` 后启动，日志进到 Minecraft 客户端初始化
+
+### 新增
+
+- **主页版本行显示 `DLP` 徽章**：安装完成后在版本目录写 `.dlp-installed` 标记，
+  据此区分「DLP 装的」和「别的启动器装的」
+
+### 整理
+
+- core 按域分目录：`store/`（数据目录、设置、账号、登录）、`sys/`（硬件、Java）、
+  `content/`（模组/存档/资源包/日志/统计）、`net/`（下载 + 单文件分片）、
+  `loader/`（Fabric/Quilt、Forge/NeoForge、OptiFine、跑安装器）
+- 旧路径（`crate::paths` 等）用 `pub use` 保留，调用点零改动
+
 ## [0.25.0] - 2026-10-21
 
 版本设置独立成页，不再挂在侧边栏「设置」下面。

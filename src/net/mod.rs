@@ -1,6 +1,8 @@
-//! 网络层：并行下载、SHA1 校验、进度回调。
+//! 网络：并行下载、完整性校验、下载源镜像。
 
 pub mod download;
+pub mod fetch;
 pub mod mirror;
 
-pub use download::{Job, Progress};
+pub use download::{human, Job, Progress};
+pub use fetch::file_matches;

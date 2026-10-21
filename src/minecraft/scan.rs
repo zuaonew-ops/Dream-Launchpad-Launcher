@@ -6,6 +6,8 @@ use std::fs;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct LocalVersion {
+    /// DLP 装的版本（目录里有 .dlp-installed 标记）
+    pub dlp_installed: bool,
     pub id: String,
     /// 版本类型：release / snapshot / old_beta / custom
     pub kind: String,
@@ -44,6 +46,7 @@ pub fn scan(paths: &Paths) -> Vec<LocalVersion> {
         };
 
         out.push(LocalVersion {
+            dlp_installed: crate::install::is_dlp_installed(paths, &id),
             id,
             kind,
             release_time,
