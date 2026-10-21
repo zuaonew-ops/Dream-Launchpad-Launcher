@@ -7,6 +7,7 @@ import type {
   AppSettings,
   Candidate,
   CrashEntry,
+  DeviceCode,
   SystemInfo,
   VersionStats,
   DownloadView,
@@ -525,6 +526,33 @@ export function memoryCeiling(totalMb: number): number {
   return Math.max(512, Math.floor(value / 256) * 256);
 }
 
+/** 第一步：拿设备码，界面要把它显示给用户 */
+async function msaStart(): Promise<DeviceCode | null> {
+  try {
+    set({ error: "" });
+    return await invoke<DeviceCode>("msa_start");
+  } catch (e) {
+    set({ error: String(e) });
+    return null;
+  }
+}
+
+/** 第二步：轮询。null 表示用户还没在浏览器里点同意 */
+async function msaPoll(deviceCode: string): Promise<Account | null> {
+  try {
+    const account = await invoke<Account | null>("msa_poll", { deviceCode });
+    if (account) {
+      const accounts = await invoke<AccountsPayload>("accounts");
+      set({ accounts: accounts.list, currentAccount: accounts.current });
+      set({ notice: `已登录正版账号 ${account.name}` });
+    }
+    return account;
+  } catch (e) {
+    set({ error: String(e) });
+    return null;
+  }
+}
+
 async function loadSystem() {
   try {
     const system = await invoke<SystemInfo>("system_info");
@@ -711,6 +739,8 @@ export const actions = {
   deleteVersion,
   loadVersionStats,
   loadSystem,
+  msaStart,
+  msaPoll,
   setAllMods,
   loadCrashes,
   readCrash,

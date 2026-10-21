@@ -12,9 +12,22 @@ export interface VersionSummary {
 }
 
 /** 离线账号（id 就是离线 UUID） */
+/** 微软 device code 登录信息 */
+export interface DeviceCode {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
+
 export interface Account {
   id: string;
   name: string;
+  /** "offline" 或 "msa" */
+  kind?: string;
+  skin?: string | null;
+  expires_at?: number | null;
 }
 
 export interface AccountsPayload {

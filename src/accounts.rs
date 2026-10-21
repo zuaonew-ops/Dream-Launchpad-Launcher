@@ -12,6 +12,46 @@ use std::path::PathBuf;
 pub struct Account {
     pub id: String,
     pub name: String,
+    /// "offline" 或 "msa"
+    #[serde(default = "offline_kind")]
+    pub kind: String,
+    /// 正版账号才有：Minecraft access token（24 小时过期）
+    #[serde(default)]
+    pub access_token: Option<String>,
+    /// 正版账号才有：refresh token（90 天）
+    #[serde(default)]
+    pub refresh_token: Option<String>,
+    /// access token 到期的毫秒时间戳
+    #[serde(default)]
+    pub expires_at: Option<u64>,
+    /// 皮肤 / 头像地址（正版才有）
+    #[serde(default)]
+    pub skin: Option<String>,
+}
+
+fn offline_kind() -> String {
+    "offline".to_string()
+}
+
+impl Account {
+    pub fn is_msa(&self) -> bool {
+        self.kind == "msa"
+    }
+
+    /// access token 是否还能用（留 60 秒余量）
+    pub fn token_alive(&self) -> bool {
+        match self.expires_at {
+            Some(at) => at > now_ms() + 60_000,
+            None => false,
+        }
+    }
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
@@ -56,6 +96,11 @@ impl Accounts {
         let account = Account {
             id,
             name: name.to_string(),
+            kind: offline_kind(),
+            access_token: None,
+            refresh_token: None,
+            expires_at: None,
+            skin: None,
         };
         self.list.push(account.clone());
         if self.current.is_none() {
@@ -78,6 +123,49 @@ impl Accounts {
         }
         self.current = Some(id.to_string());
         Ok(())
+    }
+
+    /// 写入（或更新）一个正版账号，并设为当前账号
+    pub fn upsert_msa(
+        &mut self,
+        uuid: &str,
+        name: &str,
+        access_token: &str,
+        refresh_token: &str,
+        expires_at: u64,
+        skin: &str,
+    ) -> Account {
+        let account = Account {
+            id: uuid.to_string(),
+            name: name.to_string(),
+            kind: "msa".to_string(),
+            access_token: Some(access_token.to_string()),
+            refresh_token: Some(refresh_token.to_string()),
+            expires_at: Some(expires_at),
+            skin: if skin.is_empty() { None } else { Some(skin.to_string()) },
+        };
+        if let Some(existing) = self.list.iter_mut().find(|a| a.id == account.id) {
+            *existing = account.clone();
+        } else {
+            self.list.push(account.clone());
+        }
+        self.current = Some(account.id.clone());
+        account
+    }
+
+    /// 用刷新后的令牌更新账号
+    pub fn update_tokens(
+        &mut self,
+        id: &str,
+        access_token: &str,
+        refresh_token: &str,
+        expires_at: u64,
+    ) {
+        if let Some(account) = self.list.iter_mut().find(|a| a.id == id) {
+            account.access_token = Some(access_token.to_string());
+            account.refresh_token = Some(refresh_token.to_string());
+            account.expires_at = Some(expires_at);
+        }
     }
 
     pub fn current_account(&self) -> Option<&Account> {

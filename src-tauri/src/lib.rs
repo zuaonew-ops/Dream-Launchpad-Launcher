@@ -62,6 +62,76 @@ struct Environment {
 }
 
 #[tauri::command]
+async fn msa_start(state: State<'_, AppState>) -> Result<dlp_core::auth_msa::DeviceCode, String> {
+    dlp_core::auth_msa::start_device_code(
+        &state.client,
+        dlp_core::auth_msa::DEFAULT_CLIENT_ID,
+    )
+    .await
+}
+
+/// 轮询一次：None = 用户还没在浏览器里授权
+#[tauri::command]
+async fn msa_poll(
+    state: State<'_, AppState>,
+    device_code: String,
+) -> Result<Option<dlp_core::accounts::Account>, String> {
+    let paths = state.paths.clone();
+    let Some(profile) = dlp_core::auth_msa::poll_device_code(
+        &state.client,
+        dlp_core::auth_msa::DEFAULT_CLIENT_ID,
+        &device_code,
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
+
+    let mut accounts = Accounts::load(&paths);
+    let account = accounts.upsert_msa(
+        &profile.uuid,
+        &profile.name,
+        &profile.access_token,
+        &profile.refresh_token,
+        profile.expires_at,
+        &profile.skin,
+    );
+    accounts.save(&paths)?;
+    Ok(Some(account))
+}
+
+/// 静默刷新当前正版账号的令牌（过期或临近过期时调用）
+#[tauri::command]
+async fn msa_refresh(state: State<'_, AppState>) -> Result<Option<dlp_core::accounts::Account>, String> {
+    let paths = state.paths.clone();
+    let accounts = Accounts::load(&paths);
+    let Some(current) = accounts.current_account().cloned() else {
+        return Ok(None);
+    };
+    if !current.is_msa() || current.token_alive() {
+        return Ok(Some(current));
+    }
+    let Some(refresh_token) = current.refresh_token.clone() else {
+        return Ok(None);
+    };
+    let profile = dlp_core::auth_msa::refresh(
+        &state.client,
+        dlp_core::auth_msa::DEFAULT_CLIENT_ID,
+        &refresh_token,
+    )
+    .await?;
+
+    let mut accounts = Accounts::load(&paths);
+    accounts.update_tokens(
+        &current.id,
+        &profile.access_token,
+        &profile.refresh_token,
+        profile.expires_at,
+    );
+    accounts.save(&paths)?;
+    Ok(accounts.list.iter().find(|a| a.id == current.id).cloned())
+}
+#[tauri::command]
 fn system_info() -> dlp_core::system::SystemInfo {
     dlp_core::system::info()
 }
@@ -200,9 +270,27 @@ async fn launch_game(
         }
     };
 
+    // 当前账号决定用正版令牌还是离线 UUID
+    let accounts = Accounts::load(&paths);
+    let (launch_name, launch_uuid, launch_token) = match accounts.current_account() {
+        Some(account) if account.is_msa() && account.token_alive() => (
+            account.name.clone(),
+            account.id.clone(),
+            account.access_token.clone().unwrap_or_else(|| "0".into()),
+        ),
+        Some(account) => (account.name.clone(), account.id.clone(), "0".to_string()),
+        None => (
+            username.clone(),
+            dlp_core::auth::offline_uuid(&username),
+            "0".to_string(),
+        ),
+    };
+
     let options = launch::LaunchOptions {
         id: &id,
-        username: &username,
+        username: &launch_name,
+        uuid: &launch_uuid,
+        access_token: &launch_token,
         java: &java_bin,
         memory_mb: settings.memory_mb.unwrap_or(2048),
         isolate: settings.isolate.unwrap_or(true),
@@ -721,6 +809,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             system_info,
+            msa_start,
+            msa_poll,
+            msa_refresh,
             environment,
             list_versions,
             detect_java,

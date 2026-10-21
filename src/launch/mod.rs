@@ -17,6 +17,10 @@ pub const DEFAULT_LANGUAGE: &str = "zh_cn";
 pub struct LaunchOptions<'a> {
     pub id: &'a str,
     pub username: &'a str,
+    /// 正版是账号 UUID，离线是按昵称派生的 UUID
+    pub uuid: &'a str,
+    /// 正版 access token；离线传 "0"
+    pub access_token: &'a str,
     pub java: &'a Path,
     pub memory_mb: u32,
     /// 版本隔离：每个版本用自己的游戏目录（saves / mods 互不干扰）

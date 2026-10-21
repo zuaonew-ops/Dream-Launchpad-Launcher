@@ -20,6 +20,7 @@
 //! - [`loader`]     模组加载器与 OptiFine 安装
 
 pub mod accounts;
+pub mod auth_msa;
 pub mod auth;
 pub mod content;
 pub mod install;

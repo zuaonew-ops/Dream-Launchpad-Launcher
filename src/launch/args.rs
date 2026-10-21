@@ -25,10 +25,16 @@ pub fn build_vars(
     vars.insert("game_directory", game_dir.to_string_lossy().to_string());
     vars.insert("assets_root", paths.assets().to_string_lossy().to_string());
     vars.insert("assets_index_name", assets_index_name(version));
-    vars.insert("auth_uuid", auth::offline_uuid(options.username));
-    vars.insert("auth_access_token", "0".to_string());
-    vars.insert("auth_session", "0".to_string());
-    vars.insert("user_type", "legacy".to_string());
+    vars.insert("auth_uuid", options.uuid.to_string());
+    vars.insert("auth_access_token", options.access_token.to_string());
+    vars.insert(
+        "auth_session",
+        format!("token:{}:{}", options.access_token, options.uuid),
+    );
+    vars.insert(
+        "user_type",
+        if options.access_token == "0" { "legacy" } else { "msa" }.to_string(),
+    );
     vars.insert(
         "version_type",
         version.kind.clone().unwrap_or_else(|| "release".into()),

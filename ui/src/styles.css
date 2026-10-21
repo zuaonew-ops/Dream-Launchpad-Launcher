@@ -2823,3 +2823,231 @@ input[type="range"]::-moz-range-thumb {
 .stat-grid dd {
   font-size: 15px;
 }
+
+/* ---------- 0.18.0：正版登录 + 动画层 ---------- */
+
+.account-avatar.img {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  image-rendering: pixelated;
+  object-fit: cover;
+}
+
+.account-tag {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.msa-btn {
+  white-space: nowrap;
+}
+
+.msa-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #dbe4f7;
+  border-radius: 10px;
+  background: #f7faff;
+  animation: panel-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+.msa-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.msa-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #101828;
+  flex: 1;
+}
+
+.msa-hint {
+  font-size: 11px;
+  color: #667085;
+  margin: 0 0 8px;
+}
+
+.msa-code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-align: center;
+  color: #1d4ed8;
+  background: #fff;
+  border: 1px dashed #b9cdf5;
+  border-radius: 8px;
+  padding: 10px 0;
+  user-select: all;
+}
+
+.msa-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.msa-link {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  color: #344054;
+  text-decoration: none;
+}
+
+.msa-link:hover {
+  border-color: #c7d2e5;
+  background: #f8fafd;
+}
+
+.msa-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #667085;
+}
+
+.msa-ok {
+  margin: 0;
+  font-size: 12px;
+  color: #039855;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #d3e0f7;
+  border-top-color: #3f6ef2;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- 动画层 ---------- */
+
+/* 页面切换：淡入 + 轻微上移 */
+.page-fade {
+  animation: page-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* 卡片入场 */
+.card,
+.panel,
+.launch {
+  animation: card-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* 列表逐条出现 */
+.content-item {
+  animation: row-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+
+/* 按钮按下去要有反应 */
+.ghost:active:not(:disabled),
+.primary:active:not(:disabled),
+.seg-item:active,
+.chip:active {
+  transform: scale(0.97);
+}
+
+.ghost,
+.primary,
+.seg-item,
+.chip,
+.nav-item,
+.tool,
+.ver-row {
+  transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+/* 导航项 hover 轻微右移 */
+.nav-item:hover {
+  transform: translateX(2px);
+}
+
+.nav-item.active {
+  transform: none;
+}
+
+/* 卡片 hover 抬起一点（不用阴影，靠位移与边框） */
+.card:hover,
+.panel:hover,
+.launch:hover,
+.tool:hover {
+  transform: translateY(-1px);
+}
+
+/* 进度条平滑 */
+.job-meter > span,
+.meter > span {
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 主题切换过渡 */
+.app,
+.rail,
+.card,
+.panel,
+.input,
+.ghost {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+/* 尊重系统的减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
