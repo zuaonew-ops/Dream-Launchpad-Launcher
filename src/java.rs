@@ -94,7 +94,15 @@ fn push_subdirs(list: &mut Vec<PathBuf>, base: &Path) {
 
 /// 跑一次 `java -version` 取版本号。
 fn probe(exe: &Path) -> Option<JavaInfo> {
-    let output = Command::new(exe).arg("-version").output().ok()?;
+    let mut command = Command::new(exe);
+    command.arg("-version").stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+    // Windows：别让探测 Java 时弹 cmd 窗口（之前每次启动闪几个黑框就是这个）
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let output = command.output().ok()?;
     let text = String::from_utf8_lossy(&output.stderr);
     let first = text.lines().next().unwrap_or("");
     let version = extract_quoted(first)?;

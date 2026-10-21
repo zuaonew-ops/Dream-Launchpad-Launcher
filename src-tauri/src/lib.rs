@@ -1,6 +1,9 @@
 use dlp_core::{
-    content, install, java, launch, loader, market, minecraft, net::Progress, paths::Paths,
-    runtime, settings::Store,
+    accounts::Accounts, content, install, java, launch, loader, market, minecraft,
+    net::Progress,
+    paths::Paths,
+    runtime,
+    settings::{AppSettings, Store},
 };
 use std::collections::HashSet;
 use serde::Serialize;
@@ -23,6 +26,10 @@ struct VersionSummary {
     installed: bool,
     /// true = 只存在于本地 versions/ 目录（别的启动器装的 / 手动放的）
     local: bool,
+    /// 愚人节快照（清单里仍标 release/snapshot，只能认 id）
+    april_fools: bool,
+    /// 从版本 id 推断的加载器（fabric / quilt / forge / neoforge），原版为 None
+    loader: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -85,6 +92,8 @@ async fn list_versions(
         .filter(|v| include_snapshots || v.is_release())
         .map(|v| VersionSummary {
             installed: installable.contains(v.id.as_str()) || paths.is_installed(&v.id),
+            april_fools: minecraft::is_april_fools(&v.id),
+            loader: loader_of(&v.id),
             id: v.id,
             kind: v.kind,
             release_time: v.release_time,
@@ -98,12 +107,16 @@ async fn list_versions(
         if listed.contains(&version.id) || !version.has_json {
             continue;
         }
+        let april_fools = minecraft::is_april_fools(&version.id);
+        let loader = loader_of(&version.id);
         out.push(VersionSummary {
             id: version.id,
             kind: version.kind,
             release_time: version.release_time,
             installed: true,
             local: true,
+            april_fools,
+            loader,
         });
     }
 
@@ -380,12 +393,59 @@ fn read_log(state: State<'_, AppState>, name: String, lines: usize) -> Result<St
 
 /// 打开该版本的游戏目录 / mods / saves
 #[tauri::command]
+fn accounts(state: State<'_, AppState>) -> Accounts {
+    Accounts::load(&state.paths)
+}
+
+#[tauri::command]
+fn add_account(state: State<'_, AppState>, name: String) -> Result<Accounts, String> {
+    let mut acc = Accounts::load(&state.paths);
+    acc.add(&name)?;
+    acc.save(&state.paths)?;
+    Ok(acc)
+}
+
+#[tauri::command]
+fn remove_account(state: State<'_, AppState>, id: String) -> Result<Accounts, String> {
+    let mut acc = Accounts::load(&state.paths);
+    acc.remove(&id);
+    acc.save(&state.paths)?;
+    Ok(acc)
+}
+
+#[tauri::command]
+fn use_account(state: State<'_, AppState>, id: String) -> Result<Accounts, String> {
+    let mut acc = Accounts::load(&state.paths);
+    acc.set_current(&id)?;
+    acc.save(&state.paths)?;
+    Ok(acc)
+}
+
+#[tauri::command]
+fn app_settings(state: State<'_, AppState>) -> AppSettings {
+    AppSettings::load(&state.paths)
+}
+
+#[tauri::command]
+fn set_default_version(
+    state: State<'_, AppState>,
+    id: Option<String>,
+) -> Result<AppSettings, String> {
+    let mut cfg = AppSettings::load(&state.paths);
+    cfg.default_version = id;
+    cfg.save(&state.paths)?;
+    Ok(cfg)
+}
+
+#[tauri::command]
 fn open_version_dir(state: State<'_, AppState>, id: String, kind: String) -> Result<(), String> {
-    let dir = game_dir(&state.paths, &id);
+    // "version"（默认）= versions/<id> 本体；其余指向实例目录里的子目录
+    let instance = game_dir(&state.paths, &id);
     let target = match kind.as_str() {
-        "mods" => dir.join("mods"),
-        "saves" => dir.join("saves"),
-        _ => dir,
+        "mods" => instance.join("mods"),
+        "saves" => instance.join("saves"),
+        "instance" => instance,
+        _ => state.paths.version_dir(&id),
     };
     std::fs::create_dir_all(&target).map_err(|e| format!("创建目录失败: {e}"))?;
     open_path(&target)
@@ -605,6 +665,12 @@ pub fn run() {
             list_saves,
             list_logs,
             read_log,
+            accounts,
+            add_account,
+            remove_account,
+            use_account,
+            app_settings,
+            set_default_version,
             open_version_dir,
             base_version,
             search_market,

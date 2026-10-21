@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { actions, selectSelectedVersion, useLauncher } from "../store";
-import type { MarketKind } from "../types";
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -8,16 +7,10 @@ function formatSize(bytes: number): string {
   return `${bytes} B`;
 }
 
-const kinds: { value: MarketKind; label: string }[] = [
-  { value: "mod", label: "模组" },
-  { value: "resourcepack", label: "材质" },
-  { value: "shader", label: "光影" },
-];
-
 export default function ContentPage() {
   const state = useLauncher();
   const selected = selectSelectedVersion(state);
-  const [tab, setTab] = useState<"mods" | "saves" | "market">("mods");
+  const [tab, setTab] = useState<"mods" | "saves">("mods");
   const id = selected?.id ?? "";
 
   useEffect(() => {
@@ -62,13 +55,6 @@ export default function ContentPage() {
           >
             存档 {state.saves.length > 0 && <span className="seg-count">{state.saves.length}</span>}
           </button>
-          <button
-            type="button"
-            className={tab === "market" ? "seg-item active" : "seg-item"}
-            onClick={() => setTab("market")}
-          >
-            资源
-          </button>
         </div>
       </header>
 
@@ -87,7 +73,7 @@ export default function ContentPage() {
 
           {state.mods.length === 0 ? (
             <div className="empty-soft">
-              <p className="hint">这个版本没有模组。可以去「资源」tab 搜一个装上。</p>
+              <p className="hint">这个版本没有模组。去「下载」页的「资源」里搜一个装上。</p>
             </div>
           ) : (
             <ul className="content-list">
@@ -165,79 +151,7 @@ export default function ContentPage() {
         </section>
       )}
 
-      {tab === "market" && (
-        <section className="panel list-panel">
-          <div className="content-tools market-bar">
-            <select
-              className="input small"
-              value={state.marketKind}
-              onChange={(e) => actions.setMarketKind(e.target.value as MarketKind)}
-            >
-              {kinds.map((k) => (
-                <option key={k.value} value={k.value}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
-            <label className="search">
-              <input
-                value={state.marketQuery}
-                placeholder={`在 Modrinth 搜索${state.baseVersion ? `（适配 ${state.baseVersion}）` : ""}`}
-                spellCheck={false}
-                onChange={(e) => actions.setMarketQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void actions.searchMarket();
-                }}
-              />
-              <span className="count">{state.marketTotal}</span>
-            </label>
-            <button
-              type="button"
-              className="ghost"
-              disabled={state.marketLoading}
-              onClick={() => void actions.searchMarket()}
-            >
-              {state.marketLoading ? "搜索中" : "搜索"}
-            </button>
-          </div>
 
-          {state.marketHits.length === 0 ? (
-            <div className="empty-soft">
-              <p className="hint">
-                输入关键词搜索，回车即可。装好的文件会落在该版本的 mods / resourcepacks /
-                shaderpacks 目录。
-              </p>
-            </div>
-          ) : (
-            <ul className="content-list">
-              {state.marketHits.map((hit, index) => (
-                <li
-                  key={hit.id}
-                  className="content-item market-item"
-                  style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
-                >
-                  <span className="dot on" />
-                  <span className="market-text">
-                    <span className="content-name">{hit.title}</span>
-                    <span className="market-desc">{hit.description}</span>
-                  </span>
-                  <span className="content-meta">
-                    {(hit.downloads / 1000).toFixed(0)}k 下载
-                  </span>
-                  <button
-                    type="button"
-                    className="ghost"
-                    disabled={state.busy}
-                    onClick={() => void actions.installMarket(hit.id, state.marketKind)}
-                  >
-                    安装
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
     </div>
   );
 }

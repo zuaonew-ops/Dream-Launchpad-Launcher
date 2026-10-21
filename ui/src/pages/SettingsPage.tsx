@@ -28,18 +28,8 @@ export default function SettingsPage() {
 
       <div className="grid">
         <section className="panel">
-          <h2>账号</h2>
-          <label className="field">
-            <span className="label">离线昵称</span>
-            <input
-              className="input"
-              value={state.username}
-              maxLength={16}
-              spellCheck={false}
-              onChange={(e) => actions.setUsername(e.target.value)}
-            />
-          </label>
-          <p className="hint">离线登录只在本地生成 UUID（UUID v3），不联网校验</p>
+          <h2>账号与主题</h2>
+          <p className="hint">账号在主页添加与切换；离线登录只用本地生成的 UUID（v3），不联网校验</p>
 
           <label className="switch-row">
             <div>

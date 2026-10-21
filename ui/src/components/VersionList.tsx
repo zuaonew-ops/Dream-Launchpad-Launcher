@@ -35,11 +35,14 @@ export default function VersionList({ groups, selected, loading, onSelect }: Pro
                 <button
                   type="button"
                   className={version.id === selected ? "row active" : "row"}
+                  title={version.id}
+                  aria-label={version.id}
                   onClick={() => onSelect(version.id)}
                 >
                   <span className="bar" />
                   <span className="vid">{version.id}</span>
                   {version.local && <span className="kind local">本地</span>}
+                  {version.april_fools && <span className="kind april">愚人节</span>}
                   <span className={version.kind === "release" ? "kind" : "kind snapshot"}>
                     {version.kind === "release" ? "正式" : version.kind === "snapshot" ? "快照" : "其它"}
                   </span>

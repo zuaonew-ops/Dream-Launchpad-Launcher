@@ -139,3 +139,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+/// 启动器级设置（不属于某个版本）：默认启动哪个版本。
+///
+/// 存 `<root>/dlp/app.json`。没设置过就返回空，前端退回「已安装的第一个版本」。
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct AppSettings {
+    pub default_version: Option<String>,
+}
+
+impl AppSettings {
+    pub fn file(paths: &Paths) -> PathBuf {
+        paths.root.join("dlp").join("app.json")
+    }
+
+    pub fn load(paths: &Paths) -> AppSettings {
+        let Ok(text) = std::fs::read_to_string(Self::file(paths)) else {
+            return AppSettings::default();
+        };
+        serde_json::from_str(&text).unwrap_or_default()
+    }
+
+    pub fn save(&self, paths: &Paths) -> Result<(), String> {
+        let file = Self::file(paths);
+        if let Some(parent) = file.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("创建目录 {} 失败: {e}", parent.display()))?;
+        }
+        let text = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
+        std::fs::write(&file, text).map_err(|e| format!("写入设置失败: {e}"))
+    }
+}

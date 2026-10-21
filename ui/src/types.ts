@@ -5,7 +5,32 @@ export interface VersionSummary {
   installed: boolean;
   /** 只存在于本地 versions/ 目录（别的启动器装的 / 手动放的） */
   local: boolean;
+  /** 愚人节快照（清单里仍标 release/snapshot，后端按 id 白名单识别） */
+  april_fools: boolean;
+  /** 从版本 id 推断的加载器，原版为 null */
+  loader: string | null;
 }
+
+/** 离线账号（id 就是离线 UUID） */
+export interface Account {
+  id: string;
+  name: string;
+}
+
+export interface AccountsPayload {
+  current: string | null;
+  list: Account[];
+}
+
+export interface AppSettings {
+  default_version: string | null;
+}
+
+/** 下载页内部的三个视图 */
+export type DownloadView =
+  | { name: "list" }
+  | { name: "detail"; id: string }
+  | { name: "settings"; id: string };
 
 export interface JavaInfo {
   path: string;

@@ -2,7 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type {
+  Account,
+  AccountsPayload,
+  AppSettings,
   Candidate,
+  DownloadView,
   Environment,
   InstallState,
   JavaInfo,
@@ -34,7 +38,14 @@ export interface State {
   environment: Environment | null;
   javas: JavaInfo[];
   selected: string | null;
-  username: string;
+  /** 离线账号列表与当前账号 id */
+  accounts: Account[];
+  currentAccount: string | null;
+  /** 主页选中的「每次启动用哪个版本」 */
+  defaultVersion: string | null;
+  /** 下载页视图：列表 / 版本详情 / 该版本的设置 */
+  downloadView: DownloadView;
+  downloadTab: "versions" | "market";
   search: string;
   filter: TypeFilter;
   loading: boolean;
@@ -74,7 +85,12 @@ export interface State {
   theme: Theme;
 }
 
-const KEYS = { username: "dlp.username" };
+/** 当前账号昵称（一个账号都没有时退回 Steve） */
+export function currentName(s: State): string {
+  const id = s.currentAccount;
+  const found = id ? s.accounts.find((a) => a.id === id) : undefined;
+  return found?.name ?? "Steve";
+}
 
 const EMPTY_SETTINGS: VersionSettings = {
   memory_mb: 2048,
@@ -88,7 +104,11 @@ let state: State = {
   environment: null,
   javas: [],
   selected: null,
-  username: localStorage.getItem(KEYS.username) ?? "Steve",
+  accounts: [],
+  currentAccount: null,
+  defaultVersion: null,
+  downloadView: { name: "list" },
+  downloadTab: "versions",
   search: "",
   filter: "release",
   loading: false,
@@ -162,7 +182,7 @@ export function selectGroups(s: State): { key: string; items: VersionSummary[] }
   const order: string[] = [];
   const map = new Map<string, VersionSummary[]>();
   for (const version of selectFiltered(s)) {
-    const key = groupKey(version.id);
+    const key = version.april_fools ? "愚人节" : groupKey(version.id);
     const bucket = map.get(key);
     if (bucket) bucket.push(version);
     else {
@@ -193,10 +213,12 @@ export function javaLabel(javas: JavaInfo[]): string {
 async function refresh() {
   set({ loading: true, error: "" });
   try {
-    const [versions, environment, javas] = await Promise.all([
+    const [versions, environment, javas, accounts, cfg] = await Promise.all([
       invoke<VersionSummary[]>("list_versions", { includeSnapshots: true }),
       invoke<Environment>("environment"),
       invoke<JavaInfo[]>("detect_java"),
+      invoke<AccountsPayload>("accounts"),
+      invoke<AppSettings>("app_settings"),
     ]);
     const current = state.selected;
     const fallback =
@@ -208,6 +230,9 @@ async function refresh() {
       versions,
       environment,
       javas,
+      accounts: accounts.list,
+      currentAccount: accounts.current,
+      defaultVersion: cfg.default_version,
       selected: current && versions.some((v) => v.id === current) ? current : fallback,
     });
     if (state.selected) void loadSettings(state.selected);
@@ -309,15 +334,12 @@ async function installSelected() {
 async function launchSelected() {
   const target = selectSelectedVersion(state);
   if (!target || state.busy) return;
-  if (!state.username.trim()) {
-    set({ error: "请先填写离线昵称" });
-    return;
-  }
+  const name = currentName(state);
   set({ busy: true, error: "", notice: "正在拉起游戏…" });
   try {
     const pid = await invoke<number>("launch_game", {
       id: target.id,
-      username: state.username.trim(),
+      username: name,
     });
     set({ game: { pid, id: target.id }, notice: `已启动 ${target.id}，进程 ${pid}` });
   } catch (e) {
@@ -425,7 +447,7 @@ async function loadLogs(preferred?: string) {
   }
 }
 
-async function openVersionDir(id: string, kind: "root" | "mods" | "saves") {
+async function openVersionDir(id: string, kind: "root" | "mods" | "saves" | "instance") {
   try {
     await invoke("open_version_dir", { id, kind });
   } catch (e) {
@@ -530,10 +552,45 @@ export const actions = {
   loadOptifineOptions,
   setSearch: (search: string) => set({ search }),
   setFilter: (filter: TypeFilter) => set({ filter }),
-  setUsername: (username: string) => {
-    localStorage.setItem(KEYS.username, username);
-    set({ username });
+  addAccount: async (name: string) => {
+    try {
+      const payload = await invoke<AccountsPayload>("add_account", { name });
+      set({ accounts: payload.list, currentAccount: payload.current, notice: "已添加账号 " + name });
+    } catch (e) {
+      set({ error: String(e) });
+    }
   },
+  removeAccount: async (id: string) => {
+    try {
+      const payload = await invoke<AccountsPayload>("remove_account", { id });
+      set({ accounts: payload.list, currentAccount: payload.current });
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
+  useAccount: async (id: string) => {
+    try {
+      const payload = await invoke<AccountsPayload>("use_account", { id });
+      set({ accounts: payload.list, currentAccount: payload.current });
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
+  setDefaultVersion: async (id: string | null) => {
+    try {
+      const cfg = await invoke<AppSettings>("set_default_version", { id });
+      set({ defaultVersion: cfg.default_version });
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
+  openVersion: (id: string) => {
+    set({ downloadView: { name: "detail", id }, downloadTab: "versions", selected: id });
+    void loadBaseVersion(id);
+  },
+  openVersionSettings: (id: string) => set({ downloadView: { name: "settings", id } }),
+  closeVersion: () => set({ downloadView: { name: "list" } }),
+  setDownloadTab: (tab: "versions" | "market") => set({ downloadTab: tab }),
   setSelected: (selected: string) => {
     set({ selected });
     void loadSettings(selected);

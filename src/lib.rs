@@ -6,6 +6,7 @@
 //! 模块划分：
 //! - [`paths`]      数据目录布局
 //! - [`auth`]       离线账号（UUID v3）
+//! - [`accounts`]   离线账号列表（多账号切换）
 //! - [`java`]       Java 运行时探测
 //! - [`minecraft`]  版本清单、版本 JSON（继承链）、规则求值
 //! - [`market`]     Modrinth 资源搜索与安装
@@ -17,6 +18,7 @@
 //! - [`launch`]     启动参数构建与进程拉起
 //! - [`loader`]     模组加载器与 OptiFine 安装
 
+pub mod accounts;
 pub mod auth;
 pub mod content;
 pub mod install;
