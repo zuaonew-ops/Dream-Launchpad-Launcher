@@ -40,9 +40,9 @@
                             <ComboBox Style="{StaticResource ComboBoxStyle}" ItemsSource="{Binding Sources}"
                                       SelectedItem="{Binding DownloadSource}" />
 
-                            <TextBlock Text="微软客户端 ID（可选，留空用内置）" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
+                            <TextBlock Text="微软客户端 ID（注册一次，所有用户共用）" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
                             <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding MicrosoftClientId, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="不用填也能登录：内置了公共客户端走设备码。只有内置的被限流或失效时，才需要填自己在 Azure 注册的公共客户端 ID。"
+                            <TextBlock Text="Azure CLI 这类微软第一方应用不能申请 Xbox Live 权限，所以必须用自己注册的公共客户端：portal.azure.com → 应用注册 → 账户类型选「个人 Microsoft 帐户」→ 身份验证里打开「允许公共客户端流」→ 复制应用程序(客户端) ID 填到这里。"
                                        Style="{StaticResource SmallText}" Margin="0,6,0,0" TextWrapping="Wrap" />
 
                             <StackPanel Orientation="Horizontal" Margin="0,20,0,0">

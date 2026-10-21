@@ -34,8 +34,36 @@ public sealed class AccountManager
 
     public ObservableCollection<AccountEntry> Accounts { get; }
 
-    /// <summary>是否在设置里填了自定义客户端 ID（不填也能用内置公共客户端登录）。</summary>
-    public bool HasCustomMicrosoftClientId => !string.IsNullOrWhiteSpace(_settings.MicrosoftClientId);
+    /// <summary>把客户端 ID 写进设置（登录窗口里直接填的那种）。</summary>
+    public void SaveMicrosoftClientId(string clientId)
+    {
+        _settings.MicrosoftClientId = string.IsNullOrWhiteSpace(clientId) ? null : clientId.Trim();
+        _settings.Save();
+    }
+
+    /// <summary>当前解析出的微软客户端 ID：设置页 &gt; 数据目录 client_id.txt &gt; 编译期默认值。</summary>
+    public string? ResolveMicrosoftClientId()
+    {
+        var fromSettings = _settings.MicrosoftClientId?.Trim();
+        if (!string.IsNullOrEmpty(fromSettings)) return fromSettings;
+
+        try
+        {
+            var file = Path.Combine(_paths.Root, "client_id.txt");
+            if (File.Exists(file))
+            {
+                var text = File.ReadAllText(file).Trim();
+                if (text.Length > 0) return text;
+            }
+        }
+        catch (IOException)
+        {
+            // 读不到文件就继续看默认值。
+        }
+
+        var fallback = MicrosoftAuthService.DefaultClientId.Trim();
+        return fallback.Length > 0 ? fallback : null;
+    }
     public event Action? Changed;
 
     public AccountEntry? Current
@@ -106,8 +134,9 @@ public sealed class AccountManager
     /// <summary>微软设备码登录；deviceCode 回调把设备码交给界面显示。</summary>
     public async Task<MicrosoftSession> LoginMicrosoftAsync(IProgress<MicrosoftDeviceCode> deviceCode, CancellationToken ct)
     {
-        // 设置里没填就用内置公共客户端，用户不需要自己注册 Azure 应用。
-        var auth = new MicrosoftAuthService(_http, _settings.MicrosoftClientId);
+        var clientId = ResolveMicrosoftClientId()
+            ?? throw new InvalidOperationException("未配置微软客户端 ID：到设置页填入 Azure 公共客户端 ID，或把 ID 写进数据目录的 client_id.txt");
+        var auth = new MicrosoftAuthService(_http, clientId);
         var code = await auth.StartDeviceCodeAsync(ct);
         deviceCode.Report(code);
         var session = await auth.WaitForLoginAsync(code, null, ct);
@@ -135,7 +164,8 @@ public sealed class AccountManager
         if (string.IsNullOrWhiteSpace(stored.RefreshToken))
             throw new InvalidOperationException("微软登录已过期，请重新登录");
 
-        var clientId = stored.ClientId ?? _settings.MicrosoftClientId;
+        var clientId = stored.ClientId ?? ResolveMicrosoftClientId()
+            ?? throw new InvalidOperationException("未配置微软客户端 ID，无法刷新登录");
         var session = new MicrosoftAuthService(_http, clientId)
             .RefreshAsync(stored.RefreshToken, CancellationToken.None)
             .GetAwaiter().GetResult();
@@ -149,7 +179,7 @@ public sealed class AccountManager
         var index = accounts.FindIndex(a => a.Uuid == session.Account.Uuid);
         var record = new StoredAccount("msa", session.Account.Username, session.Account.Uuid,
             session.RefreshToken, session.Account.AccessToken, session.ExpiresAt,
-            session.ClientId ?? _settings.MicrosoftClientId);
+            session.ClientId ?? ResolveMicrosoftClientId());
         if (index >= 0) accounts[index] = record; else accounts.Add(record);
         _store.Save(accounts);
     }

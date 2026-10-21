@@ -32,24 +32,18 @@ public sealed class MicrosoftAuthService
     private const string DefaultVerificationUri = "https://www.microsoft.com/link";
 
     /// <summary>
-    /// 内置的公共客户端 ID：设备码流不需要客户端密钥，用户开箱即可登录，不用自己注册 Azure 应用。
-    /// 设置里填了自定义 client_id 时优先用自定义的；内置的全部失败才会报错。
+    /// 默认客户端 ID：可以通过 MSBuild 属性注入（发布时 <c>-p:MicrosoftClientId=xxx</c>），
+    /// 或者放在数据目录的 client_id.txt / 设置页里。留空时登录会给出注册引导。
     /// </summary>
-    public static IReadOnlyList<string> FallbackClientIds { get; } =
-    [
-        "04b07795-8ddb-461a-bbee-02f9e1bf7b46",
-        "14d82eec-204b-4c2f-b7e8-296a70dab67e",
-    ];
+    public static string DefaultClientId { get; set; } = "";
 
     private readonly HttpClient _http;
     private string _clientId;
-    private readonly bool _allowFallback;
 
     public MicrosoftAuthService(HttpClient http, string? clientId)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
-        _allowFallback = string.IsNullOrWhiteSpace(clientId);
-        _clientId = _allowFallback ? FallbackClientIds[0] : clientId!.Trim();
+        _clientId = string.IsNullOrWhiteSpace(clientId) ? DefaultClientId.Trim() : clientId.Trim();
     }
 
     /// <summary>当前实际使用的客户端 ID；登录成功后随账号一起保存，续期时沿用。</summary>
@@ -58,26 +52,9 @@ public sealed class MicrosoftAuthService
     /// <summary>申请设备码，用户需在浏览器打开 <see cref="MicrosoftDeviceCode.VerificationUri"/> 并输入 UserCode。</summary>
     public async Task<MicrosoftDeviceCode> StartDeviceCodeAsync(CancellationToken ct)
     {
-        Exception? last = null;
-        foreach (var clientId in _allowFallback ? FallbackClientIds : [_clientId])
-        {
-            _clientId = clientId;
-            try
-            {
-                return await RequestDeviceCodeAsync(ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                last = ex;
-            }
-        }
+        if (string.IsNullOrWhiteSpace(_clientId))
+            throw new InvalidOperationException("未配置微软客户端 ID：需要先在 Azure 门户注册一个公共客户端（见设置页说明）");
 
-        throw new InvalidOperationException(
-            $"申请微软登录设备码失败：{last?.Message ?? "所有内置客户端都不可用"}", last);
-    }
-
-    private async Task<MicrosoftDeviceCode> RequestDeviceCodeAsync(CancellationToken ct)
-    {
         var response = await PostFormAsync(DeviceCodeEndpoint, new Dictionary<string, string>
         {
             ["client_id"] = _clientId,
