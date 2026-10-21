@@ -26,7 +26,7 @@ function formatMemory(mb: number): string {
 export default function SettingsPage() {
   const state = useLauncher();
   type Tab = "overview" | "settings" | "modify" | "mods" | "saves" | "resourcepacks" | "shaderpacks";
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("settings");
   const installed = state.versions.filter((v) => v.installed);
   const selected = selectSelectedVersion(state);
   const key = state.settingsKey || selected?.id || "*";
@@ -55,14 +55,21 @@ export default function SettingsPage() {
   const hasModLoader = Boolean(loader) && loader !== "optifine";
   const hasShaderLoader = loader === "optifine";
 
+  // 全局设置（侧边栏「设置」）只显示默认值；版本相关页签只在这个版本的页面里出现
+  const isGlobal = key === "*";
+  // 进版本页时默认停在「概况」
+  useEffect(() => {
+    if (!isGlobal) setTab("overview");
+  }, [isGlobal, key]);
+
   const tabs: { key: Tab; label: string; show: boolean }[] = [
-    { key: "overview", label: "概况", show: true },
+    { key: "overview", label: "概况", show: !isGlobal },
     { key: "settings", label: "设置", show: true },
-    { key: "modify", label: "修改", show: true },
-    { key: "mods", label: "模组", show: hasModLoader },
-    { key: "saves", label: "存档", show: true },
-    { key: "resourcepacks", label: "资源包", show: true },
-    { key: "shaderpacks", label: "光影", show: hasModLoader || hasShaderLoader },
+    { key: "modify", label: "修改", show: !isGlobal },
+    { key: "mods", label: "模组", show: !isGlobal && hasModLoader },
+    { key: "saves", label: "存档", show: !isGlobal },
+    { key: "resourcepacks", label: "资源包", show: !isGlobal },
+    { key: "shaderpacks", label: "光影", show: !isGlobal && (hasModLoader || hasShaderLoader) },
   ];
 
   const save = (patch: Partial<VersionSettings>) => {
@@ -73,10 +80,23 @@ export default function SettingsPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>版本设置</h1>
+          {!isGlobal && (
+            <button
+              type="button"
+              className="ghost back"
+              onClick={() => {
+                actions.setDownloadTab("versions");
+                window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" }));
+              }}
+            >
+              ← 返回下载
+            </button>
+          )}
+          <h1>{isGlobal ? "设置" : "版本设置"}</h1>
           <p className="desc">
-            {contentId || "全局默认"}
-            {loader ? " · " + loader : " · 原版"}
+            {isGlobal
+              ? "所有版本的默认值"
+              : contentId + (loader ? " · " + loader : " · 原版")}
             {" · "}
             {tabs.find((item) => item.key === tab)?.label}
           </p>

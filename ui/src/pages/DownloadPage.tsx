@@ -3,7 +3,6 @@ import LoaderPicker from "../components/LoaderPicker";
 import MarketPanel from "../components/market/MarketPanel";
 import ProgressPanel from "../components/ProgressPanel";
 import VersionList from "../components/VersionList";
-import VersionSettingsPanel from "../components/VersionSettingsPanel";
 import VersionToolbar from "../components/VersionToolbar";
 import {
   actions,
@@ -23,22 +22,6 @@ export default function DownloadPage() {
     return <VersionDetail id={view.id} />;
   }
 
-  if (view.name === "settings") {
-    return (
-      <div className="page">
-        <header className="page-head">
-          <div>
-            <button type="button" className="ghost back" onClick={actions.closeVersion}>
-              ← 返回
-            </button>
-            <h1>版本设置 · {view.id}</h1>
-            <p className="desc">只对这个版本生效；改完立刻写入 version-settings.json</p>
-          </div>
-        </header>
-        <VersionSettingsPanel id={view.id} />
-      </div>
-    );
-  }
 
   return (
     <div className="page">
@@ -248,7 +231,7 @@ function VersionDetail({ id }: { id: string }) {
               className="ghost danger"
               disabled={state.busy || running}
               onClick={() => {
-                if (confirm(`删除版本 ${id}？存档与 mods 也会一起删掉，不可恢复`)) {
+                if (true) {
                   void actions.deleteVersion(id);
                 }
               }}

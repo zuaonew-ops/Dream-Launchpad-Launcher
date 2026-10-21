@@ -10,64 +10,14 @@ use std::time::Duration;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
+mod state;
+mod util;
+
+use state::{
+    progress_to, AppState, Environment, GameExit, ProgressPayload, RunningGame, VersionSummary,
+};
 use tauri::{Emitter, Manager, State};
-
-struct AppState {
-    paths: Paths,
-    client: reqwest::Client,
-    /// 正在运行的游戏进程（退出后清空）
-    game: Mutex<Option<RunningGame>>,
-}
-
-#[derive(Serialize)]
-struct VersionSummary {
-    id: String,
-    kind: String,
-    release_time: String,
-    installed: bool,
-    /// true = 只存在于本地 versions/ 目录（别的启动器装的 / 手动放的）
-    local: bool,
-    /// 愚人节快照（清单里仍标 release/snapshot，只能认 id）
-    april_fools: bool,
-    /// 从版本 id 推断的加载器（fabric / quilt / forge / neoforge），原版为 None
-    loader: Option<String>,
-}
-
-#[derive(Serialize, Clone)]
-struct ProgressPayload {
-    stage: String,
-    done: usize,
-    total: usize,
-    /// 已收字节 / 总字节（0 = 这个阶段不按字节算）
-    bytes_done: u64,
-    bytes_total: u64,
-    /// 当前正在处理的文件名
-    current: String,
-    /// 速度，形如 "3.2 MB/s"
-    speed: String,
-}
-
-#[derive(Serialize, Clone)]
-struct RunningGame {
-    pid: u32,
-    id: String,
-}
-
-#[derive(Serialize, Clone)]
-struct GameExit {
-    pid: u32,
-    id: String,
-    code: Option<i32>,
-}
-
-#[derive(Serialize)]
-struct Environment {
-    os: String,
-    arch: String,
-    tauri: String,
-    core: String,
-    data_dir: String,
-}
+use util::{base_mc_version, curseforge_key, game_dir, loader_of, market_source, open_path};
 
 #[tauri::command]
 async fn msa_start(state: State<'_, AppState>) -> Result<dlp_core::auth_msa::DeviceCode, String> {
@@ -143,106 +93,10 @@ async fn msa_refresh(state: State<'_, AppState>) -> Result<Option<dlp_core::acco
 /// 用系统默认浏览器打开链接。
 ///
 /// Windows 上用 ShellExecuteW —— 不走 `cmd /C start`，所以不会闪黑框。
-#[tauri::command]
-fn open_url(url: String) -> Result<(), String> {
-    if !url.starts_with("https://") {
-        return Err(format!("只允许打开 https 链接：{url}"));
-    }
-    open_external(&url)
-}
-
 /// 在 MC 百科里找到某个模组的项目页。
 ///
 /// mcmod 没有公开 API，只能走站内搜索页，再从 HTML 里取第一个
 /// `https://www.mcmod.cn/class/NNNN.html` 链接。找不到就返回 None，
-/// 前端会退回到搜索页。
-#[tauri::command]
-async fn mcmod_url(title: String) -> Result<Option<String>, String> {
-    if title.trim().is_empty() {
-        return Ok(None);
-    }
-
-    let client = reqwest::Client::builder()
-        .user_agent(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36              (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        )
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let body = client
-        .get("https://search.mcmod.cn/s")
-        .query(&[("key", title.as_str())])
-        .send()
-        .await
-        .map_err(|e| format!("访问 MC 百科失败: {e}"))?
-        .text()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(first_mcmod_class(&body))
-}
-
-/// 从搜索页 HTML 里取第一个项目链接
-fn first_mcmod_class(html: &str) -> Option<String> {
-    const PREFIX: &str = "https://www.mcmod.cn/class/";
-    let start = html.find(PREFIX)? + PREFIX.len();
-    let rest = &html[start..];
-    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-    if digits.is_empty() || !rest[digits.len()..].starts_with(".html") {
-        return None;
-    }
-    Some(format!("{PREFIX}{digits}.html"))
-}
-
-#[cfg(target_os = "windows")]
-fn open_external(url: &str) -> Result<(), String> {
-    use std::ffi::OsStr;
-    use std::os::windows::ffi::OsStrExt;
-    use windows_sys::Win32::UI::Shell::ShellExecuteW;
-    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
-
-    let wide = |text: &str| -> Vec<u16> {
-        OsStr::new(text)
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect()
-    };
-    let operation = wide("open");
-    let target = wide(url);
-    // SAFETY: 两个字符串都以 NUL 结尾，且活着直到调用结束
-    let result = unsafe {
-        ShellExecuteW(
-            std::ptr::null_mut(),
-            operation.as_ptr(),
-            target.as_ptr(),
-            std::ptr::null(),
-            std::ptr::null(),
-            SW_SHOWNORMAL,
-        )
-    };
-    if result as isize <= 32 {
-        return Err(format!("打开浏览器失败（ShellExecute 返回 {}）", result as isize));
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn open_external(url: &str) -> Result<(), String> {
-    std::process::Command::new("open")
-        .arg(url)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("打开浏览器失败: {e}"))
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn open_external(url: &str) -> Result<(), String> {
-    std::process::Command::new("xdg-open")
-        .arg(url)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("打开浏览器失败: {e}"))
-}
 #[tauri::command]
 fn system_info() -> dlp_core::system::SystemInfo {
     dlp_core::system::info()
@@ -339,20 +193,7 @@ async fn install_version(
         .ok_or_else(|| format!("找不到版本 {id}"))?;
     install::ensure_version_json(&client, &paths, &entry).await?;
 
-    let progress = Progress::new(move |stage, done, total, detail| {
-        let _ = app.emit(
-            "install-progress",
-            ProgressPayload {
-                stage: stage.to_string(),
-                done,
-                total,
-                bytes_done: detail.done(),
-                bytes_total: detail.total(),
-                current: detail.current(),
-                speed: detail.speed(),
-            },
-        );
-    });
+    let progress = progress_to(app.clone());
 
     install::install(&client, &paths, &id, progress).await
 }
@@ -498,20 +339,7 @@ async fn install_loader(
 ) -> Result<String, String> {
     let kind = loader::LoaderKind::parse(&kind).ok_or_else(|| format!("未知加载器: {kind}"))?;
     let paths = state.paths.clone();
-    let progress = Progress::new(move |stage, done, total, detail| {
-        let _ = app.emit(
-            "install-progress",
-            ProgressPayload {
-                stage: stage.to_string(),
-                done,
-                total,
-                bytes_done: detail.done(),
-                bytes_total: detail.total(),
-                current: detail.current(),
-                speed: detail.speed(),
-            },
-        );
-    });
+    let progress = progress_to(app.clone());
 
     match kind {
         loader::LoaderKind::Fabric | loader::LoaderKind::Quilt => {
@@ -544,20 +372,7 @@ async fn install_optifine(
     edition: String,
 ) -> Result<String, String> {
     let paths = state.paths.clone();
-    let progress = Progress::new(move |stage, done, total, detail| {
-        let _ = app.emit(
-            "install-progress",
-            ProgressPayload {
-                stage: stage.to_string(),
-                done,
-                total,
-                bytes_done: detail.done(),
-                bytes_total: detail.total(),
-                current: detail.current(),
-                speed: detail.speed(),
-            },
-        );
-    });
+    let progress = progress_to(app.clone());
     let java = pick_java(&paths, &mc)?;
     loader::install_optifine(&state.client, &paths, &mc, &edition, &java, Some(progress)).await
 }
@@ -601,6 +416,11 @@ fn list_packs(state: State<'_, AppState>, id: String, kind: String) -> Vec<conte
 }
 
 #[tauri::command]
+fn delete_pack(state: State<'_, AppState>, id: String, kind: String, name: String) -> Result<(), String> {
+    content::delete_pack(&game_dir(&state.paths, &id), &kind, &name)
+}
+
+#[tauri::command]
 fn list_saves(state: State<'_, AppState>, id: String) -> Vec<content::SaveEntry> {
     content::list_saves(&game_dir(&state.paths, &id))
 }
@@ -624,20 +444,7 @@ async fn repair_version(
 ) -> Result<(), String> {
     let paths = state.paths.clone();
     let client = state.client.clone();
-    let progress = Progress::new(move |stage, done, total, detail| {
-        let _ = app.emit(
-            "install-progress",
-            ProgressPayload {
-                stage: stage.to_string(),
-                done,
-                total,
-                bytes_done: detail.done(),
-                bytes_total: detail.total(),
-                current: detail.current(),
-                speed: detail.speed(),
-            },
-        );
-    });
+    let progress = progress_to(app.clone());
     install::install(&client, &paths, &id, progress).await
 }
 
@@ -746,73 +553,12 @@ fn open_version_dir(state: State<'_, AppState>, id: String, kind: String) -> Res
     std::fs::create_dir_all(&target).map_err(|e| format!("创建目录失败: {e}"))?;
     open_path(&target)
 }
-
-fn game_dir(paths: &Paths, id: &str) -> PathBuf {
-    let settings = Store::load(paths).merged(id);
-    content::game_dir(paths, id, settings.isolate.unwrap_or(true))
-}
-
-fn open_path(dir: &std::path::Path) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    let mut command = {
-        let mut c = std::process::Command::new("explorer");
-        c.arg(dir);
-        c
-    };
-    #[cfg(target_os = "linux")]
-    let mut command = {
-        let mut c = std::process::Command::new("xdg-open");
-        c.arg(dir);
-        c
-    };
-    #[cfg(target_os = "macos")]
-    let mut command = {
-        let mut c = std::process::Command::new("open");
-        c.arg(dir);
-        c
-    };
-    command.spawn().map(|_| ()).map_err(|e| format!("打开目录失败: {e}"))
-}
-
 /// 从版本 id 猜加载器（Modrinth 搜索要用）
-fn loader_of(id: &str) -> Option<String> {
-    let lower = id.to_ascii_lowercase();
-    if lower.contains("neoforge") {
-        Some("neoforge".into())
-    } else if lower.contains("fabric") {
-        Some("fabric".into())
-    } else if lower.contains("quilt") {
-        Some("quilt".into())
-    } else if lower.contains("forge") {
-        Some("forge".into())
-    } else {
-        None
-    }
-}
-
 /// 版本 id → 对应的原版版本号（fabric-loader-0.19.5-26.3 → 26.3）
-fn base_mc_version(paths: &Paths, id: &str) -> String {
-    minecraft::load_version(paths, id)
-        .ok()
-        .and_then(|v| v.inherits_from.clone())
-        .unwrap_or_else(|| id.to_string())
-}
-
 #[tauri::command]
 fn base_version(state: State<'_, AppState>, id: String) -> String {
     base_mc_version(&state.paths, &id)
 }
-
-fn market_source(value: Option<String>) -> market::Source {
-    market::Source::parse(value.as_deref().unwrap_or("modrinth"))
-}
-
-fn curseforge_key(paths: &Paths) -> String {
-    AppSettings::load(paths)
-        .curseforge_api_key
-        .unwrap_or_default()
-}
-
 #[tauri::command]
 async fn search_market(
     state: State<'_, AppState>,
@@ -880,20 +626,7 @@ async fn install_market_file(
 ) -> Result<String, String> {
     let paths = state.paths.clone();
     let dir = game_dir(&paths, &id);
-    let progress = Progress::new(move |stage, done, total, detail| {
-        let _ = app.emit(
-            "install-progress",
-            ProgressPayload {
-                stage: stage.to_string(),
-                done,
-                total,
-                bytes_done: detail.done(),
-                bytes_total: detail.total(),
-                current: detail.current(),
-                speed: detail.speed(),
-            },
-        );
-    });
+    let progress = progress_to(app.clone());
     market::install_file(&state.client, &dir, &kind, &url, &filename, Some(progress)).await
 }
 
@@ -910,20 +643,7 @@ async fn install_market(
     let dir = game_dir(&paths, &id);
     let mc = base_mc_version(&paths, &id);
     let loader = loader_of(&id);
-    let progress = Progress::new(move |stage, done, total, detail| {
-        let _ = app.emit(
-            "install-progress",
-            ProgressPayload {
-                stage: stage.to_string(),
-                done,
-                total,
-                bytes_done: detail.done(),
-                bytes_total: detail.total(),
-                current: detail.current(),
-                speed: detail.speed(),
-            },
-        );
-    });
+    let progress = progress_to(app.clone());
 
     market::install(
         &state.client,
@@ -944,20 +664,7 @@ async fn install_java(
     major: u32,
 ) -> Result<String, String> {
     let paths = state.paths.clone();
-    let progress = Progress::new(move |stage, done, total, detail| {
-        let _ = app.emit(
-            "install-progress",
-            ProgressPayload {
-                stage: stage.to_string(),
-                done,
-                total,
-                bytes_done: detail.done(),
-                bytes_total: detail.total(),
-                current: detail.current(),
-                speed: detail.speed(),
-            },
-        );
-    });
+    let progress = progress_to(app.clone());
     let path = runtime::install(&state.client, &paths, major, Some(progress)).await?;
     Ok(path.to_string_lossy().to_string())
 }
@@ -1021,8 +728,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             system_info,
-            open_url,
-            mcmod_url,
+            util::open_url,
+            util::mcmod_url,
             msa_start,
             msa_poll,
             msa_refresh,
@@ -1041,6 +748,7 @@ pub fn run() {
             install_optifine,
             list_mods,
             list_packs,
+            delete_pack,
             set_mod_enabled,
             delete_mod,
             list_saves,
@@ -1072,21 +780,4 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-#[cfg(test)]
-mod tests {
-    use super::first_mcmod_class;
 
-    #[test]
-    fn finds_first_class_link() {
-        let html = r#"<a href="https://www.mcmod.cn/class/8714.html">x</a><a href="https://www.mcmod.cn/class/22671.html">y</a>"#;
-        assert_eq!(
-            first_mcmod_class(html).as_deref(),
-            Some("https://www.mcmod.cn/class/8714.html")
-        );
-    }
-
-    #[test]
-    fn none_without_link() {
-        assert_eq!(first_mcmod_class("<html></html>"), None);
-    }
-}

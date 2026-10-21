@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { actions, useLauncher } from "../../store";
+import ConfirmDialog from "../ConfirmDialog";
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -9,6 +11,7 @@ function formatSize(bytes: number): string {
 /** 某个版本的 mods 列表：启用 / 禁用 / 删除 / 打开目录 */
 export default function ModPanel({ id }: { id: string }) {
   const state = useLauncher();
+  const [pending, setPending] = useState<string | null>(null);
 
   return (
     <section className="panel list-panel">
@@ -83,15 +86,26 @@ export default function ModPanel({ id }: { id: string }) {
                 type="button"
                 className="icon-btn"
                 title="删除"
-                onClick={() => {
-                  if (confirm(`删除 ${mod.name}？不可恢复`)) void actions.deleteMod(id, mod.name);
-                }}
+                onClick={() => setPending(mod.name)}
               >
                 ×
               </button>
             </li>
           ))}
         </ul>
+      )}
+      {pending && (
+        <ConfirmDialog
+          title="删除模组"
+          message={`${pending} 会被永久删除，不可恢复。`}
+          confirmText="删除"
+          danger
+          onCancel={() => setPending(null)}
+          onConfirm={() => {
+            void actions.deleteMod(id, pending);
+            setPending(null);
+          }}
+        />
       )}
     </section>
   );

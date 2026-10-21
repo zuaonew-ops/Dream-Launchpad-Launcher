@@ -8,13 +8,14 @@ import LaunchOverlay from "./components/LaunchOverlay";
 import InstallDialog from "./components/market/InstallDialog";
 import { actions, useLauncher } from "./store";
 
-type PageKey = "home" | "download" | "task" | "settings" | "tools";
+type PageKey = "home" | "download" | "task" | "settings" | "version" | "tools";
 
 const pages: Record<PageKey, ComponentType> = {
   home: HomePage,
   download: DownloadPage,
   task: TaskPage,
   settings: SettingsPage,
+  version: SettingsPage,
   tools: ToolsPage,
 };
 
@@ -92,7 +93,10 @@ export default function App() {
                 key={item.key}
                 type="button"
                 className={page === item.key ? "nav-item active" : "nav-item"}
-                onClick={() => setPage(item.key)}
+                onClick={() => {
+                  if (item.key === "settings") actions.openGlobalSettings();
+                  setPage(item.key);
+                }}
               >
                 <Icon name={item.key} />
                 <span>{item.label}</span>
@@ -146,14 +150,8 @@ export default function App() {
             <span style={{ width: `${Math.round(job.percent * 100)}%` }} />
           </div>
           <span className="job-pct">{Math.round(job.percent * 100)}%</span>
-          <button
-            type="button"
-            className="ghost small"
-            onClick={() => {
-              actions.openVersion(job.id);
-            }}
-          >
-            查看版本
+          <button type="button" className="ghost small" onClick={actions.goTaskPage}>
+            下载详情
           </button>
         </div>
       )}

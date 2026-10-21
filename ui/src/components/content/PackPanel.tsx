@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { actions, useLauncher } from "../../store";
+import ConfirmDialog from "../ConfirmDialog";
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -15,6 +16,7 @@ interface Props {
 /** 资源包 / 光影：列目录里的 zip 与文件夹 */
 export default function PackPanel({ id, kind }: Props) {
   const state = useLauncher();
+  const [pending, setPending] = useState<string | null>(null);
   const list = state.packs[kind];
   const label = kind === "resourcepacks" ? "资源包" : "光影";
 
@@ -57,9 +59,30 @@ export default function PackPanel({ id, kind }: Props) {
                 {item.name}
               </span>
               <span className="content-meta">{formatSize(item.size)}</span>
+              <button
+                type="button"
+                className="icon-btn"
+                title="删除"
+                onClick={() => setPending(item.name)}
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>
+      )}
+      {pending && (
+        <ConfirmDialog
+          title={`删除${label}`}
+          message={`${pending} 会被永久删除，不可恢复。`}
+          confirmText="删除"
+          danger
+          onCancel={() => setPending(null)}
+          onConfirm={() => {
+            void actions.deletePack(id, kind, pending);
+            setPending(null);
+          }}
+        />
       )}
     </section>
   );

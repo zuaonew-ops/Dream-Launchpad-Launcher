@@ -587,6 +587,16 @@ async function loadPacks(id: string, kind: "resourcepacks" | "shaderpacks") {
   }
 }
 
+/** 删除一个资源包 / 光影 */
+async function deletePack(id: string, kind: "resourcepacks" | "shaderpacks", name: string) {
+  try {
+    await invoke("delete_pack", { id, kind, name });
+    await loadPacks(id, kind);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 async function loadContent(id: string) {
   try {
     const [mods, saves] = await Promise.all([
@@ -1085,6 +1095,7 @@ export const actions = {
   setMarketCategory: (marketCategory: string) => set({ marketCategory }),
   loadContent,
   loadPacks,
+  deletePack,
   toggleMod,
   deleteMod,
   loadLogs,
@@ -1146,9 +1157,17 @@ export const actions = {
     // 视图在下载页里渲染，所以从主页点进来必须先切过去，否则「点了没反应」
     window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" }));
   },
+  /** 打开某个版本的设置：独立页面，侧边栏不高亮任何项 */
   openVersionSettings: (id: string) => {
-    set({ downloadView: { name: "settings", id } });
-    window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" }));
+    set({ selected: id, settingsKey: id, downloadView: { name: "list" } });
+    void loadBaseVersion(id);
+    void loadSettings(id);
+    window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "version" }));
+  },
+  /** 侧边栏「设置」= 全局设置 */
+  openGlobalSettings: () => {
+    set({ settingsKey: "*" });
+    void loadSettings("*");
   },
   closeVersion: () => set({ downloadView: { name: "list" } }),
   repairVersion,

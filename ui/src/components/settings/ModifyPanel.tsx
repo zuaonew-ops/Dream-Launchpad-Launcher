@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { actions, useLauncher } from "../../store";
+import ConfirmDialog from "../ConfirmDialog";
 
 /** 「修改」：修复、删版本、装加载器这类会动文件的操作 */
 export default function ModifyPanel({ id }: { id: string }) {
   const state = useLauncher();
+  const [pending, setPending] = useState(false);
   const version = state.versions.find((item) => item.id === id);
 
   return (
@@ -59,14 +62,24 @@ export default function ModifyPanel({ id }: { id: string }) {
           type="button"
           className="danger"
           disabled={state.busy}
-          onClick={() => {
-            if (!confirm(`删除版本 ${id}？这个操作不可恢复。`)) return;
-            void actions.deleteVersion(id);
-          }}
+          onClick={() => setPending(true)}
         >
           删除这个版本
         </button>
       </section>
+      {pending && (
+        <ConfirmDialog
+          title="删除版本"
+          message={`${id} 的安装文件会被删除，存档与 mods 也一起清掉，不可恢复。`}
+          confirmText="删除"
+          danger
+          onCancel={() => setPending(false)}
+          onConfirm={() => {
+            void actions.deleteVersion(id);
+            setPending(false);
+          }}
+        />
+      )}
     </div>
   );
 }

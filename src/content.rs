@@ -114,6 +114,19 @@ pub fn list_packs(dir: &Path, kind: &str) -> Vec<ModEntry> {
     out
 }
 
+/// 删除资源包 / 光影（zip 或文件夹）
+pub fn delete_pack(dir: &Path, kind: &str, name: &str) -> Result<(), String> {
+    let target = dir.join(kind).join(name);
+    if !target.exists() {
+        return Err(format!("找不到 {name}"));
+    }
+    if target.is_dir() {
+        std::fs::remove_dir_all(&target).map_err(|e| format!("删除目录失败: {e}"))
+    } else {
+        std::fs::remove_file(&target).map_err(|e| format!("删除文件失败: {e}"))
+    }
+}
+
 /// 启用 / 禁用模组：改后缀，不删文件。
 pub fn set_mod_enabled(dir: &Path, name: &str, enabled: bool) -> Result<(), String> {
     let base = dir.join("mods");
