@@ -1,5 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { actions, currentName, selectSelectedVersion, useLauncher } from "../store";
+import type { VersionSummary } from "../types";
+
+/** 版本类型 → 徽章文案与配色键 */
+function tagOf(version: VersionSummary | null): { text: string; kind: string } {
+  if (!version) return { text: "未选择", kind: "none" };
+  if (version.april_fools) return { text: "愚人节", kind: "april" };
+  if (version.loader) return { text: version.loader, kind: version.loader.toLowerCase() };
+  if (version.local) return { text: "本地", kind: "local" };
+  return { text: "原版", kind: "vanilla" };
+}
+
+function tailLines(text: string, count: number): string {
+  const nl = String.fromCharCode(10);
+  const cr = String.fromCharCode(13);
+  return text
+    .split(nl)
+    .map((line) => line.split(cr).join(""))
+    .filter((line) => line.trim() !== "")
+    .slice(-count)
+    .join(nl);
+}
 
 export default function HomePage() {
   const state = useLauncher();
@@ -9,6 +30,11 @@ export default function HomePage() {
   const empty = !state.loading && installed.length === 0;
   const [name, setName] = useState("");
 
+  // 底部日志条要一段真实输出，顺便验证日志目录可读
+  useEffect(() => {
+    void actions.loadLogs();
+  }, []);
+
   // 启动用的版本：主页选的默认版本 > 当前选中 > 第一个已安装
   const launchId =
     state.defaultVersion && installed.some((v) => v.id === state.defaultVersion)
@@ -16,6 +42,7 @@ export default function HomePage() {
       : selected?.id ?? installed[0]?.id ?? "";
   const launchVersion = installed.find((v) => v.id === launchId) ?? null;
   const isRunning = running?.id === launchId;
+  const tag = tagOf(launchVersion);
 
   const primary = () => {
     if (!launchId) return;
@@ -35,11 +62,10 @@ export default function HomePage() {
   if (empty) {
     return (
       <div className="page">
-        <header className="hero">
+        <header className="page-head">
           <div>
-            <p className="eyebrow">DREAM LAUNCHPAD</p>
-            <h1>准备起飞</h1>
-            <p className="desc">还没有可启动的游戏</p>
+            <h1>主页</h1>
+            <p className="desc">还没有扫描到可启动的游戏</p>
           </div>
         </header>
 
@@ -63,6 +89,26 @@ export default function HomePage() {
               重新扫描
             </button>
           </div>
+
+      {state.logText && (
+        <section className="log-strip">
+          <div className="log-strip-head">
+            <h2>最近日志</h2>
+            <span className="hint">{state.logName}</span>
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "tools" }))}
+            >
+              在工具里查看
+            </button>
+          </div>
+          <pre className="log-strip-body">
+            {tailLines(state.logText, 3)}
+          </pre>
+        </section>
+      )}
+
         </section>
       </div>
     );
@@ -70,186 +116,211 @@ export default function HomePage() {
 
   return (
     <div className="page">
-      <header className="hero">
+      <header className="page-head">
         <div>
-          <p className="eyebrow">DREAM LAUNCHPAD</p>
-          <h1>准备起飞</h1>
+          <h1>主页</h1>
           <p className="desc">
-            离线登录 · 已安装 {installed.length} 个版本 · 共 {state.versions.length} 个可用
+            离线登录 · 已安装 {installed.length} 个版本 · 清单里共 {state.versions.length} 个可用
           </p>
         </div>
+        <span className={state.error ? "pill danger" : "pill"}>
+          {state.error || state.notice || (isRunning ? "游戏运行中" : "就绪")}
+        </span>
       </header>
 
-      <div className="home-grid">
-        <div className="home-left-stack">
-          <section className="instance">
-            <div className="instance-top">
-              <div className="instance-tile">{currentName(state).slice(0, 2).toUpperCase()}</div>
-              <div className="instance-name">
-                <strong>{currentName(state)}</strong>
-                <span>离线账号</span>
-              </div>
-            </div>
+      {/* 启动区：一个版本、一个按钮，其余都是次要信息 */}
+      <section className="launch">
+        <div className="launch-main">
+          <div className="launch-title">
+            <span className={`badge badge-${tag.kind}`}>{tag.text}</span>
+            <h2>{launchId || "未选择版本"}</h2>
+          </div>
+          <p className="launch-meta">
+            <span>账号 {currentName(state)}</span>
+            <span className="sep">·</span>
+            <span>
+              {isRunning
+                ? `运行中 · pid ${running?.pid}`
+                : launchVersion?.installed
+                  ? "文件完整，可以启动"
+                  : "还没有安装"}
+            </span>
+          </p>
 
-            <div className="account-list">
-              {state.accounts.length === 0 ? (
-                <p className="hint">还没有账号，下面加一个就能启动。</p>
-              ) : (
-                state.accounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className={
-                      account.id === state.currentAccount ? "account-row active" : "account-row"
-                    }
-                    onClick={() => void actions.useAccount(account.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void actions.useAccount(account.id);
-                    }}
-                  >
-                    <span className="account-dot" />
-                    <span className="account-name">{account.name}</span>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="删除账号"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void actions.removeAccount(account.id);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <form
-              className="account-add"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const value = name.trim();
-                if (!value) return;
-                void actions.addAccount(value);
-                setName("");
-              }}
+          <div className="launch-actions">
+            <button
+              type="button"
+              className="primary big"
+              disabled={state.busy || isRunning || !launchId}
+              onClick={primary}
             >
-              <input
-                className="input small"
-                placeholder="新账号昵称"
-                value={name}
-                maxLength={16}
-                spellCheck={false}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <button type="submit" className="ghost">
-                添加
-              </button>
-            </form>
-          </section>
-
-          <section className="instance">
-            <div className="instance-top">
-              <div className="instance-tile">{(launchId || "?").slice(0, 2).toUpperCase()}</div>
-              <div className="instance-name">
-                <strong>{launchId || "未选择版本"}</strong>
-                <span>
-                  {isRunning
-                    ? `运行中 · pid ${running?.pid}`
-                    : launchVersion?.installed
-                      ? "已安装"
-                      : "未安装"}
-                </span>
-              </div>
-            </div>
-
-            <label className="field">
-              <span className="label">每次启动用这个版本</span>
-              <select
-                className="input small"
-                value={launchId}
-                onChange={(e) => {
-                  void actions.setDefaultVersion(e.target.value);
-                  actions.setSelected(e.target.value);
-                }}
-              >
-                {installed.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.id}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="instance-actions">
-              <button
-                type="button"
-                className="primary"
-                disabled={state.busy || isRunning || !launchId}
-                onClick={primary}
-              >
-                {primaryLabel}
-              </button>
-              <div className="instance-foot">
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => actions.openVersionSettings(launchId)}
-                  disabled={!launchId}
-                >
-                  版本设置
-                </button>
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => void actions.openVersionDir(launchId, "root")}
-                  disabled={!launchId}
-                >
-                  打开目录
-                </button>
-              </div>
-            </div>
-          </section>
+              {primaryLabel}
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => actions.openVersionSettings(launchId)}
+              disabled={!launchId}
+            >
+              版本设置
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void actions.openVersionDir(launchId, "root")}
+              disabled={!launchId}
+            >
+              打开目录
+            </button>
+          </div>
         </div>
 
-        <div className="home-right">
-          <section className="card">
-            <div className="section-head">
-              <h2>已安装</h2>
-              <span className="hint">点一下就设为每次启动的版本</span>
+        <div className="launch-side">
+          <label className="field">
+            <span className="label">启动版本</span>
+            <select
+              className="input"
+              value={launchId}
+              onChange={(e) => {
+                void actions.setDefaultVersion(e.target.value);
+                actions.setSelected(e.target.value);
+              }}
+            >
+              {installed.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          {state.install && (
+            <div className="launch-progress">
+              <div className="launch-progress-head">
+                <span>{state.install.stage}</span>
+                <span>{Math.round(state.install.percent * 100)}%</span>
+              </div>
+              <div className="meter">
+                <span style={{ width: `${Math.round(state.install.percent * 100)}%` }} />
+              </div>
             </div>
-            <div className="quick">
-              {installed.map((version) => (
+          )}
+        </div>
+      </section>
+
+      <div className="home-cols">
+        <section className="card account-card">
+          <div className="section-head">
+            <h2>账号</h2>
+            <span className="hint">离线 · 本地生成 UUID</span>
+          </div>
+
+          <div className="account-list">
+            {state.accounts.length === 0 ? (
+              <p className="hint">还没有账号，加一个就能启动。</p>
+            ) : (
+              state.accounts.map((account) => (
+                <div
+                  key={account.id}
+                  className={
+                    account.id === state.currentAccount ? "account-row active" : "account-row"
+                  }
+                  onClick={() => void actions.useAccount(account.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void actions.useAccount(account.id);
+                  }}
+                >
+                  <span className="account-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
+                  <span className="account-name">{account.name}</span>
+                  {account.id === state.currentAccount && <span className="account-now">当前</span>}
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="删除账号"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void actions.removeAccount(account.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <form
+            className="account-add"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const value = name.trim();
+              if (!value) return;
+              void actions.addAccount(value);
+              setName("");
+            }}
+          >
+            <input
+              className="input small"
+              placeholder="新账号昵称"
+              value={name}
+              maxLength={16}
+              spellCheck={false}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <button type="submit" className="ghost">
+              添加
+            </button>
+          </form>
+        </section>
+
+        <section className="card versions-card">
+          <div className="section-head">
+            <h2>已安装版本</h2>
+            <span className="hint">点一下设为默认启动</span>
+          </div>
+
+          <div className="ver-grid">
+            {installed.map((version) => {
+              const t = tagOf(version);
+              const active = launchId === version.id;
+              return (
                 <button
                   key={version.id}
                   type="button"
-                  className={launchId === version.id ? "quick-item active" : "quick-item"}
-                  title={version.id}
+                  className={active ? "ver-row active" : "ver-row"}
                   onClick={() => {
                     actions.setSelected(version.id);
                     void actions.setDefaultVersion(version.id);
                   }}
                 >
-                  <span className="quick-id">{version.id}</span>
-                  <span className="quick-state on">
-                    {version.april_fools
-                      ? "愚人节"
-                      : version.loader ?? (version.local ? "本地" : "原版")}
-                  </span>
+                  <span className="ver-id">{version.id}</span>
+                  <span className={`badge badge-${t.kind}`}>{t.text}</span>
+                  {active && <span className="ver-now">默认</span>}
                 </button>
-              ))}
-            </div>
-          </section>
+              );
+            })}
+          </div>
 
-          <section className="panel">
-            <div className="section-head">
-              <h2>状态</h2>
+          {state.logText && (
+            <div className="log-strip">
+              <div className="log-strip-head">
+                <h2>最近日志</h2>
+                <span className="hint">{state.logName}</span>
+                <button
+                  type="button"
+                  className="ghost small"
+                  onClick={() =>
+                    window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "tools" }))
+                  }
+                >
+                  在工具里查看
+                </button>
+              </div>
+              <pre className="log-strip-body">{tailLines(state.logText, 4)}</pre>
             </div>
-            <p className="card-hint">{state.notice || state.error || "等待操作"}</p>
-          </section>
-        </div>
+          )}
+        </section>
       </div>
     </div>
   );
