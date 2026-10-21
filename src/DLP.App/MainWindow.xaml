@@ -6,7 +6,7 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBg}"
         FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="12.5">
-    <Grid>
+    <Grid AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="190" />
             <ColumnDefinition Width="*" />

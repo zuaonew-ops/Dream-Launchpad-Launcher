@@ -48,6 +48,8 @@ DLP 命令行
                                      列出/安装模组加载器
   dlp modpack <slug> <mcVersion> [--loader fabric]
                                      安装 Modrinth 整合包（.mrpack）
+  dlp modpackfile <path-to-mrpack> [mcVersion]
+                                     安装本地整合包文件（.mrpack / .zip）
 """);
             break;
 
@@ -100,6 +102,19 @@ DLP 命令行
             var modpacker = new ModpackInstaller(paths, downloader, installer,
                 new LoaderService(paths, http, installer), modrinth, log);
             var result = await modpacker.InstallAsync(slug, mc, loader, null, CancellationToken.None);
+            Console.WriteLine($"安装完成：{result.VersionId}（{result.FilesInstalled} 个文件，{result.OverridesInstalled} 个覆盖文件）");
+            Console.WriteLine($"游戏目录：{result.GameDir}");
+            return 0;
+        }
+
+        case "modpackfile":
+        {
+            var filePath = rest.FirstOrDefault()
+                           ?? throw new ArgumentException("用法：dlp modpackfile <path-to-mrpack> [mcVersion]");
+            var mcHint = rest.Skip(1).FirstOrDefault();
+            var modpacker = new ModpackInstaller(paths, downloader, installer,
+                new LoaderService(paths, http, installer), modrinth, log);
+            var result = await modpacker.InstallFromFileAsync(filePath, mcHint, null, CancellationToken.None);
             Console.WriteLine($"安装完成：{result.VersionId}（{result.FilesInstalled} 个文件，{result.OverridesInstalled} 个覆盖文件）");
             Console.WriteLine($"游戏目录：{result.GameDir}");
             return 0;

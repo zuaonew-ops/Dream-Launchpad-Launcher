@@ -40,6 +40,7 @@ public sealed class DownloadViewModel : ObservableObject
 
         ManifestVersions = [];
         FilteredVersions = [];
+        if (AvailableLoaders.Count == 0) AvailableLoaders.Add("原版");
         LoaderVersions = [];
         Results = [];
 
@@ -55,6 +56,7 @@ public sealed class DownloadViewModel : ObservableObject
     public ObservableCollection<DownloadCategory> Categories { get; }
     public ObservableCollection<string> ManifestVersions { get; }
     public ObservableCollection<string> FilteredVersions { get; }
+    public ObservableCollection<string> AvailableLoaders { get; } = [];
     public ObservableCollection<LoaderVersion> LoaderVersions { get; }
     public ObservableCollection<ContentProject> Results { get; }
     public AsyncRelayCommand RefreshCommand { get; }
@@ -62,8 +64,6 @@ public sealed class DownloadViewModel : ObservableObject
     public AsyncRelayCommand SearchCommand { get; }
     public AsyncRelayCommand InstallVersionCommand { get; }
     public AsyncRelayCommand InstallContentCommand { get; }
-
-    public string[] LoaderNames { get; } = ["原版", "Fabric", "Quilt", "Forge", "NeoForge"];
 
     public DownloadCategory SelectedCategory
     {
@@ -97,6 +97,7 @@ public sealed class DownloadViewModel : ObservableObject
         {
             if (!SetProperty(ref _selectedGameVersion, value)) return;
             InstallVersionCommand.RaiseCanExecuteChanged();
+            RebuildAvailableLoaders();
             _ = LoadLoadersAsync();
         }
     }
@@ -212,7 +213,9 @@ public sealed class DownloadViewModel : ObservableObject
             if (token.IsCancellationRequested) return;
             foreach (var item in list) LoaderVersions.Add(item);
             SelectedLoaderVersion = LoaderVersions.FirstOrDefault();
-            Status = $"{SelectedLoader} 共 {LoaderVersions.Count} 个构建";
+            Status = LoaderVersions.Count > 0
+                ? $"{SelectedLoader} 共 {LoaderVersions.Count} 个构建"
+                : $"{mc} 没有可用的 {SelectedLoader} 版本，低版本一般只支持原版或 Forge";
         }
         catch (OperationCanceledException)
         {
@@ -222,6 +225,45 @@ public sealed class DownloadViewModel : ObservableObject
         {
             if (!token.IsCancellationRequested) Status = $"{SelectedLoader} 列表加载失败：" + ex.Message;
         }
+    }
+
+    /// <summary>按当前游戏版本决定可选加载器：Fabric/Quilt 需要 1.14+，NeoForge 需要 1.20.1+。</summary>
+    private void RebuildAvailableLoaders()
+    {
+        var wanted = new List<string> { "原版" };
+        if (ParseMinecraftVersion(SelectedGameVersion) is { } version)
+        {
+            if (version >= new Version(1, 14)) { wanted.Add("Fabric"); wanted.Add("Quilt"); }
+            wanted.Add("Forge");
+            if (version >= new Version(1, 20, 1)) wanted.Add("NeoForge");
+        }
+        else
+        {
+            wanted.AddRange(["Fabric", "Quilt", "Forge", "NeoForge"]);
+        }
+
+        for (var i = AvailableLoaders.Count - 1; i >= 0; i--)
+            if (!wanted.Contains(AvailableLoaders[i])) AvailableLoaders.RemoveAt(i);
+
+        for (var i = 0; i < wanted.Count; i++)
+        {
+            if (i >= AvailableLoaders.Count) AvailableLoaders.Add(wanted[i]);
+            else if (AvailableLoaders[i] != wanted[i]) AvailableLoaders.Insert(i, wanted[i]);
+        }
+
+        if (!wanted.Contains(SelectedLoader)) SelectedLoader = "原版";
+    }
+
+    /// <summary>把 "1.20.1" / "1.21.5-pre1" 解析成 Version；解析失败返回 null。</summary>
+    private static Version? ParseMinecraftVersion(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(id, @"^(\d+)\.(\d+)(?:\.(\d+))?");
+        if (!match.Success) return null;
+        var major = int.Parse(match.Groups[1].Value);
+        var minor = int.Parse(match.Groups[2].Value);
+        var patch = match.Groups[3].Success ? int.Parse(match.Groups[3].Value) : 0;
+        return new Version(major, minor, patch);
     }
 
     private void ApplyVersionFilter()

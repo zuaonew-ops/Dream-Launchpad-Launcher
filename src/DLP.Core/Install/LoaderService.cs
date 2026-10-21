@@ -10,7 +10,11 @@ namespace DLP.Core.Install;
 public enum ModLoaderType { Fabric, Quilt, Forge, NeoForge }
 
 /// <summary>某个加载器的可用版本；<see cref="MinecraftVersion"/> 为对应的原版版本。</summary>
-public sealed record LoaderVersion(string Id, string DisplayName, string? MinecraftVersion);
+public sealed record LoaderVersion(string Id, string DisplayName, string? MinecraftVersion)
+{
+    // 下拉框在没设置模板时默认显示 ToString()，这里直接给可读名字。
+    public override string ToString() => DisplayName;
+}
 
 /// <summary>加载器查询 / 安装失败（消息为中文，可直接展示给用户）。</summary>
 public sealed class LoaderException(string message, Exception? inner = null) : Exception(message, inner);

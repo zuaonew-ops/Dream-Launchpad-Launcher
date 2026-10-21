@@ -72,10 +72,9 @@ public sealed class ModpackInstaller(
         await downloader.DownloadAsync(contentVersion.DownloadUrl!, mrpackPath,
             contentVersion.Sha1, contentVersion.FileSize, ct);
 
-        var tempDir = Path.Combine(Path.GetTempPath(), "dlp-mrpack-" + Guid.NewGuid().ToString("N"));
+        var tempDir = CreateTempDirectory();
         try
         {
-            Directory.CreateDirectory(tempDir);
             ZipFile.ExtractToDirectory(mrpackPath, tempDir, overwriteFiles: true);
 
             var index = ReadIndex(tempDir, slug);
@@ -91,36 +90,96 @@ public sealed class ModpackInstaller(
                 log.Warn($"整合包声明的游戏版本是 {packMcVersion}，与命令参数 {mcVersion} 不一致，按参数安装");
             }
 
-            var versionId = MakeVersionId(slug, modpackVersion);
-            var baseVersionId = await EnsureBaseVersionAsync(mcVersion, dependencies, status, ct);
-
-            var gameDir = paths.GameDir(versionId);
-            Directory.CreateDirectory(gameDir);
-            log.Info($"整合包版本 {versionId} 继承 {baseVersionId}，游戏目录 {gameDir}");
-
-            var (installed, failed) = await DownloadFilesAsync(index, versionId, gameDir, status, ct);
-
-            status?.Report("复制覆盖文件");
-            var overrides = CopyOverrides(tempDir, gameDir);
-            log.Info($"覆盖文件复制完成：{overrides} 个");
-
-            if (failed > 0)
-            {
-                log.Error($"整合包 {versionId} 有 {failed} 个内容文件下载失败");
-                throw new InvalidOperationException(
-                    $"整合包 {versionId} 有 {failed} 个内容文件下载失败（已成功 {installed} 个），可重新执行同一命令续传");
-            }
-
-            // 全部成功后才写版本 json，避免半成品版本出现在版本列表里。
-            WriteVersionJson(versionId, baseVersionId, name, slug);
-            status?.Report($"安装完成 {versionId}");
-            log.Info($"安装完成 {versionId}：{installed} 个文件，{overrides} 个覆盖文件");
-            return new ModpackInstallResult(versionId, name, gameDir, installed, overrides);
+            return await InstallExtractedAsync(tempDir, index, slug, name, modpackVersion, mcVersion, "modrinth", status, ct);
         }
         finally
         {
             TryDeleteDirectory(tempDir);
         }
+    }
+
+    /// <summary>
+    /// 安装本地整合包文件：.mrpack，或改名为 .zip 的同结构压缩包（以根目录 modrinth.index.json 为准）。
+    /// 游戏版本优先取清单 dependencies.minecraft，缺失时用 <paramref name="mcVersionHint"/>。
+    /// </summary>
+    public async Task<ModpackInstallResult> InstallFromFileAsync(string mrpackPath, string? mcVersionHint,
+        IProgress<string>? status, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mrpackPath);
+        var fullPath = Path.GetFullPath(mrpackPath);
+        if (!File.Exists(fullPath))
+            throw new FileNotFoundException("找不到整合包文件", fullPath);
+        if (!IsZipArchive(fullPath))
+            throw new InvalidOperationException("不是有效的整合包压缩包");
+
+        status?.Report("解压整合包");
+        var tempDir = CreateTempDirectory();
+        try
+        {
+            ZipFile.ExtractToDirectory(fullPath, tempDir, overwriteFiles: true);
+            if (!File.Exists(Path.Combine(tempDir, IndexFileName)))
+                throw new InvalidOperationException("不是有效的整合包压缩包");
+
+            var fileName = Path.GetFileNameWithoutExtension(fullPath);
+            var index = ReadIndex(tempDir, fileName);
+            var name = GetString(index["name"]);
+            if (string.IsNullOrWhiteSpace(name)) name = fileName;
+            var slug = MakeSlug(name);
+            var modpackVersion = GetString(index["versionId"]);
+            if (string.IsNullOrWhiteSpace(modpackVersion)) modpackVersion = "1.0.0";
+
+            var dependencies = index["dependencies"] as JsonObject;
+            var mcVersion = GetString(dependencies?["minecraft"]);
+            if (string.IsNullOrWhiteSpace(mcVersion)) mcVersion = mcVersionHint;
+            if (string.IsNullOrWhiteSpace(mcVersion))
+                throw new InvalidOperationException("整合包缺少 minecraft 依赖，无法确定游戏版本");
+
+            log.Info($"本地整合包 {fullPath}：{name} {modpackVersion}，游戏版本 {mcVersion}");
+            return await InstallExtractedAsync(tempDir, index, slug, name, modpackVersion, mcVersion, "local", status, ct);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new InvalidOperationException("不是有效的整合包压缩包", ex);
+        }
+        finally
+        {
+            TryDeleteDirectory(tempDir);
+        }
+    }
+
+    // ---------------- 安装流程 ----------------
+
+    /// <summary>解压并读取清单后的共用流程：基础版本 → 内容文件 → 覆盖文件 → 全部成功后才写版本 json。</summary>
+    private async Task<ModpackInstallResult> InstallExtractedAsync(string tempDir, JsonObject index, string slug,
+        string name, string modpackVersion, string mcVersion, string source, IProgress<string>? status,
+        CancellationToken ct)
+    {
+        var dependencies = index["dependencies"] as JsonObject;
+        var versionId = MakeVersionId(slug, modpackVersion);
+        var baseVersionId = await EnsureBaseVersionAsync(mcVersion, dependencies, status, ct);
+
+        var gameDir = paths.GameDir(versionId);
+        Directory.CreateDirectory(gameDir);
+        log.Info($"整合包版本 {versionId} 继承 {baseVersionId}，游戏目录 {gameDir}");
+
+        var (installed, failed) = await DownloadFilesAsync(index, versionId, gameDir, status, ct);
+
+        status?.Report("复制覆盖文件");
+        var overrides = CopyOverrides(tempDir, gameDir);
+        log.Info($"覆盖文件复制完成：{overrides} 个");
+
+        if (failed > 0)
+        {
+            log.Error($"整合包 {versionId} 有 {failed} 个内容文件下载失败");
+            throw new InvalidOperationException(
+                $"整合包 {versionId} 有 {failed} 个内容文件下载失败（已成功 {installed} 个），可重新执行同一命令续传");
+        }
+
+        // 全部成功后才写版本 json，避免半成品版本出现在版本列表里。
+        WriteVersionJson(versionId, baseVersionId, name, slug, source);
+        status?.Report($"安装完成 {versionId}");
+        log.Info($"安装完成 {versionId}：{installed} 个文件，{overrides} 个覆盖文件");
+        return new ModpackInstallResult(versionId, name, gameDir, installed, overrides);
     }
 
     // ---------------- 基础版本 / 加载器 ----------------
@@ -167,7 +226,7 @@ public sealed class ModpackInstaller(
 
     // ---------------- 版本 json ----------------
 
-    private void WriteVersionJson(string versionId, string baseVersionId, string name, string slug)
+    private void WriteVersionJson(string versionId, string baseVersionId, string name, string slug, string source)
     {
         var now = DateTimeOffset.Now.ToString("o");
         var json = new JsonObject
@@ -181,7 +240,7 @@ public sealed class ModpackInstaller(
             {
                 ["name"] = name,
                 ["slug"] = slug,
-                ["source"] = "modrinth",
+                ["source"] = source,
             },
         };
 
@@ -328,6 +387,49 @@ public sealed class ModpackInstaller(
         {
             throw new InvalidOperationException($"整合包 {slug} 的 {IndexFileName} 解析失败：{ex.Message}", ex);
         }
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "dlp-mrpack-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        return tempDir;
+    }
+
+    /// <summary>能否按 zip 打开；不是 zip 时返回 false。</summary>
+    private static bool IsZipArchive(string path)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            return true;
+        }
+        catch (InvalidDataException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>由整合包名称生成小写 slug：只保留字母数字，其余折叠成单个 '-'。</summary>
+    private static string MakeSlug(string? name)
+    {
+        var raw = (name ?? string.Empty).ToLowerInvariant();
+        var builder = new StringBuilder(raw.Length);
+        foreach (var ch in raw)
+        {
+            if (char.IsAsciiLetterOrDigit(ch))
+            {
+                builder.Append(ch);
+            }
+            else if (builder.Length > 0 && builder[^1] != '-')
+            {
+                builder.Append('-');
+            }
+        }
+
+        var result = builder.ToString().Trim('-', '.');
+        if (result.Length == 0) return "local-pack";
+        return result.Length <= 60 ? result : result[..60].TrimEnd('-');
     }
 
     /// <summary>文件名安全化：只保留文件名本身，替换非法字符。</summary>

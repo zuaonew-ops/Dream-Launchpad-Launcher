@@ -33,6 +33,9 @@ public sealed class AccountManager
     }
 
     public ObservableCollection<AccountEntry> Accounts { get; }
+
+    /// <summary>是否已在设置里填写微软客户端 ID；没填就没法走设备码登录。</summary>
+    public bool HasMicrosoftClientId => !string.IsNullOrWhiteSpace(_settings.MicrosoftClientId);
     public event Action? Changed;
 
     public AccountEntry? Current
