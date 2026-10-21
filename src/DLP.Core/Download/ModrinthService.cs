@@ -24,6 +24,9 @@ public sealed record ContentProject(
     long Downloads,
     string Author);
 
+/// <summary>项目详情：图标 + 预览图（Modrinth gallery），用于下载页展示封面和截图。</summary>
+public sealed record ProjectDetails(string Id, string? IconUrl, IReadOnlyList<string> Gallery);
+
 /// <summary>某个项目的一个版本，下载信息取自主文件（files[].primary，无则第一个）。</summary>
 public sealed record ContentVersion(
     string Id,
@@ -94,6 +97,20 @@ public sealed class ModrinthService(HttpClient http)
         int limit,
         CancellationToken ct)
         => SearchAsync(kind, string.Empty, gameVersion, loader, limit, ct, sortIndex: "downloads");
+
+    /// <summary>取项目详情（图标 + 预览图）。idOrSlug 都可以。</summary>
+    public async Task<ProjectDetails> GetProjectAsync(string idOrSlug, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idOrSlug);
+        var json = await GetJsonAsync($"{ApiBase}/project/{Uri.EscapeDataString(idOrSlug)}", ct);
+        var dto = Deserialize<ProjectDto>(json, "项目详情");
+        var gallery = (dto.Gallery ?? new List<GalleryDto>())
+            .Select(g => g.Url)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url!)
+            .ToList();
+        return new ProjectDetails(dto.Id ?? idOrSlug, string.IsNullOrWhiteSpace(dto.IconUrl) ? null : dto.IconUrl, gallery);
+    }
 
     /// <summary>获取项目的版本列表（按 Modrinth 返回顺序，最新在前）。</summary>
     public async Task<IReadOnlyList<ContentVersion>> GetVersionsAsync(
@@ -390,6 +407,20 @@ public sealed class ModrinthService(HttpClient http)
         [JsonPropertyName("icon_url")] public string? IconUrl { get; set; }
         public long Downloads { get; set; }
         public string? Author { get; set; }
+    }
+
+    private sealed class ProjectDto
+    {
+        public string? Id { get; set; }
+        [JsonPropertyName("icon_url")] public string? IconUrl { get; set; }
+        public List<GalleryDto>? Gallery { get; set; }
+    }
+
+    private sealed class GalleryDto
+    {
+        public string? Url { get; set; }
+        public string? Title { get; set; }
+        public bool Featured { get; set; }
     }
 
     private sealed class VersionDto

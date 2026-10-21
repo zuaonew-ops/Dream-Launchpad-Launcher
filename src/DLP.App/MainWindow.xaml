@@ -100,15 +100,25 @@
                             <ListBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding CurrentAccount}"
                                      Background="Transparent" BorderThickness="0" MaxHeight="200"
                                      SelectionChanged="AccountList_SelectionChanged">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Padding" Value="8,6" />
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <Grid>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Username}" FontSize="12.5" />
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Username}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding KindLabel}" Style="{StaticResource SmallText}" Margin="0,1,0,0" />
                                             </StackPanel>
-                                            <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="9"
-                                                    Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            <Button Grid.Column="1" Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                    Width="24" Height="24" Margin="12,0,0,0" VerticalAlignment="Center"
                                                     Background="Transparent" BorderThickness="0" Cursor="Hand"
                                                     Foreground="{StaticResource TextTertiary}"
                                                     ToolTip="删除这个账号" Click="RemoveAccount_Click" />

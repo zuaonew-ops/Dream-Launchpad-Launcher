@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
@@ -21,7 +22,8 @@ public sealed class DownloadViewModel : ObservableObject
     private string? _selectedGameVersion;
     private string _selectedLoader = "原版";
     private LoaderVersion? _selectedLoaderVersion;
-    private ContentProject? _selectedProject;
+    private ContentItemViewModel? _selectedProject;
+    private ImageSource? _selectedBanner;
     private string _search = "";
     private string _status = "选择分类开始浏览";
     private double _progress;
@@ -60,7 +62,7 @@ public sealed class DownloadViewModel : ObservableObject
     public ObservableCollection<string> FilteredVersions { get; }
     public ObservableCollection<string> AvailableLoaders { get; } = [];
     public ObservableCollection<LoaderVersion> LoaderVersions { get; }
-    public ObservableCollection<ContentProject> Results { get; }
+    public ObservableCollection<ContentItemViewModel> Results { get; }
     public AsyncRelayCommand RefreshCommand { get; }
     public AsyncRelayCommand LoadLoadersCommand { get; }
     public AsyncRelayCommand SearchCommand { get; }
@@ -183,11 +185,34 @@ public sealed class DownloadViewModel : ObservableObject
         set => SetProperty(ref _selectedLoaderVersion, value);
     }
 
-    public ContentProject? SelectedProject
+    public ContentItemViewModel? SelectedProject
     {
         get => _selectedProject;
-        set { if (SetProperty(ref _selectedProject, value)) InstallContentCommand.RaiseCanExecuteChanged(); }
+        set
+        {
+            if (!SetProperty(ref _selectedProject, value)) return;
+            InstallContentCommand.RaiseCanExecuteChanged();
+            _ = LoadSelectedDetailsAsync(value);
+        }
     }
+
+    /// <summary>选中项目的大图（优先第一张预览图，没有就用图标）。</summary>
+    public ImageSource? SelectedBanner
+    {
+        get => _selectedBanner;
+        private set
+        {
+            if (!SetProperty(ref _selectedBanner, value)) return;
+            OnPropertyChanged(nameof(HasBanner));
+        }
+    }
+
+    public bool HasBanner => _selectedBanner is not null;
+
+    /// <summary>选中项目的全部预览图（模组截图 / 整合包宣传图）。</summary>
+    public ObservableCollection<ImageSource> Gallery { get; } = [];
+
+    public bool HasGallery => Gallery.Count > 0;
 
     public string Search
     {
@@ -361,6 +386,57 @@ public sealed class DownloadViewModel : ObservableObject
     };
 
     /// <summary>打开内容分类时先展示热门（按下载量），不用等用户输入关键词。</summary>
+    private void AddResult(ContentProject project)
+    {
+        var item = new ContentItemViewModel(project);
+        item.LoadIcon(_services.Images);
+        Results.Add(item);
+    }
+
+    /// <summary>选中项目后拉详情：图标 + 预览图，横向展示出来。</summary>
+    private async Task LoadSelectedDetailsAsync(ContentItemViewModel? item)
+    {
+        Gallery.Clear();
+        OnPropertyChanged(nameof(HasGallery));
+        SelectedBanner = null;
+        if (item is null) return;
+
+        if (item.Icon is not null) SelectedBanner = item.Icon;
+
+        try
+        {
+            var details = await _services.Modrinth.GetProjectAsync(item.Id, CancellationToken.None);
+            if (!ReferenceEquals(SelectedProject, item)) return;
+
+            var first = true;
+            foreach (var url in details.Gallery.Take(8))
+            {
+                var image = await _services.Images.LoadAsync(url);
+                if (image is null) continue;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Gallery.Add(image));
+                if (first)
+                {
+                    var banner = image;
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => SelectedBanner = banner);
+                    first = false;
+                }
+            }
+
+            if (first && details.IconUrl is { } iconUrl)
+            {
+                var icon = await _services.Images.LoadAsync(iconUrl);
+                if (icon is not null)
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => SelectedBanner = icon);
+            }
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => OnPropertyChanged(nameof(HasGallery)));
+        }
+        catch
+        {
+            // 详情拿不到就只显示图标，不影响下载。
+        }
+    }
+
     private async Task LoadFeaturedAsync()
     {
         if (IsVersionTab) return;
@@ -377,7 +453,7 @@ public sealed class DownloadViewModel : ObservableObject
             var list = await _services.Modrinth.FeaturedAsync(kind, SelectedGameVersion, loader, 30, token);
             if (token.IsCancellationRequested) return;
             Results.Clear();
-            foreach (var item in list) Results.Add(item);
+            foreach (var item in list) AddResult(item);
             Status = list.Count == 0 ? "暂无热门内容" : $"热门 {list.Count} 个（按下载量），输入关键词可精确搜索";
         }
         catch (OperationCanceledException) { Status = "热门内容加载超时"; }
@@ -413,7 +489,7 @@ public sealed class DownloadViewModel : ObservableObject
             var loader = kind == ContentKind.Mod && SelectedLoader != "原版" ? SelectedLoader.ToLowerInvariant() : null;
             var list = await _services.Modrinth.SearchAsync(kind, Search, SelectedGameVersion, loader, 30, token);
             Results.Clear();
-            foreach (var item in list) Results.Add(item);
+            foreach (var item in list) AddResult(item);
             Status = list.Count == 0 ? "没有找到匹配内容" : $"找到 {list.Count} 个结果";
         }
         catch (OperationCanceledException)
@@ -484,10 +560,11 @@ public sealed class DownloadViewModel : ObservableObject
 
     private async Task InstallContentAsync()
     {
-        if (SelectedProject is not { } project || SelectedGameVersion is not { } mc) return;
+        if (SelectedProject is not { } item || SelectedGameVersion is not { } mc) return;
+        var project = item.Project;
         IsBusy = true;
         Progress = 0;
-        var task = Downloads.Begin($"下载 {SelectedProject?.Title ?? "内容"}");
+        var task = Downloads.Begin($"下载 {item.Title}");
         try
         {
             var kind = CurrentContentKind;

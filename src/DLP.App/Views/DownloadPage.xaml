@@ -176,14 +176,28 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding Description}" Style="{StaticResource SmallText}" TextTrimming="CharacterEllipsis"
-                                               Margin="0,3,0,0" />
-                                    <TextBlock Style="{StaticResource SmallText}" Margin="0,3,0,0">
-                                        <Run Text="{Binding Author, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Downloads, Mode=OneWay}" /><Run Text=" 次下载" />
-                                    </TextBlock>
-                                </StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="44" Height="44" CornerRadius="6" Background="#F1F2F4" ClipToBounds="True"
+                                            VerticalAlignment="Center">
+                                        <Grid>
+                                            <TextBlock Text="?" Style="{StaticResource SmallText}" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" Foreground="{StaticResource TextTertiary}" />
+                                            <Image Source="{Binding Icon, Mode=OneWay}" Stretch="UniformToFill" />
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Description}" Style="{StaticResource SmallText}"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,3,0,0" />
+                                        <TextBlock Style="{StaticResource SmallText}" Margin="0,3,0,0">
+                                            <Run Text="{Binding Author, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding DownloadsText, Mode=OneWay}" /><Run Text=" 次下载" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
@@ -192,6 +206,30 @@
 
             <Border Grid.Row="4" Style="{StaticResource Card}" Padding="16" Margin="0,12,0,0">
                 <StackPanel>
+                    <StackPanel Visibility="{Binding IsContentTab, Converter={StaticResource BoolToVisibility}}">
+                        <Border CornerRadius="8" ClipToBounds="True" Height="150" Background="#F1F2F4" Margin="0,0,0,10"
+                                Visibility="{Binding HasBanner, Converter={StaticResource BoolToVisibility}}">
+                            <Image Source="{Binding SelectedBanner, Mode=OneWay}" Stretch="UniformToFill" />
+                        </Border>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,10"
+                                      Visibility="{Binding HasGallery, Converter={StaticResource BoolToVisibility}}">
+                            <ItemsControl ItemsSource="{Binding Gallery}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="150" Height="86" CornerRadius="6" ClipToBounds="True" Background="#F1F2F4"
+                                                Margin="0,0,8,0">
+                                            <Image Source="{Binding}" Stretch="UniformToFill" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
                     <Grid>
                         <TextBlock Text="{Binding Status}" Style="{StaticResource BodyText}" TextWrapping="Wrap" Margin="0,0,12,0" />
                         <Button HorizontalAlignment="Right" Content="{Binding InstallActionText}" Style="{StaticResource PrimaryButton}"

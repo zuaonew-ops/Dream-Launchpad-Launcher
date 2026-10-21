@@ -36,6 +36,7 @@ public sealed class AppServices
     };
 
     public ModpackInstaller Modpacks { get; }
+    public ImageCache Images { get; }
     public DownloadMonitor Downloads { get; } = new();
 
     public event Action? InstalledVersionsChanged;
@@ -59,6 +60,7 @@ public sealed class AppServices
         Mirrors.Enabled = Settings.DownloadSource != "official";
         Accounts = new AccountManager(Paths, Settings, Http);
         Modrinth = new ModrinthService(Http);
+        Images = new ImageCache(Http, Paths);
         Loaders = new LoaderService(Paths, Http, Installer);
         Modpacks = new ModpackInstaller(Paths, Downloader, Installer, Loaders, Modrinth, Log);
     }
