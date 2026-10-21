@@ -43,9 +43,13 @@
 | --- | --- |
 | ![主页](docs/assets/screens/home.png) | ![下载](docs/assets/screens/download.png) |
 
-| 内容 | 设置 |
+| 资源搜索 | 内容 |
 | --- | --- |
-| ![内容](docs/assets/screens/content.png) | ![设置](docs/assets/screens/settings.png) |
+| ![资源搜索](docs/assets/screens/market.png) | ![内容](docs/assets/screens/content.png) |
+
+| 设置 | 版本详情 |
+| --- | --- |
+| ![设置](docs/assets/screens/settings.png) | ![版本详情](docs/assets/screens/version-detail.png) |
 
 - **版本设置**：单个版本的内存 / Java / 版本隔离 / JVM 参数 + 该版本的模组管理（`versions/<版本>/mods`）
 
