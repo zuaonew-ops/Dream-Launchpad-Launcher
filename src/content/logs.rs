@@ -116,7 +116,7 @@ pub(crate) fn format_time(time: std::time::SystemTime) -> String {
 }
 
 /// Howard Hinnant 的 days → civil date 算法
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
+pub(crate) fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let z = z + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
     let doe = (z - era * 146_097) as u64;

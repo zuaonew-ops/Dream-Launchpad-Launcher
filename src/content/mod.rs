@@ -6,16 +6,20 @@ use crate::paths::Paths;
 use serde::Serialize;
 use std::path::PathBuf;
 
+pub mod backup;
 pub mod logs;
 pub mod mods;
 pub mod packs;
 pub mod saves;
+pub mod servers;
 pub mod stats;
 
+pub use backup::{backup, delete_backup, list_backups, restore, BackupEntry};
 pub use logs::{list_crashes, list_logs, read_crash, read_log};
 pub use mods::{delete_mod, list_mods, set_all_mods, set_mod_enabled};
 pub use packs::{delete_pack, list_packs};
 pub use saves::list_saves;
+pub use servers::{add_server, read_servers, remove_server, write_servers, ServerEntry};
 pub use stats::version_stats;
 
 #[derive(Debug, Clone, Serialize)]

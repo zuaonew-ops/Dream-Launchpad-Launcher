@@ -151,6 +151,19 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface BackupEntry {
+  name: string;
+  world: string;
+  time: string;
+  bytes: number;
+}
+
+export interface ServerEntry {
+  name: string;
+  ip: string;
+  hidden: boolean;
+}
+
 /** 整合包摘要（后端 PackPreview） */
 export interface PackPreview {
   format: string;

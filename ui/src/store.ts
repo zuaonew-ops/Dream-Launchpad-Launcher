@@ -2,7 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type {
+  BackupEntry,
   PackPreview,
+  ServerEntry,
   InstallStage,
   Account,
   AccountsPayload,
@@ -59,6 +61,10 @@ export interface State {
   packFile: string;
   /** 整合包摘要（预览） */
   packPreview: PackPreview | null;
+  /** 该版本的存档备份列表 */
+  backups: BackupEntry[];
+  /** 该版本的服务器列表（servers.dat） */
+  servers: ServerEntry[];
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -165,6 +171,8 @@ let state: State = {
   downloadTab: "versions",
   packFile: "",
   packPreview: null,
+  backups: [],
+  servers: [],
   packId: "",
   search: "",
   filter: "release",
@@ -609,11 +617,12 @@ async function deletePack(id: string, kind: "resourcepacks" | "shaderpacks", nam
 
 async function loadContent(id: string) {
   try {
-    const [mods, saves] = await Promise.all([
+    const [mods, saves, backups] = await Promise.all([
       invoke<ModEntry[]>("list_mods", { id }),
       invoke<SaveEntry[]>("list_saves", { id }),
+      invoke<BackupEntry[]>("list_backups", { id }),
     ]);
-    set({ mods, saves });
+    set({ mods, saves, backups });
   } catch (e) {
     set({ error: String(e) });
   }
@@ -1066,6 +1075,73 @@ async function confirmInstall() {
   }
 }
 
+/** 备份一个存档 */
+async function backupSave(id: string, world: string) {
+  try {
+    const name = await invoke<string>("backup_save", { id, world });
+    set({ notice: `已备份 ${world} → ${name}` });
+    await loadBackups(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function loadBackups(id: string) {
+  try {
+    const backups = await invoke<BackupEntry[]>("list_backups", { id });
+    set({ backups });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function deleteBackup(id: string, name: string) {
+  try {
+    await invoke("delete_backup", { id, name });
+    await loadBackups(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function restoreBackup(id: string, name: string) {
+  try {
+    const world = await invoke<string>("restore_backup", { id, name });
+    set({ notice: `已还原存档 ${world}` });
+    await loadContent(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+/** 服务器列表（读写 servers.dat） */
+async function loadServers(id: string) {
+  try {
+    const servers = await invoke<ServerEntry[]>("list_servers", { id });
+    set({ servers });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function addServer(id: string, name: string, ip: string) {
+  try {
+    const servers = await invoke<ServerEntry[]>("add_server", { id, name, ip });
+    set({ servers, notice: `已添加服务器 ${name}` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function removeServer(id: string, ip: string) {
+  try {
+    const servers = await invoke<ServerEntry[]>("remove_server", { id, ip });
+    set({ servers });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 选一个本地整合包文件 */
 async function pickPack() {
   try {
@@ -1251,6 +1327,12 @@ export const actions = {
   pickPack,
   loadPackPreview,
   installPack,
+  backupSave,
+  deleteBackup,
+  restoreBackup,
+  loadServers,
+  addServer,
+  removeServer,
   setSelected: (selected: string) => {
     set({ selected });
     void loadSettings(selected);

@@ -783,6 +783,13 @@ pub fn run() {
             install_market_file,
             install_market,
             install_java,
+            backup_save,
+            list_backups,
+            restore_backup,
+            delete_backup,
+            list_servers,
+            add_server,
+            remove_server,
             pick_pack,
             pack_preview,
             install_pack,
@@ -826,4 +833,52 @@ async fn install_pack(
     )
     .await?;
     Ok(target)
+}
+
+// ── 存档备份 ──────────────────────────────────────────
+
+#[tauri::command]
+fn backup_save(state: State<'_, AppState>, id: String, world: String) -> Result<String, String> {
+    content::backup(&game_dir(&state.paths, &id), &world)
+}
+
+#[tauri::command]
+fn list_backups(state: State<'_, AppState>, id: String) -> Vec<content::BackupEntry> {
+    content::list_backups(&game_dir(&state.paths, &id))
+}
+
+#[tauri::command]
+fn restore_backup(state: State<'_, AppState>, id: String, name: String) -> Result<String, String> {
+    content::restore(&game_dir(&state.paths, &id), &name)
+}
+
+#[tauri::command]
+fn delete_backup(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
+    content::delete_backup(&game_dir(&state.paths, &id), &name)
+}
+
+// ── 服务器列表 ────────────────────────────────────────
+
+#[tauri::command]
+fn list_servers(state: State<'_, AppState>, id: String) -> Vec<content::ServerEntry> {
+    content::read_servers(&game_dir(&state.paths, &id))
+}
+
+#[tauri::command]
+fn add_server(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    ip: String,
+) -> Result<Vec<content::ServerEntry>, String> {
+    content::add_server(&game_dir(&state.paths, &id), &name, &ip)
+}
+
+#[tauri::command]
+fn remove_server(
+    state: State<'_, AppState>,
+    id: String,
+    ip: String,
+) -> Result<Vec<content::ServerEntry>, String> {
+    content::remove_server(&game_dir(&state.paths, &id), &ip)
 }

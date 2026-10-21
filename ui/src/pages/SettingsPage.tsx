@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { actions, memoryCeiling, selectSelectedVersion, useLauncher } from "../store";
 import ModPanel from "../components/content/ModPanel";
 import SavePanel from "../components/content/SavePanel";
+import ServerPanel from "../components/content/ServerPanel";
 import PackPanel from "../components/content/PackPanel";
 import OverviewPanel from "../components/settings/OverviewPanel";
 import ModifyPanel from "../components/settings/ModifyPanel";
@@ -25,7 +26,15 @@ function formatMemory(mb: number): string {
 
 export default function SettingsPage() {
   const state = useLauncher();
-  type Tab = "overview" | "settings" | "modify" | "mods" | "saves" | "resourcepacks" | "shaderpacks";
+  type Tab =
+    | "overview"
+    | "settings"
+    | "modify"
+    | "mods"
+    | "saves"
+    | "servers"
+    | "resourcepacks"
+    | "shaderpacks";
   const [tab, setTab] = useState<Tab>("settings");
   const installed = state.versions.filter((v) => v.installed);
   const selected = selectSelectedVersion(state);
@@ -37,7 +46,7 @@ export default function SettingsPage() {
   const contentId = state.settingsKey || selected?.id || "";
   useEffect(() => {
     if (!contentId) return;
-    if (tab === "mods" || tab === "saves" || tab === "overview") {
+    if (tab === "mods" || tab === "saves" || tab === "servers" || tab === "overview") {
       void actions.loadContent(contentId);
     }
     if (tab === "overview" || tab === "resourcepacks") {
@@ -68,6 +77,7 @@ export default function SettingsPage() {
     { key: "modify", label: "修改", show: !isGlobal },
     { key: "mods", label: "模组", show: !isGlobal && hasModLoader },
     { key: "saves", label: "存档", show: !isGlobal },
+    { key: "servers", label: "服务器", show: !isGlobal },
     { key: "resourcepacks", label: "资源包", show: !isGlobal },
     { key: "shaderpacks", label: "光影", show: !isGlobal && (hasModLoader || hasShaderLoader) },
   ];
@@ -131,6 +141,8 @@ export default function SettingsPage() {
         <ModPanel id={contentId} />
       ) : tab === "saves" && contentId ? (
         <SavePanel id={contentId} />
+      ) : tab === "servers" && contentId ? (
+        <ServerPanel id={contentId} />
       ) : tab === "resourcepacks" && contentId ? (
         <PackPanel id={contentId} kind="resourcepacks" />
       ) : tab === "shaderpacks" && contentId ? (
