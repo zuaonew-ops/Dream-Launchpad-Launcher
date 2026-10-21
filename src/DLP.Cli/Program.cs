@@ -15,6 +15,7 @@ using var http = new HttpClient(new SocketsHttpHandler { PooledConnectionLifetim
 http.DefaultRequestHeaders.UserAgent.ParseAdd("DreamLaunchpad/0.1");
 
 var downloader = new DownloadClient(http, log);
+var modrinth = new ModrinthService(http);
 var manifests = new VersionManifestService(http, paths, log);
 var versions = new VersionRepository(paths, downloader, manifests);
 var java = new JavaManager(paths, http, downloader, log);
@@ -45,6 +46,8 @@ DLP 命令行
   dlp info <versionId>               查看版本详情
   dlp loader <fabric|quilt|forge|neoforge> <mcVersion> [loaderVersion]
                                      列出/安装模组加载器
+  dlp modpack <slug> <mcVersion> [--loader fabric]
+                                     安装 Modrinth 整合包（.mrpack）
 """);
             break;
 
@@ -87,6 +90,19 @@ DLP 命令行
                 new Progress<string>(Console.WriteLine), CancellationToken.None);
             Console.WriteLine($"安装完成：{installed}");
             break;
+        }
+
+        case "modpack":
+        {
+            var slug = rest.FirstOrDefault() ?? throw new ArgumentException("缺少整合包 slug");
+            var mc = rest.Skip(1).FirstOrDefault() ?? throw new ArgumentException("缺少 Minecraft 版本");
+            var loader = Option(args, "--loader");
+            var modpacker = new ModpackInstaller(paths, downloader, installer,
+                new LoaderService(paths, http, installer), modrinth, log);
+            var result = await modpacker.InstallAsync(slug, mc, loader, null, CancellationToken.None);
+            Console.WriteLine($"安装完成：{result.VersionId}（{result.FilesInstalled} 个文件，{result.OverridesInstalled} 个覆盖文件）");
+            Console.WriteLine($"游戏目录：{result.GameDir}");
+            return 0;
         }
 
         case "info":

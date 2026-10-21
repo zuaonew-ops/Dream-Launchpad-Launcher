@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using DLP.Core.Download;
-using DLP.Core.Download;
 using DLP.Core.Infrastructure;
 using DLP.Core.Minecraft;
 

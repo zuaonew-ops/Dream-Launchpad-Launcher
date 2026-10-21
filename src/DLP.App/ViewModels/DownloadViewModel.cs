@@ -32,7 +32,7 @@ public sealed class DownloadViewModel : ObservableObject
     public DownloadViewModel(AppServices services)
     {
         _services = services;
-        _loaders = new LoaderService(services.Paths, services.Http);
+        _loaders = services.Loaders;
 
         Categories = [new("游戏版本", "version"), new("模组", "mod"), new("整合包", "modpack"),
             new("光影", "shader"), new("资源包", "resourcepack"), new("数据包", "datapack")];
@@ -76,10 +76,15 @@ public sealed class DownloadViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowLoader));
             Results.Clear();
             SelectedProject = null;
-            Status = value.IsVersion ? "选择版本后安装" : "搜索内容后安装";
+            OnPropertyChanged(nameof(InstallActionText));
+            Status = value.IsVersion ? "选择版本后安装" : "加载热门内容…";
             if (value.IsVersion) _ = LoadManifestAsync();
+            else _ = LoadFeaturedAsync();
         }
     }
+
+    /// <summary>整合包用「安装整合包」按钮，其它内容仍是下载到版本目录。</summary>
+    public string InstallActionText => SelectedCategory.Kind == "modpack" ? "安装整合包" : "下载到版本目录";
 
     public bool IsVersionTab => SelectedCategory.IsVersion;
     public bool IsContentTab => !SelectedCategory.IsVersion;
@@ -237,11 +242,53 @@ public sealed class DownloadViewModel : ObservableObject
             : FilteredVersions.FirstOrDefault();
     }
 
+    private ContentKind CurrentContentKind => SelectedCategory.Kind switch
+    {
+        "mod" => ContentKind.Mod,
+        "modpack" => ContentKind.Modpack,
+        "shader" => ContentKind.Shader,
+        "resourcepack" => ContentKind.ResourcePack,
+        _ => ContentKind.DataPack
+    };
+
+    /// <summary>打开内容分类时先展示热门（按下载量），不用等用户输入关键词。</summary>
+    private async Task LoadFeaturedAsync()
+    {
+        if (IsVersionTab) return;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var token = _searchCts.Token;
+
+        IsBusy = true;
+        try
+        {
+            var kind = CurrentContentKind;
+            var loader = kind == ContentKind.Mod && SelectedLoader != "原版" ? SelectedLoader.ToLowerInvariant() : null;
+            var list = await _services.Modrinth.FeaturedAsync(kind, SelectedGameVersion, loader, 30, token);
+            if (token.IsCancellationRequested) return;
+            Results.Clear();
+            foreach (var item in list) Results.Add(item);
+            Status = list.Count == 0 ? "暂无热门内容" : $"热门 {list.Count} 个（按下载量），输入关键词可精确搜索";
+        }
+        catch (OperationCanceledException) { Status = "热门内容加载超时"; }
+        catch (Exception ex)
+        {
+            if (!token.IsCancellationRequested) Status = "热门内容加载失败：" + ex.Message;
+        }
+        finally { IsBusy = false; }
+    }
+
     private async Task SearchAsync()
     {
         if (IsVersionTab)
         {
             ApplyVersionFilter();
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(Search))
+        {
+            await LoadFeaturedAsync();
             return;
         }
         _searchCts?.Cancel();
@@ -253,14 +300,7 @@ public sealed class DownloadViewModel : ObservableObject
         try
         {
             Status = "搜索中…";
-            var kind = SelectedCategory.Kind switch
-            {
-                "mod" => ContentKind.Mod,
-                "modpack" => ContentKind.Modpack,
-                "shader" => ContentKind.Shader,
-                "resourcepack" => ContentKind.ResourcePack,
-                _ => ContentKind.DataPack
-            };
+            var kind = CurrentContentKind;
             var loader = kind == ContentKind.Mod && SelectedLoader != "原版" ? SelectedLoader.ToLowerInvariant() : null;
             var list = await _services.Modrinth.SearchAsync(kind, Search, SelectedGameVersion, loader, 30, token);
             Results.Clear();
@@ -334,21 +374,27 @@ public sealed class DownloadViewModel : ObservableObject
         Progress = 0;
         try
         {
-            var gameDir = _services.Paths.GameDir(mc);
-            if (!Directory.Exists(_services.Paths.VersionDir(mc)))
+            var kind = CurrentContentKind;
+            // 整合包会自己把原版和加载器装好；模组/光影等需要版本已存在。
+            if (kind != ContentKind.Modpack && !Directory.Exists(_services.Paths.VersionDir(mc)))
             {
                 Status = $"请先安装 {mc} 再下载内容";
                 return;
             }
-            var kind = SelectedCategory.Kind switch
-            {
-                "mod" => ContentKind.Mod,
-                "modpack" => ContentKind.Modpack,
-                "shader" => ContentKind.Shader,
-                "resourcepack" => ContentKind.ResourcePack,
-                _ => ContentKind.DataPack
-            };
+            var gameDir = _services.Paths.GameDir(mc);
             var loader = kind == ContentKind.Mod && SelectedLoader != "原版" ? SelectedLoader.ToLowerInvariant() : null;
+
+            if (kind == ContentKind.Modpack)
+            {
+                Status = $"安装整合包 {project.Title}…";
+                var progress = new Progress<string>(s => Status = s);
+                var result = await _services.Modpacks.InstallAsync(project.Slug, mc, loader, progress, CancellationToken.None);
+                _services.NotifyInstalledVersionsChanged();
+                Status = $"已安装整合包：{result.VersionId}（{result.FilesInstalled} 个文件），去「游戏版本」里启动";
+                App.Current.Dispatcher.Invoke(() => SelectedGameVersion = mc);
+                return;
+            }
+
             Status = $"下载 {project.Title}…";
             var path = await _services.Modrinth.InstallAsync(kind, project.Id, mc, loader, gameDir,
                 new Progress<double>(v => Progress = v), CancellationToken.None);

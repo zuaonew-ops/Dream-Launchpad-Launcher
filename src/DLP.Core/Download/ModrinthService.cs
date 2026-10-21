@@ -56,7 +56,8 @@ public sealed class ModrinthService(HttpClient http)
         string? gameVersion,
         string? loader,
         int limit,
-        CancellationToken ct)
+        CancellationToken ct,
+        string sortIndex = "relevance")
     {
         var effectiveLimit = Math.Clamp(limit, 1, 100);
 
@@ -66,6 +67,7 @@ public sealed class ModrinthService(HttpClient http)
 
         var facetsJson = JsonSerializer.Serialize(facets);
         var url = $"{ApiBase}/search?query={Uri.EscapeDataString(query ?? string.Empty)}" +
+                  $"&index={Uri.EscapeDataString(sortIndex)}" +
                   $"&limit={effectiveLimit}" +
                   $"&facets={Uri.EscapeDataString(facetsJson)}";
 
@@ -83,6 +85,15 @@ public sealed class ModrinthService(HttpClient http)
                 Author: h.Author ?? string.Empty))
             .ToList();
     }
+
+    /// <summary>按下载量取热门内容（打开分类时默认展示，不需要用户先输入关键词）。</summary>
+    public Task<IReadOnlyList<ContentProject>> FeaturedAsync(
+        ContentKind kind,
+        string? gameVersion,
+        string? loader,
+        int limit,
+        CancellationToken ct)
+        => SearchAsync(kind, string.Empty, gameVersion, loader, limit, ct, sortIndex: "downloads");
 
     /// <summary>获取项目的版本列表（按 Modrinth 返回顺序，最新在前）。</summary>
     public async Task<IReadOnlyList<ContentVersion>> GetVersionsAsync(

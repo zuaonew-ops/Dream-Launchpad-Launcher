@@ -24,6 +24,8 @@ public sealed class AppServices
     public AppSettings Settings { get; }
     public AccountManager Accounts { get; }
     public ModrinthService Modrinth { get; }
+    public LoaderService Loaders { get; }
+    public ModpackInstaller Modpacks { get; }
 
     public event Action? InstalledVersionsChanged;
 
@@ -46,6 +48,8 @@ public sealed class AppServices
         Mirrors.Enabled = Settings.DownloadSource != "official";
         Accounts = new AccountManager(Paths, Settings, Http);
         Modrinth = new ModrinthService(Http);
+        Loaders = new LoaderService(Paths, Http, Installer);
+        Modpacks = new ModpackInstaller(Paths, Downloader, Installer, Loaders, Modrinth, Log);
     }
 
     public IReadOnlyList<string> GetInstalledVersions()

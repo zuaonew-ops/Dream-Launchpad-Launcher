@@ -24,6 +24,7 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
     private const string QuiltMeta = "https://meta.quiltmc.org/v3";
 
     private static readonly TimeSpan InstallerTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan CacheMaxAge = TimeSpan.FromHours(6);
     private static readonly JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
 
     /// <summary>查询加载器可用版本；Forge / NeoForge 按版本号降序（Fabric / Quilt 保留官方顺序，最新在前）。</summary>
@@ -31,7 +32,30 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mcVersion);
 
-        return type switch
+        // 有缓存先立刻返回，避免每次打开下载页都等网络；过期缓存在后台刷新。
+        if (ReadCache(type, mcVersion) is { Count: > 0 } cached)
+        {
+            if (IsCacheStale(type, mcVersion))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                        await FetchAndCacheAsync(type, mcVersion, timeout.Token);
+                    }
+                    catch { /* 后台刷新失败不影响使用 */ }
+                });
+            }
+            return cached;
+        }
+
+        return await FetchAndCacheAsync(type, mcVersion, ct);
+    }
+
+    private async Task<IReadOnlyList<LoaderVersion>> FetchAndCacheAsync(ModLoaderType type, string mcVersion, CancellationToken ct)
+    {
+        var result = type switch
         {
             ModLoaderType.Fabric => await ListFabricAsync(mcVersion, ct),
             ModLoaderType.Quilt => await ListQuiltAsync(mcVersion, ct),
@@ -39,6 +63,49 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
             ModLoaderType.NeoForge => await ListNeoForgeAsync(mcVersion, ct),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "未知的加载器类型")
         };
+
+        if (result.Count > 0) WriteCache(type, mcVersion, result);
+        return result;
+    }
+
+    // ---------------- 列表缓存（放 Cache/loaders，避免重复拉取） ----------------
+
+    private string CachePath(ModLoaderType type, string mcVersion)
+    {
+        var safe = string.Join('_', mcVersion.Split(Path.GetInvalidFileNameChars()));
+        return Path.Combine(paths.Cache, "loaders", $"{type.ToString().ToLowerInvariant()}-{safe}.json");
+    }
+
+    private List<LoaderVersion>? ReadCache(ModLoaderType type, string mcVersion)
+    {
+        try
+        {
+            var path = CachePath(type, mcVersion);
+            if (!File.Exists(path)) return null;
+            return System.Text.Json.JsonSerializer.Deserialize<List<LoaderVersion>>(File.ReadAllText(path));
+        }
+        catch { return null; }
+    }
+
+    private bool IsCacheStale(ModLoaderType type, string mcVersion)
+    {
+        try
+        {
+            var path = CachePath(type, mcVersion);
+            return !File.Exists(path) || DateTime.UtcNow - File.GetLastWriteTimeUtc(path) > CacheMaxAge;
+        }
+        catch { return true; }
+    }
+
+    private void WriteCache(ModLoaderType type, string mcVersion, IReadOnlyList<LoaderVersion> versions)
+    {
+        try
+        {
+            var path = CachePath(type, mcVersion);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(versions));
+        }
+        catch { /* 缓存写失败不影响功能 */ }
     }
 
     /// <summary>安装加载器，返回安装出的版本 id。</summary>
@@ -62,7 +129,10 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
 
     private async Task<IReadOnlyList<LoaderVersion>> ListFabricAsync(string mcVersion, CancellationToken ct)
     {
-        var json = await GetStringAsync($"{FabricMeta}/versions/loader/{Uri.EscapeDataString(mcVersion)}", ct);
+        var encoded = Uri.EscapeDataString(mcVersion);
+        var json = await GetFirstAsync(
+            [$"{Bmclapi}/fabric-meta/v2/versions/loader/{encoded}", $"{FabricMeta}/versions/loader/{encoded}"],
+            "Fabric 版本列表", ct);
         using var doc = ParseArray(json, "Fabric 版本列表");
 
         var result = new List<LoaderVersion>();
@@ -80,7 +150,10 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
 
     private async Task<IReadOnlyList<LoaderVersion>> ListQuiltAsync(string mcVersion, CancellationToken ct)
     {
-        var json = await GetStringAsync($"{QuiltMeta}/versions/loader/{Uri.EscapeDataString(mcVersion)}", ct);
+        var encoded = Uri.EscapeDataString(mcVersion);
+        var json = await GetFirstAsync(
+            [$"{Bmclapi}/quilt-meta/v3/versions/loader/{encoded}", $"{QuiltMeta}/versions/loader/{encoded}"],
+            "Quilt 版本列表", ct);
         using var doc = ParseArray(json, "Quilt 版本列表");
 
         var result = new List<LoaderVersion>();
@@ -96,7 +169,19 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
 
     private async Task<IReadOnlyList<LoaderVersion>> ListForgeAsync(string mcVersion, CancellationToken ct)
     {
-        var json = await GetStringAsync($"{Bmclapi}/forge/minecraft/{Uri.EscapeDataString(mcVersion)}", ct);
+        string json;
+        try
+        {
+            json = await GetFirstAsync([$"{Bmclapi}/forge/minecraft/{Uri.EscapeDataString(mcVersion)}"], "Forge 版本列表", ct);
+        }
+        catch (LoaderException)
+        {
+            // 镜像不可达时回退 Forge 官方 maven 元数据（官方只有版本列表，没有富信息）。
+            var xml = await GetFirstAsync(
+                ["https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml"],
+                "Forge 官方版本列表", ct);
+            return ParseForgeMetadata(xml, mcVersion);
+        }
         using var doc = ParseArray(json, "Forge 版本列表");
 
         var versions = new List<string>();
@@ -111,9 +196,33 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
             .ToList();
     }
 
+    /// <summary>解析 Forge 官方 maven-metadata.xml，筛出当前原版版本对应的加载器版本。</summary>
+    private static IReadOnlyList<LoaderVersion> ParseForgeMetadata(string xml, string mcVersion)
+    {
+        var versions = new List<string>();
+        try
+        {
+            var doc = System.Xml.Linq.XDocument.Parse(xml);
+            foreach (var element in doc.Descendants("version"))
+            {
+                var text = element.Value.Trim();
+                if (text.StartsWith(mcVersion + "-", StringComparison.OrdinalIgnoreCase))
+                    versions.Add(text[(mcVersion.Length + 1)..]);
+            }
+        }
+        catch (System.Xml.XmlException ex)
+        {
+            throw new LoaderException($"Forge 官方版本列表无法解析：{ex.Message}", ex);
+        }
+
+        return SortDescending(versions)
+            .Select(v => new LoaderVersion(v, $"Forge {v}", mcVersion))
+            .ToList();
+    }
+
     private async Task<IReadOnlyList<LoaderVersion>> ListNeoForgeAsync(string mcVersion, CancellationToken ct)
     {
-        var json = await GetStringAsync($"{Bmclapi}/neoforge/list/{Uri.EscapeDataString(mcVersion)}", ct);
+        var json = await GetFirstAsync([$"{Bmclapi}/neoforge/list/{Uri.EscapeDataString(mcVersion)}"], "NeoForge 版本列表", ct);
         using var doc = ParseArray(json, "NeoForge 版本列表");
 
         var versions = new List<string>();
@@ -147,10 +256,17 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
         IProgress<string>? status, CancellationToken ct)
     {
         var newId = $"{idPrefix}-{loaderVersion}-{mcVersion}";
-        var url = $"{metaBase}/versions/loader/{Uri.EscapeDataString(mcVersion)}/{Uri.EscapeDataString(loaderVersion)}/profile/json";
+        var encodedMc = Uri.EscapeDataString(mcVersion);
+        var encodedLoader = Uri.EscapeDataString(loaderVersion);
+        var mirrorBase = idPrefix == "fabric-loader" ? $"{Bmclapi}/fabric-meta/v2" : $"{Bmclapi}/quilt-meta/v3";
+        var urls = new[]
+        {
+            $"{mirrorBase}/versions/loader/{encodedMc}/{encodedLoader}/profile/json",
+            $"{metaBase}/versions/loader/{encodedMc}/{encodedLoader}/profile/json"
+        };
 
         status?.Report($"正在获取 {newId} 的安装配置");
-        var json = await GetStringAsync(url, ct);
+        var json = await GetFirstAsync(urls, $"{newId} 安装配置", ct);
 
         JsonObject profile;
         try
@@ -495,6 +611,24 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
         if (http.DefaultRequestHeaders.UserAgent.Count == 0)
             request.Headers.TryAddWithoutValidation("User-Agent", "DreamLaunchpad/1.0 (+https://github.com/dlp)");
         return request;
+    }
+
+    /// <summary>依次尝试多个地址（镜像优先、官方兜底），第一个成功即返回。</summary>
+    private async Task<string> GetFirstAsync(IReadOnlyList<string> urls, string source, CancellationToken ct)
+    {
+        Exception? last = null;
+        foreach (var url in urls)
+        {
+            try
+            {
+                return await GetStringAsync(url, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                last = ex;
+            }
+        }
+        throw new LoaderException($"{source} 获取失败（镜像与官方都不可用）：{last?.Message}", last);
     }
 
     private async Task<string> GetStringAsync(string url, CancellationToken ct)
