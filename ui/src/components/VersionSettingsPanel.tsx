@@ -138,13 +138,29 @@ export default function VersionSettingsPanel({ id }: { id: string }) {
       <section className="panel settings-mods">
         <div className="content-tools">
           <h2>模组</h2>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => void actions.openVersionDir(id, "mods")}
-          >
-            打开 mods 目录
-          </button>
+          <div className="inline">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void actions.setAllMods(id, true)}
+            >
+              全部启用
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void actions.setAllMods(id, false)}
+            >
+              全部禁用
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void actions.openVersionDir(id, "mods")}
+            >
+              打开 mods 目录
+            </button>
+          </div>
         </div>
 
         {state.mods.length === 0 ? (

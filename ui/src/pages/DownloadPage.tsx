@@ -144,6 +144,17 @@ function VersionDetail({ id }: { id: string }) {
           >
             打开目录
           </button>
+          {installed && (
+            <button
+              type="button"
+              className="ghost"
+              disabled={state.busy}
+              title="重新校验文件，缺的会补下"
+              onClick={() => void actions.repairVersion(id)}
+            >
+              校验修复
+            </button>
+          )}
           {installed && state.loader === "none" && !state.optifine ? (
             <button
               type="button"
@@ -175,6 +186,29 @@ function VersionDetail({ id }: { id: string }) {
         </div>
         <LoaderPicker mc={id} />
       </section>
+
+      {installed && (
+        <section className="panel">
+          <div className="section-head">
+            <h2>维护</h2>
+            <span className="hint">删除后会连同该版本的实例目录一起清掉</span>
+          </div>
+          <div className="inline">
+            <button
+              type="button"
+              className="ghost danger"
+              disabled={state.busy || running}
+              onClick={() => {
+                if (confirm(`删除版本 ${id}？存档与 mods 也会一起删掉，不可恢复`)) {
+                  void actions.deleteVersion(id);
+                }
+              }}
+            >
+              删除这个版本
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <div className="section-head">

@@ -93,6 +93,14 @@ export interface ModEntry {
   jar: boolean;
 }
 
+/** 崩溃报告 */
+export interface CrashEntry {
+  name: string;
+  modified: string;
+  size: number;
+  summary: string;
+}
+
 export interface SaveEntry {
   name: string;
   modified: string;

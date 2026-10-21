@@ -6,6 +6,7 @@ import type {
   AccountsPayload,
   AppSettings,
   Candidate,
+  CrashEntry,
   DownloadView,
   Environment,
   InstallState,
@@ -86,6 +87,10 @@ export interface State {
   logs: string[];
   logName: string;
   logText: string;
+  /** 崩溃报告（crash-reports/*.txt） */
+  crashes: CrashEntry[];
+  crashName: string;
+  crashText: string;
   theme: Theme;
 }
 
@@ -143,6 +148,9 @@ let state: State = {
   logs: [],
   logName: "",
   logText: "",
+  crashes: [],
+  crashName: "",
+  crashText: "",
   theme: (localStorage.getItem("dlp.theme") as Theme) ?? "light",
 };
 
@@ -455,6 +463,66 @@ async function loadLogs(preferred?: string) {
   }
 }
 
+/** 校验并修复：重跑一遍安装，已完整的文件会跳过，缺的会重下 */
+async function repairVersion(id: string) {
+  if (state.busy) return;
+  set({
+    busy: true,
+    error: "",
+    notice: "",
+    install: { id, stage: "校验文件", done: 0, total: 0, percent: 0 },
+  });
+  try {
+    await invoke("repair_version", { id });
+    await refresh();
+    set({ notice: `${id} 校验完成` });
+  } catch (e) {
+    set({ error: String(e) });
+  } finally {
+    set({ busy: false, install: null });
+  }
+}
+
+async function deleteVersion(id: string) {
+  try {
+    await invoke("delete_version", { id });
+    if (state.selected === id) set({ selected: null });
+    if (state.downloadView.name !== "list") set({ downloadView: { name: "list" } });
+    await refresh();
+    set({ notice: `已删除 ${id}` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function setAllMods(id: string, enabled: boolean) {
+  try {
+    const changed = await invoke<number>("all_mods", { id, enabled });
+    await loadContent(id);
+    set({ notice: enabled ? `已启用 ${changed} 个模组` : `已禁用 ${changed} 个模组` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function loadCrashes() {
+  try {
+    const crashes = await invoke<CrashEntry[]>("crash_reports");
+    set({ crashes });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function readCrash(name: string) {
+  try {
+    const crashText = await invoke<string>("read_crash", { name });
+    set({ crashName: name, crashText });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 async function openVersionDir(id: string, kind: "root" | "mods" | "saves" | "instance") {
   try {
     await invoke("open_version_dir", { id, kind });
@@ -592,9 +660,19 @@ export const actions = {
   openVersion: (id: string) => {
     set({ downloadView: { name: "detail", id }, downloadTab: "versions", selected: id });
     void loadBaseVersion(id);
+    // 视图在下载页里渲染，所以从主页点进来必须先切过去，否则「点了没反应」
+    window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" }));
   },
-  openVersionSettings: (id: string) => set({ downloadView: { name: "settings", id } }),
+  openVersionSettings: (id: string) => {
+    set({ downloadView: { name: "settings", id } });
+    window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" }));
+  },
   closeVersion: () => set({ downloadView: { name: "list" } }),
+  repairVersion,
+  deleteVersion,
+  setAllMods,
+  loadCrashes,
+  readCrash,
   setDownloadTab: (tab: "versions" | "market") => set({ downloadTab: tab }),
   setSelected: (selected: string) => {
     set({ selected });

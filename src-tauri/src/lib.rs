@@ -393,6 +393,66 @@ fn read_log(state: State<'_, AppState>, name: String, lines: usize) -> Result<St
 
 /// 打开该版本的游戏目录 / mods / saves
 #[tauri::command]
+async fn repair_version(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    let paths = state.paths.clone();
+    let client = state.client.clone();
+    let progress = Progress::new(move |stage, done, total| {
+        let _ = app.emit(
+            "install-progress",
+            ProgressPayload {
+                stage: stage.to_string(),
+                done,
+                total,
+            },
+        );
+    });
+    install::install(&client, &paths, &id, progress).await
+}
+
+#[tauri::command]
+fn delete_version(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    let paths = state.paths.clone();
+    if state.game.lock().unwrap().as_ref().map(|g| g.id.as_str()) == Some(id.as_str()) {
+        return Err("这个版本正在运行，先关掉游戏".into());
+    }
+    let dir = paths.version_dir(&id);
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir).map_err(|e| format!("删除 {} 失败: {e}", dir.display()))?;
+    }
+    // 隔离模式下还有一份实例目录
+    let instance = game_dir(&paths, &id);
+    if instance.exists() && instance != dir {
+        let _ = std::fs::remove_dir_all(&instance);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn all_mods(
+    state: State<'_, AppState>,
+    id: String,
+    enabled: bool,
+) -> Result<usize, String> {
+    let dir = game_dir(&state.paths, &id).join("mods");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建 mods 目录失败: {e}"))?;
+    content::set_all_mods(&dir, enabled)
+}
+
+#[tauri::command]
+fn crash_reports(state: State<'_, AppState>) -> Vec<content::CrashEntry> {
+    content::list_crashes(&state.paths)
+}
+
+#[tauri::command]
+fn read_crash(state: State<'_, AppState>, name: String) -> Result<String, String> {
+    content::read_crash(&state.paths, &name)
+}
+
+#[tauri::command]
 fn accounts(state: State<'_, AppState>) -> Accounts {
     Accounts::load(&state.paths)
 }
@@ -673,6 +733,11 @@ pub fn run() {
             use_account,
             app_settings,
             set_default_version,
+            repair_version,
+            delete_version,
+            all_mods,
+            crash_reports,
+            read_crash,
             open_version_dir,
             base_version,
             search_market,

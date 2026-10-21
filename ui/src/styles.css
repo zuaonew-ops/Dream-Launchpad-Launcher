@@ -1768,3 +1768,91 @@ textarea:focus-visible {
   align-items: baseline;
   gap: 6px;
 }
+
+/* ---------- 0.13.0：维护操作、崩溃报告 ---------- */
+
+.ghost.danger {
+  border-color: rgba(220, 75, 80, 0.4);
+  color: var(--danger);
+}
+
+.ghost.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: rgba(220, 75, 80, 0.08);
+  color: var(--danger);
+}
+
+.tools-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.crash-list {
+  max-height: 220px;
+}
+
+.crash-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crash-name {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.crash-summary {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.content-item.active {
+  background: var(--accent-soft);
+  border-color: rgba(63, 110, 242, 0.25);
+}
+
+.crash-text {
+  max-height: 260px;
+}
+
+/* 卡片和行加一点「有反应」的细节，但不回到投影那一套 */
+.card:hover,
+.panel:hover {
+  border-color: rgba(63, 110, 242, 0.22);
+}
+
+@media (max-width: 900px) {
+  .tools-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 工具页：标题别被挤成竖排 */
+.log-head h2 {
+  flex: none;
+  white-space: nowrap;
+}
+
+.log-head .input.small {
+  max-width: 240px;
+}
+
+.log-panel .log-view {
+  min-height: 180px;
+}

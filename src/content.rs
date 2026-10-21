@@ -15,6 +15,16 @@ pub struct ModEntry {
     pub jar: bool,
 }
 
+/// 崩溃报告条目
+#[derive(Serialize, Clone, Debug)]
+pub struct CrashEntry {
+    pub name: String,
+    pub modified: String,
+    pub size: u64,
+    /// 报告里 Description / 首个异常行
+    pub summary: String,
+}
+
 #[derive(Serialize, Clone, Debug)]
 pub struct SaveEntry {
     pub name: String,
@@ -112,6 +122,79 @@ pub fn list_saves(dir: &Path) -> Vec<SaveEntry> {
     }
     out.sort_by(|a, b| b.modified.cmp(&a.modified));
     out
+}
+
+/// 一次把所有模组启用 / 禁用，返回改动的文件数。
+pub fn set_all_mods(dir: &Path, enabled: bool) -> Result<usize, String> {
+    let mut changed = 0;
+    for entry in list_mods(dir) {
+        let currently = entry.enabled;
+        if currently != enabled {
+            set_mod_enabled(dir, &entry.name, enabled)?;
+            changed += 1;
+        }
+    }
+    Ok(changed)
+}
+
+/// 崩溃报告（`crash-reports/crash-*.txt`）的摘要。
+pub fn list_crashes(paths: &Paths) -> Vec<CrashEntry> {
+    let dir = paths.root.join("crash-reports");
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return Vec::new();
+    };
+    let mut out: Vec<(String, String, u64, String)> = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let modified = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .map(format_time)
+            .unwrap_or_default();
+        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        out.push((name.clone(), modified, size, crash_summary(&path)));
+    }
+    // 文件名里带时间戳，按名字倒序就是新到旧
+    out.sort_by(|a, b| b.0.cmp(&a.0));
+    out.into_iter()
+        .map(|(name, modified, size, summary)| CrashEntry {
+            name,
+            modified,
+            size,
+            summary,
+        })
+        .collect()
+}
+
+/// 读一份崩溃报告（整份，界面里自己滚）。
+pub fn read_crash(paths: &Paths, name: &str) -> Result<String, String> {
+    let path = paths.root.join("crash-reports").join(name);
+    std::fs::read_to_string(&path).map_err(|e| format!("读取 {} 失败: {e}", path.display()))
+}
+
+/// 从崩溃报告里挑一行最有信息量的（Description / 异常类型）。
+fn crash_summary(path: &Path) -> String {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return String::new();
+    };
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("Description:") {
+            return rest.trim().to_string();
+        }
+    }
+    // 没有 Description 就找第一个异常行
+    for line in text.lines() {
+        let line = line.trim();
+        if line.contains("Exception") || line.contains("Error") {
+            return line.chars().take(160).collect();
+        }
+    }
+    String::new()
 }
 
 /// 读日志尾部（默认 400 行），给界面里的日志面板用。
