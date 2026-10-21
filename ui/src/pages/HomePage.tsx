@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { actions, currentName, selectSelectedVersion, useLauncher } from "../store";
-import type { DeviceCode, VersionSummary } from "../types";
+import type { VersionSummary } from "../types";
 
 /** 版本类型 → 徽章文案与配色键 */
 function tagOf(version: VersionSummary | null): { text: string; kind: string } {
@@ -29,67 +29,7 @@ export default function HomePage() {
   const running = state.game;
   const empty = !state.loading && installed.length === 0;
   const [name, setName] = useState("");
-  // 正版登录：设备码 + 轮询状态
-  const [login, setLogin] = useState<{
-    code: DeviceCode;
-    status: "requesting" | "waiting" | "done" | "error";
-    message: string;
-  } | null>(null);
-  const pollTimer = useRef<number | null>(null);
 
-  const stopPolling = () => {
-    if (pollTimer.current !== null) {
-      window.clearInterval(pollTimer.current);
-      pollTimer.current = null;
-    }
-  };
-
-  useEffect(() => stopPolling, []);
-
-  const startLogin = async () => {
-    stopPolling();
-    // 先占位：申请设备码要几秒，没有反馈会让人以为没点上
-    setLogin({
-      code: {
-        device_code: "",
-        user_code: "",
-        verification_uri: "https://www.microsoft.com/link",
-        expires_in: 900,
-        interval: 5,
-      },
-      status: "requesting",
-      message: "正在向微软申请设备码…",
-    });
-    const code = await actions.msaStart();
-    if (!code) {
-      setLogin({
-        code: {
-          device_code: "",
-          user_code: "",
-          verification_uri: "https://www.microsoft.com/link",
-          expires_in: 0,
-          interval: 5,
-        },
-        status: "error",
-        message: state.error || "申请设备码失败，检查网络后重试",
-      });
-      return;
-    }
-    setLogin({ code, status: "waiting", message: "等待浏览器里确认…" });
-    const deadline = Date.now() + code.expires_in * 1000;
-    pollTimer.current = window.setInterval(async () => {
-      if (Date.now() > deadline) {
-        stopPolling();
-        setLogin({ code, status: "error", message: "这个码过期了，点「正版登录」重新来一次" });
-        return;
-      }
-      const account = await actions.msaPoll(code.device_code);
-      if (account) {
-        stopPolling();
-        setLogin({ code, status: "done", message: `已登录 ${account.name}` });
-      }
-    }, Math.max(code.interval, 3) * 1000);
-  };
 
   // 底部日志条要一段真实输出，顺便验证日志目录可读
   useEffect(() => {
@@ -341,12 +281,12 @@ export default function HomePage() {
             <button type="submit" className="ghost">
               添加
             </button>
-            <button type="button" className="ghost msa-btn" onClick={() => void startLogin()}>
+            <button type="button" className="ghost msa-btn" onClick={() => void actions.startMsaLogin()}>
               正版登录
             </button>
           </form>
 
-          {login && (
+          {state.msa && (
             <div className="msa-panel">
               <div className="msa-head">
                 <span className="msa-title">微软账号登录</span>
@@ -354,43 +294,40 @@ export default function HomePage() {
                   type="button"
                   className="icon-btn"
                   title="关闭"
-                  onClick={() => {
-                    stopPolling();
-                    setLogin(null);
-                  }}
+                  onClick={actions.closeMsaLogin}
                 >
                   ×
                 </button>
               </div>
 
-              {login.status === "requesting" ? (
+              {state.msa.status === "requesting" ? (
                 <p className="msa-wait">
                   <span className="spinner" />
-                  {login.message}
+                  {state.msa.message}
                 </p>
-              ) : login.status === "waiting" ? (
+              ) : state.msa.status === "waiting" ? (
                 <>
                   <p className="msa-hint">在浏览器里打开下面的网址，输入这串码：</p>
-                  <div className="msa-code">{login.code.user_code}</div>
+                  <div className="msa-code">{state.msa.code?.user_code}</div>
                   <div className="msa-actions">
                     <a
                       className="ghost msa-link"
-                      href={login.code.verification_uri}
+                      href={state.msa.code?.verification_uri}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      打开 {login.code.verification_uri.replace("https://", "")}
+                      打开 {state.msa.code?.verification_uri.replace("https://", "")}
                     </a>
                     <span className="msa-wait">
                       <span className="spinner" />
-                      {login.message}
+                      {state.msa.message}
                     </span>
                   </div>
                 </>
-              ) : login.status === "done" ? (
-                <p className="msa-ok">{login.message}</p>
+              ) : state.msa.status === "done" ? (
+                <p className="msa-ok">{state.msa.message}</p>
               ) : (
-                <p className="msg error">{login.message}</p>
+                <p className="msg error">{state.msa.message}</p>
               )}
             </div>
           )}

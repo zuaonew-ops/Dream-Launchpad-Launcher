@@ -131,6 +131,36 @@ async fn msa_refresh(state: State<'_, AppState>) -> Result<Option<dlp_core::acco
     accounts.save(&paths)?;
     Ok(accounts.list.iter().find(|a| a.id == current.id).cloned())
 }
+/// 用系统默认浏览器打开链接（只放行 https + 微软域名，避免被当成任意命令执行器）
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    // 只放行 https：避免被当成「执行任意命令」的入口
+    if !url.starts_with("https://") {
+        return Err(format!("只允许打开 https 链接：{url}"));
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map_err(|e| format!("打开浏览器失败: {e}"))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("打开浏览器失败: {e}"))?;
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("打开浏览器失败: {e}"))?;
+    }
+    Ok(())
+}
 #[tauri::command]
 fn system_info() -> dlp_core::system::SystemInfo {
     dlp_core::system::info()
@@ -667,6 +697,16 @@ fn base_version(state: State<'_, AppState>, id: String) -> String {
     base_mc_version(&state.paths, &id)
 }
 
+fn market_source(value: Option<String>) -> market::Source {
+    market::Source::parse(value.as_deref().unwrap_or("modrinth"))
+}
+
+fn curseforge_key(paths: &Paths) -> String {
+    AppSettings::load(paths)
+        .curseforge_api_key
+        .unwrap_or_default()
+}
+
 #[tauri::command]
 async fn search_market(
     state: State<'_, AppState>,
@@ -675,33 +715,79 @@ async fn search_market(
     mc: Option<String>,
     loader: Option<String>,
     category: Option<String>,
+    source: Option<String>,
     offset: u64,
     limit: u64,
 ) -> Result<market::SearchPage, String> {
-    market::search(
-        &state.client,
-        &query,
-        &kind,
-        mc.as_deref(),
-        loader.as_deref(),
-        category.as_deref(),
-        offset,
-        limit,
-    )
-    .await
+    let key = curseforge_key(&state.paths);
+    market::Market::new(state.client.clone(), key)
+        .search(
+            market_source(source),
+            &query,
+            &kind,
+            mc.as_deref(),
+            loader.as_deref(),
+            category.as_deref(),
+            offset,
+            limit,
+        )
+        .await
 }
 
+/// 项目详情（简介、图标、分类、官网）
 #[tauri::command]
-async fn market_files(
+async fn market_project(
+    state: State<'_, AppState>,
+    project: String,
+    source: Option<String>,
+) -> Result<market::ProjectDetail, String> {
+    let key = curseforge_key(&state.paths);
+    market::Market::new(state.client.clone(), key)
+        .detail(market_source(source), &project)
+        .await
+}
+
+/// 某项目在「当前版本 + 加载器」下的文件列表
+#[tauri::command]
+async fn market_versions(
     state: State<'_, AppState>,
     project: String,
     mc: Option<String>,
     loader: Option<String>,
-) -> Result<Vec<market::FileChoice>, String> {
-    market::files(&state.client, &project, mc.as_deref(), loader.as_deref()).await
+    source: Option<String>,
+) -> Result<Vec<market::VersionEntry>, String> {
+    let key = curseforge_key(&state.paths);
+    market::Market::new(state.client.clone(), key)
+        .versions(market_source(source), &project, mc.as_deref(), loader.as_deref())
+        .await
 }
 
-/// 把资源装进该版本的游戏目录，返回文件名
+/// 下载用户点选的那个文件到当前版本目录
+#[tauri::command]
+async fn install_market_file(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    kind: String,
+    url: String,
+    filename: String,
+) -> Result<String, String> {
+    let paths = state.paths.clone();
+    let dir = game_dir(&paths, &id);
+    let progress = Progress::new(move |stage, done, total| {
+        let _ = app.emit(
+            "install-progress",
+            ProgressPayload {
+                stage: stage.to_string(),
+                done,
+                total,
+            },
+        );
+    });
+    market::install_file(&state.client, &dir, &kind, &url, &filename, Some(progress)).await
+}
+
+/// 把资源装进该版本的游戏目录（Modrinth 自动挑最新匹配文件）
 #[tauri::command]
 async fn install_market(
     app: tauri::AppHandle,
@@ -728,6 +814,7 @@ async fn install_market(
     market::install(
         &state.client,
         &dir,
+        market::Source::Modrinth,
         &project,
         &kind,
         Some(&mc),
@@ -736,7 +823,6 @@ async fn install_market(
     )
     .await
 }
-
 #[tauri::command]
 async fn install_java(
     app: tauri::AppHandle,
@@ -809,6 +895,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             system_info,
+            open_url,
             msa_start,
             msa_poll,
             msa_refresh,
@@ -846,7 +933,9 @@ pub fn run() {
             open_version_dir,
             base_version,
             search_market,
-            market_files,
+            market_project,
+            market_versions,
+            install_market_file,
             install_market,
             install_java,
             open_dir

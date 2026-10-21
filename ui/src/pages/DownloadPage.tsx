@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import LoaderPicker from "../components/LoaderPicker";
-import MarketPanel from "../components/MarketPanel";
+import MarketPanel from "../components/market/MarketPanel";
 import ProgressPanel from "../components/ProgressPanel";
 import VersionList from "../components/VersionList";
 import VersionSettingsPanel from "../components/VersionSettingsPanel";

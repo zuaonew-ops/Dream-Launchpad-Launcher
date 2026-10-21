@@ -1,11 +1,18 @@
 import { useEffect } from "react";
-import { actions, selectSelectedVersion, useLauncher } from "../store";
-import type { LoaderKind, MarketKind } from "../types";
+import { actions, selectSelectedVersion, useLauncher } from "../../store";
+import type { MarketKind, MarketSource } from "../../types";
+import MarketDetail from "./MarketDetail";
+import MarketRow from "./MarketRow";
 
 const kinds: { value: MarketKind; label: string }[] = [
   { value: "mod", label: "模组" },
   { value: "resourcepack", label: "材质" },
   { value: "shader", label: "光影" },
+];
+
+const sources: { value: MarketSource; label: string }[] = [
+  { value: "modrinth", label: "Modrinth" },
+  { value: "curseforge", label: "CurseForge" },
 ];
 
 /** 加载器：any = 不筛；vanilla 后端会当成「不限」 */
@@ -17,7 +24,6 @@ const loaders: { value: string; label: string }[] = [
   { value: "neoforge", label: "NeoForge" },
 ];
 
-/** Modrinth 的分类 id（和官网左侧筛选一致） */
 const categories: Record<MarketKind, { value: string; label: string }[]> = {
   mod: [
     { value: "all", label: "全部分类" },
@@ -49,23 +55,31 @@ const categories: Record<MarketKind, { value: string; label: string }[]> = {
   ],
 };
 
-/** Modrinth 资源搜索与安装。筛选顺序：版本 → 加载器 → 类别。 */
+/** 资源市场容器：筛选 + 列表，点开某条进入详情。 */
 export default function MarketPanel() {
   const state = useLauncher();
   const selected = selectSelectedVersion(state);
 
   // 版本下拉：清单里的正式版 + 本地已装的
-  const versionOptions = state.versions
-    .filter((v) => v.kind === "release" || v.local)
-    .slice(0, 200);
+  const versionOptions = state.versions.filter((v) => v.kind === "release" || v.local).slice(0, 200);
 
+  // 首次进入：把选中的版本带进来，并且直接拉一屏热门（不搜索也有内容）
   useEffect(() => {
     if (!state.marketMc && selected) actions.setMarketMc(selected.id);
   }, [selected, state.marketMc]);
 
+  useEffect(() => {
+    if (state.marketHits.length === 0 && !state.marketLoading && !state.marketOpen) {
+      void actions.searchMarket();
+    }
+    // 只在首次挂载时触发
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (state.marketOpen) return <MarketDetail />;
+
   const noVersion = !state.marketMc;
   const installTarget = state.marketMc;
-  const installLoader = state.marketLoader as LoaderKind | "any";
 
   return (
     <section className="panel list-panel">
@@ -76,9 +90,28 @@ export default function MarketPanel() {
               key={k.value}
               type="button"
               className={state.marketKind === k.value ? "seg-item active" : "seg-item"}
-              onClick={() => actions.setMarketKind(k.value)}
+              onClick={() => {
+                actions.setMarketKind(k.value);
+                void actions.searchMarket();
+              }}
             >
               {k.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="seg">
+          {sources.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              className={state.marketSource === s.value ? "seg-item active" : "seg-item"}
+              onClick={() => {
+                actions.setMarketSource(s.value);
+                void actions.searchMarket();
+              }}
+            >
+              {s.label}
             </button>
           ))}
         </div>
@@ -88,9 +121,12 @@ export default function MarketPanel() {
           <select
             className="input small"
             value={state.marketMc}
-            onChange={(e) => actions.setMarketMc(e.target.value)}
+            onChange={(e) => {
+              actions.setMarketMc(e.target.value);
+              void actions.searchMarket();
+            }}
           >
-            <option value="">先选版本</option>
+            <option value="">不指定</option>
             {versionOptions.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.id}
@@ -104,8 +140,10 @@ export default function MarketPanel() {
           <select
             className="input small"
             value={state.marketLoader}
-            disabled={noVersion}
-            onChange={(e) => actions.setMarketLoader(e.target.value)}
+            onChange={(e) => {
+              actions.setMarketLoader(e.target.value);
+              void actions.searchMarket();
+            }}
           >
             {loaders.map((l) => (
               <option key={l.value} value={l.value}>
@@ -120,8 +158,10 @@ export default function MarketPanel() {
           <select
             className="input small"
             value={state.marketCategory}
-            disabled={noVersion}
-            onChange={(e) => actions.setMarketCategory(e.target.value)}
+            onChange={(e) => {
+              actions.setMarketCategory(e.target.value);
+              void actions.searchMarket();
+            }}
           >
             {categories[state.marketKind].map((c) => (
               <option key={c.value} value={c.value}>
@@ -135,9 +175,8 @@ export default function MarketPanel() {
           <label className="search">
             <input
               value={state.marketQuery}
-              placeholder={noVersion ? "先选游戏版本" : "搜模组（可用中文，如「钠」「优化」）"}
+              placeholder="搜模组（中文也行：钠 / 优化），留空看热门"
               spellCheck={false}
-              disabled={noVersion}
               onChange={(e) => actions.setMarketQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void actions.searchMarket();
@@ -148,55 +187,54 @@ export default function MarketPanel() {
           <button
             type="button"
             className="primary search-btn"
-            disabled={state.marketLoading || noVersion}
+            disabled={state.marketLoading}
             onClick={() => void actions.searchMarket()}
           >
-            {state.marketLoading ? "搜索中" : "搜索"}
+            {state.marketLoading ? "加载中" : "搜索"}
           </button>
         </div>
       </div>
 
       <p className="hint">
         {installTarget
-          ? `安装目标：${installTarget} 的 mods / resourcepacks / shaderpacks`
-          : "先选一个游戏版本，再选加载器与类别"}
+          ? `安装目标：${installTarget} 的 ${state.marketKind === "mod" ? "mods" : state.marketKind === "shader" ? "shaderpacks" : "resourcepacks"} 目录`
+          : "没指定游戏版本也能看热门榜；指定版本后结果会按该版本过滤"}
+        {state.marketSource === "curseforge" && !state.marketHits.length && "（CurseForge 需要在设置里填 API key）"}
       </p>
 
       {state.marketHits.length === 0 ? (
         <div className="empty-soft">
-          <p className="hint">输入关键词搜索，回车即可。中文会按内置词表翻成英文去查。</p>
+          {state.marketLoading ? (
+            <p className="hint">正在从 {state.marketSource === "curseforge" ? "CurseForge" : "Modrinth"} 拉取列表…</p>
+          ) : (
+            <>
+              <div className="empty-icon">◍</div>
+              <p className="hint">
+                {state.error || "没有结果。换个关键词，或者把筛选放宽一点。"}
+              </p>
+            </>
+          )}
         </div>
       ) : (
-        <ul className="content-list">
+        <ul className="market-list">
           {state.marketHits.map((hit, index) => (
-            <li
-              key={hit.id}
-              className="content-item market-item"
-              style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
-            >
-              <span className="dot on" />
-              <span className="market-text">
-                <span className="content-name">
-                  {hit.title_zh ?? hit.title}
-                  {hit.title_zh && <span className="title-en">{hit.title}</span>}
-                </span>
-                <span className="market-desc">{hit.description}</span>
-              </span>
-              <span className="content-meta">{(hit.downloads / 1000).toFixed(0)}k 下载</span>
-              <button
-                type="button"
-                className="ghost"
-                disabled={state.busy || !installTarget}
-                onClick={() => void actions.installMarket(hit.id, state.marketKind)}
-              >
-                安装
-              </button>
-            </li>
+            <div key={hit.id} style={{ animationDelay: `${Math.min(index, 12) * 22}ms` }}>
+              <MarketRow
+                hit={hit}
+                busy={state.busy || !installTarget}
+                onOpen={() => void actions.openMarketProject(hit)}
+                onInstall={() => {
+                  if (!installTarget) return;
+                  void actions.installMarket(hit.id, state.marketKind);
+                }}
+              />
+            </div>
           ))}
         </ul>
       )}
-      {installLoader !== "any" && state.marketKind === "mod" && (
-        <p className="hint">当前按 {installLoader} 加载器筛选；换加载器会重新搜。</p>
+
+      {state.marketLoader !== "any" && noVersion && (
+        <p className="hint">没指定游戏版本时，加载器筛选可能挡掉结果。</p>
       )}
     </section>
   );

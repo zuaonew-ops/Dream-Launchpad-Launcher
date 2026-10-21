@@ -141,6 +141,50 @@ export interface SaveEntry {
 export type Theme = "dark" | "light";
 
 /** Modrinth 搜索结果 */
+/** 市场来源 */
+export type MarketSource = "modrinth" | "curseforge";
+
+/** 项目详情 */
+export interface MarketProject {
+  id: string;
+  slug: string;
+  title: string;
+  title_zh: string | null;
+  description: string;
+  body: string;
+  icon: string | null;
+  downloads: number;
+  categories: string[];
+  site_url: string;
+  source: string;
+}
+
+/** 版本下的一个文件 */
+export interface MarketFile {
+  version_id: string;
+  name: string;
+  version_number: string;
+  filename: string;
+  download_url: string;
+  downloads: number;
+  game_versions: string[];
+  loaders: string[];
+  size: number;
+  date: string;
+}
+
+/** 一个版本（可能挂多个文件） */
+export interface MarketVersion {
+  version_id: string;
+  name: string;
+  version_number: string;
+  downloads: number;
+  game_versions: string[];
+  loaders: string[];
+  date: string;
+  files: MarketFile[];
+}
+
 export interface MarketHit {
   id: string;
   slug: string;
@@ -150,6 +194,7 @@ export interface MarketHit {
   description: string;
   downloads: number;
   icon: string | null;
+  source?: string;
 }
 
 export interface MarketPage {

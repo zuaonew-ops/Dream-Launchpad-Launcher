@@ -21,6 +21,7 @@ async fn main() -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
     let progress = Progress::new(|stage, done, total| println!("  [{stage}] {done}/{total}"));
+    let mx = market::Market::new(client.clone(), std::env::var("CF_API_KEY").unwrap_or_default());
 
     let action = &args[0];
     let query = &args[1];
@@ -30,7 +31,18 @@ async fn main() -> Result<(), String> {
 
     match action.as_str() {
         "search" => {
-            let page = market::search(&client, query, kind, Some(mc), loader, None, 0, 5).await?;
+            let page = mx
+                .search(
+                    market::Source::Modrinth,
+                    query,
+                    kind,
+                    Some(mc),
+                    loader,
+                    None,
+                    0,
+                    5,
+                )
+                .await?;
             println!("命中 {} 个（显示前 {}）", page.total, page.hits.len());
             for hit in &page.hits {
                 println!(
@@ -62,6 +74,7 @@ async fn main() -> Result<(), String> {
             let file = market::install(
                 &client,
                 &game_dir,
+                market::Source::Modrinth,
                 query,
                 kind,
                 Some(mc),

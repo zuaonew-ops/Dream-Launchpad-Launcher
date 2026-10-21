@@ -19,6 +19,9 @@ import type {
   MarketHit,
   MarketKind,
   MarketPage,
+  MarketProject,
+  MarketSource,
+  MarketVersion,
   ModEntry,
   SaveEntry,
   Theme,
@@ -83,6 +86,14 @@ export interface State {
   marketMc: string;
   marketLoader: string;
   marketCategory: string;
+  /** 市场来源 */
+  marketSource: MarketSource;
+  /** 打开的项目详情；null = 停留在列表 */
+  marketOpen: MarketProject | null;
+  marketVersions: MarketVersion[];
+  marketVersionsLoading: boolean;
+  /** 详情里展开的版本 id */
+  marketExpanded: string | null;
 
   // 内容管理
   mods: ModEntry[];
@@ -96,6 +107,8 @@ export interface State {
   versionStats: VersionStats | null;
   /** 物理内存总量等，内存滑块的量程靠它 */
   system: SystemInfo | null;
+  /** 正版登录流程（全局，切页面不中断） */
+  msa: MsaLogin | null;
   crashName: string;
   crashText: string;
   theme: Theme;
@@ -151,6 +164,11 @@ let state: State = {
   marketMc: "",
   marketLoader: "any",
   marketCategory: "all",
+  marketSource: "modrinth",
+  marketOpen: null,
+  marketVersions: [],
+  marketVersionsLoading: false,
+  marketExpanded: null,
   mods: [],
   saves: [],
   logs: [],
@@ -159,6 +177,7 @@ let state: State = {
   crashes: [],
   versionStats: null,
   system: null,
+  msa: null,
   crashName: "",
   crashText: "",
   theme: (localStorage.getItem("dlp.theme") as Theme) ?? "light",
@@ -519,6 +538,76 @@ async function setAllMods(id: string, enabled: boolean) {
 
 /** 拉到某版本的概况；切版本时先清空，避免显示上一个版本的数字 */
 /** 建议上限：留 1G 给系统，最多给到物理内存的 80%，向上取整到 256MB */
+export interface MsaLogin {
+  code: DeviceCode | null;
+  status: "requesting" | "waiting" | "done" | "error";
+  message: string;
+}
+
+let msaTimer: number | null = null;
+
+function stopMsaTimer() {
+  if (msaTimer !== null) {
+    window.clearInterval(msaTimer);
+    msaTimer = null;
+  }
+}
+
+/** 开始正版登录：申请设备码 → 自动打开浏览器 → 轮询 */
+async function startMsaLogin() {
+  stopMsaTimer();
+  set({
+    msa: { code: null, status: "requesting", message: "正在向微软申请设备码…" },
+    error: "",
+  });
+
+  let code: DeviceCode | null = null;
+  try {
+    code = await invoke<DeviceCode>("msa_start");
+  } catch (e) {
+    set({ msa: { code: null, status: "error", message: String(e) } });
+    return;
+  }
+  if (!code) {
+    set({ msa: { code: null, status: "error", message: state.error || "申请设备码失败" } });
+    return;
+  }
+
+  set({ msa: { code, status: "waiting", message: "等待浏览器里确认…" } });
+
+  // 直接把浏览器拉起来，省得用户手动复制链接
+  void invoke("open_url", { url: code.verification_uri }).catch(() => undefined);
+
+  const deadline = Date.now() + code.expires_in * 1000;
+  msaTimer = window.setInterval(async () => {
+    if (Date.now() > deadline) {
+      stopMsaTimer();
+      set({ msa: { code, status: "error", message: "这个码过期了，重新点一次「正版登录」" } });
+      return;
+    }
+    try {
+      const account = await invoke<Account | null>("msa_poll", { deviceCode: code!.device_code });
+      if (account) {
+        stopMsaTimer();
+        const payload = await invoke<AccountsPayload>("accounts");
+        set({
+          accounts: payload.list,
+          currentAccount: payload.current,
+          msa: { code, status: "done", message: `已登录 ${account.name}` },
+        });
+      }
+    } catch (e) {
+      stopMsaTimer();
+      set({ msa: { code, status: "error", message: String(e) } });
+    }
+  }, Math.max(code.interval, 3) * 1000);
+}
+
+function closeMsaLogin() {
+  stopMsaTimer();
+  set({ msa: null });
+}
+
 export function memoryCeiling(totalMb: number): number {
   const eighty = Math.floor((totalMb * 8) / 10);
   const capped = Math.max(totalMb - 1024, 512);
@@ -527,31 +616,8 @@ export function memoryCeiling(totalMb: number): number {
 }
 
 /** 第一步：拿设备码，界面要把它显示给用户 */
-async function msaStart(): Promise<DeviceCode | null> {
-  try {
-    set({ error: "" });
-    return await invoke<DeviceCode>("msa_start");
-  } catch (e) {
-    set({ error: String(e) });
-    return null;
-  }
-}
 
 /** 第二步：轮询。null 表示用户还没在浏览器里点同意 */
-async function msaPoll(deviceCode: string): Promise<Account | null> {
-  try {
-    const account = await invoke<Account | null>("msa_poll", { deviceCode });
-    if (account) {
-      const accounts = await invoke<AccountsPayload>("accounts");
-      set({ accounts: accounts.list, currentAccount: accounts.current });
-      set({ notice: `已登录正版账号 ${account.name}` });
-    }
-    return account;
-  } catch (e) {
-    set({ error: String(e) });
-    return null;
-  }
-}
 
 async function loadSystem() {
   try {
@@ -613,19 +679,17 @@ async function loadBaseVersion(id: string) {
 }
 
 async function searchMarket() {
+  // 没选版本也照搜 —— 后端会按来源给热门榜，总比空页面强
   const mc = state.marketMc || state.baseVersion || (state.selected ?? "");
-  if (!mc) {
-    set({ error: "先在资源页选一个游戏版本" });
-    return;
-  }
-  set({ marketLoading: true, error: "" });
+  set({ marketLoading: true, error: "", marketOpen: null });
   try {
     const page = await invoke<MarketPage>("search_market", {
       query: state.marketQuery,
       kind: state.marketKind,
-      mc,
+      mc: mc || null,
       loader: state.marketLoader === "any" ? null : state.marketLoader,
       category: state.marketCategory === "all" ? null : state.marketCategory,
+      source: state.marketSource,
       offset: 0,
       limit: 30,
     });
@@ -634,6 +698,84 @@ async function searchMarket() {
     set({ error: String(e), marketHits: [] });
   } finally {
     set({ marketLoading: false });
+  }
+}
+
+/** 点开一个项目：拉详情 + 该版本/加载器下可用文件 */
+async function openMarketProject(hit: MarketHit) {
+  set({
+    marketOpen: {
+      id: hit.id,
+      slug: hit.slug,
+      title: hit.title,
+      title_zh: hit.title_zh ?? null,
+      description: hit.description,
+      body: "",
+      icon: hit.icon,
+      downloads: hit.downloads,
+      categories: [],
+      site_url: "",
+      source: hit.source ?? state.marketSource,
+    },
+    marketVersions: [],
+    marketVersionsLoading: true,
+    marketExpanded: null,
+  });
+
+  const mc = state.marketMc || state.baseVersion || (state.selected ?? "");
+  const loader = state.marketLoader === "any" ? null : state.marketLoader;
+
+  try {
+    const [project, versions] = await Promise.all([
+      invoke<MarketProject>("market_project", { project: hit.slug, source: state.marketSource }),
+      invoke<MarketVersion[]>("market_versions", {
+        project: hit.slug,
+        mc: mc || null,
+        loader,
+        source: state.marketSource,
+      }),
+    ]);
+    set({
+      marketOpen: project,
+      marketVersions: versions,
+      marketExpanded: versions[0]?.version_id ?? null,
+    });
+  } catch (e) {
+    set({ error: String(e) });
+  } finally {
+    set({ marketVersionsLoading: false });
+  }
+}
+
+function closeMarketProject() {
+  set({ marketOpen: null, marketVersions: [], marketExpanded: null });
+}
+
+function toggleMarketVersion(id: string) {
+  set({ marketExpanded: state.marketExpanded === id ? null : id });
+}
+
+/** 下载详情页里点选的文件，落到当前版本目录 */
+async function installMarketFile(url: string, filename: string) {
+  const gameId = state.selected;
+  if (!gameId) {
+    set({ error: "先在下载页选一个版本，文件会装进它的 mods 目录" });
+    return;
+  }
+  set({ busy: true, error: "", notice: "" });
+  try {
+    const saved = await invoke<string>("install_market_file", {
+      id: gameId,
+      kind: state.marketKind,
+      url,
+      filename,
+    });
+    set({ notice: `已下载 ${saved}` });
+    await loadContent(gameId);
+  } catch (e) {
+    set({ error: String(e) });
+  } finally {
+    set({ busy: false });
   }
 }
 
@@ -668,9 +810,14 @@ async function installJava(major: number) {
 export const actions = {
   searchMarket,
   installMarket,
+  openMarketProject,
+  closeMarketProject,
+  toggleMarketVersion,
+  installMarketFile,
   installJava,
   loadBaseVersion,
   setMarketQuery: (marketQuery: string) => set({ marketQuery }),
+  setMarketSource: (source: MarketSource) => set({ marketSource: source, marketOpen: null }),
   setMarketKind: (marketKind: MarketKind) => set({ marketKind, marketCategory: "all" }),
   setMarketMc: (marketMc: string) => set({ marketMc }),
   setMarketLoader: (marketLoader: string) => set({ marketLoader }),
@@ -739,8 +886,8 @@ export const actions = {
   deleteVersion,
   loadVersionStats,
   loadSystem,
-  msaStart,
-  msaPoll,
+  startMsaLogin,
+  closeMsaLogin,
   setAllMods,
   loadCrashes,
   readCrash,

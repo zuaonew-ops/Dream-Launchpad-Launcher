@@ -2,6 +2,24 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.19.0] - 2026-10-21
+
+市场重做：能看热门、能进详情、能按当前版本挑文件，并新增 CurseForge 来源。
+
+### 新增
+
+- **打开就有内容**：没搜索词时按下载量排热门榜（Modrinth `index=downloads`，CurseForge `sortField=6`）
+- **项目详情页**：图标、简介、分类、下载量；有中文名的项目显示 **MC 百科** 入口（搜 mcmod.cn）
+- **版本与文件**：详情页列出该项目在「当前版本 + 加载器」下的所有版本，点开看文件；
+  命中当前版本与加载器的标「最适配」；点「下载」直接落到当前版本对应的 mods / resourcepacks / shaderpacks
+- **CurseForge 来源**：官方 API，设置里填 API key 即可（没填时给出可读提示，不静默失败）
+
+### 重构
+
+- 后端市场拆成 `market/{types,modrinth,curseforge,install}.rs`，每个文件只管一件事
+- 前端市场拆成 `components/market/{MarketPanel,MarketRow,MarketDetail,VersionFiles,format}`
+- 搜索结果与详情共用一套类型，前端 `types.ts` 同步
+
 ## [0.18.0] - 2026-10-21
 
 正版登录上线，顺带把界面的动效做出来（REQ-005 的 A、B 两块）。

@@ -1,46 +1,57 @@
-//! Modrinth 资源搜索与安装（模组 / 材质包 / 光影）。
+//! 资源市场：Modrinth 与 CurseForge 两个来源。
 //!
-//! 只用公开 API，不需要 key；安装就是把主文件下到版本目录对应的子目录里。
+//! 文件按职责拆开，单文件不超过 ~200 行：
+//! - `types.rs`：两边共用的类型（搜索结果、版本文件、项目详情）
+//! - `modrinth.rs`：Modrinth 搜索 / 版本 / 详情
+//! - `curseforge.rs`：CurseForge 搜索 / 版本 / 详情（需要 API key）
+//! - `install.rs`：把选定文件下到版本目录
+//!
+//! 上层只跟 `Source` 打交道：`source.search(...)` / `source.versions(...)` / `source.detail(...)`。
 
-use crate::net::{download, Job, Progress};
+mod curseforge;
+mod install;
+mod modrinth;
+mod types;
+
+pub use install::{install, install_file};
+pub use types::{FileChoice, Hit, ProjectDetail, SearchPage, VersionEntry};
+
 use reqwest::Client;
-use serde::Serialize;
-use std::path::Path;
 
-const API: &str = "https://api.modrinth.com/v2";
-const USER_AGENT: &str =
-    "DreamLaunchpad/0.9 (Minecraft launcher; +https://github.com/zuaonew-ops/Dream-Launchpad-Launcher)";
-
-#[derive(Serialize, Clone, Debug)]
-pub struct Hit {
-    pub id: String,
-    pub slug: String,
-    pub title: String,
-    /// 中文名（内置词表命中才有，界面优先显示它）
-    pub title_zh: Option<String>,
-    pub description: String,
-    pub downloads: u64,
-    pub icon: Option<String>,
+/// 市场来源。CurseForge 官方 API 需要 key，没 key 时调用会得到可读错误。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Source {
+    Modrinth,
+    CurseForge,
 }
 
-#[derive(Serialize, Clone, Debug)]
-pub struct SearchPage {
-    pub hits: Vec<Hit>,
-    pub total: u64,
-    pub offset: u64,
+impl Source {
+    pub fn parse(value: &str) -> Source {
+        match value {
+            "curseforge" => Source::CurseForge,
+            _ => Source::Modrinth,
+        }
+    }
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Source::Modrinth => "modrinth",
+            Source::CurseForge => "curseforge",
+        }
+    }
 }
 
-#[derive(Serialize, Clone, Debug)]
-pub struct FileChoice {
-    pub version_id: String,
-    pub name: String,
-    pub filename: String,
-    pub downloads: u64,
-    pub game_versions: Vec<String>,
+/// CurseForge 的模组类型 id（官方 API 用）
+pub(crate) fn curseforge_class(kind: &str) -> u32 {
+    match kind {
+        "resourcepack" => 12,
+        "shader" => 6552,
+        _ => 6,
+    }
 }
 
 /// 资源种类 → 游戏目录下的子目录
-pub fn target_dir(kind: &str) -> &'static str {
+pub(crate) fn target_dir(kind: &str) -> &'static str {
     match kind {
         "resourcepack" => "resourcepacks",
         "shader" => "shaderpacks",
@@ -48,7 +59,7 @@ pub fn target_dir(kind: &str) -> &'static str {
     }
 }
 
-fn project_type(kind: &str) -> &'static str {
+pub(crate) fn project_type(kind: &str) -> &'static str {
     match kind {
         "resourcepack" => "resourcepack",
         "shader" => "shader",
@@ -56,233 +67,77 @@ fn project_type(kind: &str) -> &'static str {
     }
 }
 
-pub async fn search(
-    client: &Client,
-    query: &str,
-    kind: &str,
-    mc: Option<&str>,
-    loader: Option<&str>,
-    category: Option<&str>,
-    offset: u64,
-    limit: u64,
-) -> Result<SearchPage, String> {
-    // 中文关键词按内置词表翻成英文再查（Modrinth 不认中文）
-    let query = crate::market_zh::translate_query(query);
-    let mut facets = vec![format!("[\"project_type:{}\"]", project_type(kind))];
-    if let Some(mc) = mc.filter(|v| !v.is_empty()) {
-        facets.push(format!("[\"versions:{mc}\"]"));
-    }
-    if let Some(loader) = loader.filter(|v| !v.is_empty() && *v != "vanilla") {
-        facets.push(format!("[\"categories:{loader}\"]"));
-    }
-    if let Some(category) = category.filter(|v| !v.is_empty() && *v != "all") {
-        facets.push(format!("[\"categories:{category}\"]"));
-    }
-
-    let url = format!("{API}/search");
-    let response = client
-        .get(&url)
-        .query(&[
-            ("query", query.clone()),
-            ("limit", limit.clamp(1, 50).to_string()),
-            ("offset", offset.to_string()),
-            ("facets", format!("[{}]", facets.join(","))),
-            ("index", "relevance".to_string()),
-        ])
-        .header("User-Agent", USER_AGENT)
-        .send()
-        .await
-        .map_err(|e| format!("请求 Modrinth 失败: {e}"))?;
-
-    if !response.status().is_success() {
-        return Err(format!("Modrinth 返回 HTTP {}", response.status()));
-    }
-
-    let body: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("解析搜索结果失败: {e}"))?;
-
-    let hits = body
-        .get("hits")
-        .and_then(|v| v.as_array())
-        .map(|items| {
-            items
-                .iter()
-                .map(|item| {
-                    let slug = item
-                        .get("slug")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or_default()
-                        .to_string();
-                    let title = item
-                        .get("title")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or_default()
-                        .to_string();
-                    Hit {
-                    id: item.get("project_id").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                    title_zh: crate::market_zh::title_zh(&slug, &title),
-                    slug,
-                    title,
-                    description: item
-                        .get("description")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or_default()
-                        .to_string(),
-                    downloads: item.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0),
-                    icon: item.get("icon_url").and_then(|v| v.as_str()).map(str::to_string),
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    Ok(SearchPage {
-        hits,
-        total: body.get("total_hits").and_then(|v| v.as_u64()).unwrap_or(0),
-        offset,
-    })
+pub struct Market {
+    pub client: Client,
+    /// CurseForge 的 API key；空串表示没配
+    pub curseforge_key: String,
 }
 
-/// 某项目在「这个游戏版本 + 这个加载器」下可用的文件（新到旧）。
-pub async fn files(
-    client: &Client,
-    project: &str,
-    mc: Option<&str>,
-    loader: Option<&str>,
-) -> Result<Vec<FileChoice>, String> {
-    let url = format!("{API}/project/{project}/version");
-    let mut request = client.get(&url).header("User-Agent", USER_AGENT);
-    if let Some(mc) = mc.filter(|v| !v.is_empty()) {
-        request = request.query(&[("game_versions", format!("[\"{mc}\"]"))]);
-    }
-    if let Some(loader) = loader.filter(|v| !v.is_empty() && *v != "vanilla") {
-        request = request.query(&[("loaders", format!("[\"{loader}\"]"))]);
+impl Market {
+    pub fn new(client: Client, curseforge_key: String) -> Market {
+        Market {
+            client,
+            curseforge_key,
+        }
     }
 
-    let response = request
-        .send()
-        .await
-        .map_err(|e| format!("请求版本列表失败: {e}"))?;
-    if !response.status().is_success() {
-        return Err(format!("Modrinth 返回 HTTP {}", response.status()));
-    }
-
-    let body: Vec<serde_json::Value> = response
-        .json()
-        .await
-        .map_err(|e| format!("解析版本列表失败: {e}"))?;
-
-    Ok(body
-        .iter()
-        .map(|item| {
-            let files = item.get("files").and_then(|v| v.as_array());
-            let primary = files
-                .and_then(|list| {
-                    list.iter()
-                        .find(|f| f.get("primary").and_then(|p| p.as_bool()).unwrap_or(false))
-                        .or_else(|| list.first())
-                })
-                .cloned()
-                .unwrap_or(serde_json::Value::Null);
-            FileChoice {
-                version_id: item.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                name: item
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_default()
-                    .to_string(),
-                filename: primary
-                    .get("filename")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_default()
-                    .to_string(),
-                downloads: item.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0),
-                game_versions: item
-                    .get("game_versions")
-                    .and_then(|v| v.as_array())
-                    .map(|list| {
-                        list.iter()
-                            .filter_map(|v| v.as_str().map(str::to_string))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
+    /// 搜索；`query` 为空时返回该来源的热门榜。
+    pub async fn search(
+        &self,
+        source: Source,
+        query: &str,
+        kind: &str,
+        mc: Option<&str>,
+        loader: Option<&str>,
+        category: Option<&str>,
+        offset: u64,
+        limit: u64,
+    ) -> Result<SearchPage, String> {
+        match source {
+            Source::Modrinth => {
+                modrinth::search(&self.client, query, kind, mc, loader, category, offset, limit).await
             }
-        })
-        .collect())
-}
-
-/// 装最新一个可用文件到 `game_dir/<子目录>/`，返回文件名。
-pub async fn install(
-    client: &Client,
-    game_dir: &Path,
-    project: &str,
-    kind: &str,
-    mc: Option<&str>,
-    loader: Option<&str>,
-    progress: Option<Progress>,
-) -> Result<String, String> {
-    let url = format!("{API}/project/{project}/version");
-    let mut request = client.get(&url).header("User-Agent", USER_AGENT);
-    if let Some(mc) = mc.filter(|v| !v.is_empty()) {
-        request = request.query(&[("game_versions", format!("[\"{mc}\"]"))]);
+            Source::CurseForge => {
+                curseforge::search(
+                    &self.client,
+                    &self.curseforge_key,
+                    query,
+                    kind,
+                    mc,
+                    loader,
+                    offset,
+                    limit,
+                )
+                .await
+            }
+        }
     }
-    if let Some(loader) = loader.filter(|v| !v.is_empty() && *v != "vanilla") {
-        request = request.query(&[("loaders", format!("[\"{loader}\"]"))]);
+
+    /// 某项目在指定版本 + 加载器下的文件列表（按时间倒序）。
+    pub async fn versions(
+        &self,
+        source: Source,
+        project: &str,
+        mc: Option<&str>,
+        loader: Option<&str>,
+    ) -> Result<Vec<VersionEntry>, String> {
+        match source {
+            Source::Modrinth => modrinth::versions(&self.client, project, mc, loader).await,
+            Source::CurseForge => {
+                curseforge::versions(&self.client, &self.curseforge_key, project, mc, loader).await
+            }
+        }
     }
-    let response = request
-        .send()
-        .await
-        .map_err(|e| format!("请求版本列表失败: {e}"))?;
-    if !response.status().is_success() {
-        return Err(format!("Modrinth 返回 HTTP {}", response.status()));
+
+    /// 项目详情（简介、图标、可用版本、MC 百科入口由前端按中文名判断）。
+    pub async fn detail(&self, source: Source, project: &str) -> Result<ProjectDetail, String> {
+        match source {
+            Source::Modrinth => modrinth::detail(&self.client, project).await,
+            Source::CurseForge => {
+                curseforge::detail(&self.client, &self.curseforge_key, project).await
+            }
+        }
     }
-    let body: Vec<serde_json::Value> = response
-        .json()
-        .await
-        .map_err(|e| format!("解析版本列表失败: {e}"))?;
-
-    let file = body
-        .first()
-        .and_then(|item| item.get("files").and_then(|v| v.as_array()))
-        .and_then(|files| {
-            files
-                .iter()
-                .find(|f| f.get("primary").and_then(|p| p.as_bool()).unwrap_or(false))
-                .or_else(|| files.first())
-        })
-        .ok_or_else(|| "这个版本没有匹配的文件".to_string())?;
-
-    let filename = file
-        .get("filename")
-        .and_then(|v| v.as_str())
-        .ok_or("文件缺少 filename")?;
-    let download_url = file
-        .get("url")
-        .and_then(|v| v.as_str())
-        .ok_or("文件缺少下载地址")?;
-    let sha1 = file
-        .get("hashes")
-        .and_then(|h| h.get("sha1"))
-        .and_then(|v| v.as_str())
-        .map(str::to_string);
-
-    let dir = game_dir.join(target_dir(kind));
-    std::fs::create_dir_all(&dir).map_err(|e| format!("创建 {} 失败: {e}", dir.display()))?;
-    let dest = dir.join(filename);
-
-    let job = Job::new(download_url, &dest, sha1);
-    download::run(
-        client,
-        vec![job],
-        1,
-        "下载资源",
-        &progress.unwrap_or_else(Progress::none),
-    )
-    .await?;
-
-    Ok(filename.to_string())
 }
 
 #[cfg(test)]
@@ -295,5 +150,13 @@ mod tests {
         assert_eq!(target_dir("resourcepack"), "resourcepacks");
         assert_eq!(target_dir("shader"), "shaderpacks");
         assert_eq!(project_type("shader"), "shader");
+        assert_eq!(curseforge_class("mod"), 6);
+    }
+
+    #[test]
+    fn source_parses() {
+        assert_eq!(Source::parse("curseforge"), Source::CurseForge);
+        assert_eq!(Source::parse("modrinth"), Source::Modrinth);
+        assert_eq!(Source::parse("whatever"), Source::Modrinth);
     }
 }

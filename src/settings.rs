@@ -159,6 +159,9 @@ mod tests {
 #[serde(default)]
 pub struct AppSettings {
     pub default_version: Option<String>,
+    /// CurseForge 官方 API key（免费申请）；空 = 没配，市场里选 CurseForge 会提示去填
+    #[serde(default)]
+    pub curseforge_api_key: Option<String>,
 }
 
 impl AppSettings {

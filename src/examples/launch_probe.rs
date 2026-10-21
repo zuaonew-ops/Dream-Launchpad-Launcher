@@ -30,6 +30,8 @@ fn main() -> Result<(), String> {
         &launch::LaunchOptions {
             id: &id,
             username: &username,
+            uuid: &dlp_core::auth::offline_uuid(&username),
+            access_token: "0",
             java: std::path::Path::new(&picked.path),
             memory_mb: 2048,
             isolate: true,
