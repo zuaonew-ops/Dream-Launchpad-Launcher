@@ -37,10 +37,13 @@
 
 浅色为主（深色可一键切换，侧栏底部有开关），左侧导航按「游戏 / 资源 / 其它」分组。
 
-- 卡片式内容区，13px 圆角、发丝边框、几乎无阴影
-- 下载页底部操作条固定在底部（sticky + 毛玻璃），滚列表时「当前选择 / 安装」始终可见
-- 行内悬停是整行浅底 + 右箭头右移 2px，页面切换 190ms 淡入上移
-- 动画尊重 `prefers-reduced-motion`
+| 主页 | 下载 |
+| --- | --- |
+| ![主页](docs/assets/screens/home.png) | ![下载](docs/assets/screens/download.png) |
+
+| 内容 | 设置 |
+| --- | --- |
+| ![内容](docs/assets/screens/content.png) | ![设置](docs/assets/screens/settings.png) |
 
 能力：
 
