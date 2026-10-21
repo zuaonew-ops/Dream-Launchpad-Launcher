@@ -1,83 +1,49 @@
 # Dream Launchpad Launcher
 
-从零设计的 Minecraft: Java Edition 启动器（代号 **DLP**）。整个启动器就是一个文件夹，所有数据都放在 exe 旁边。
+Windows 上的 Minecraft: Java Edition 启动器，扁平浅色界面，开箱即用。
 
-## 版本与加载器
+## 能做什么
 
-- 支持 Mojang 官方清单里的全部版本（含 1.13+ 新参数格式、快照与远古版本）。
-- 加载器：Fabric / Quilt / Forge / NeoForge，安装后与对应的原版版本一起显示、可独立启动。
-- Java 运行时按版本要求自动下载（1.20.1 用 Java 17，1.12.2 用 Java 8），也可在设置里指定本机 Java。
-- 下载走 BMCLAPI 镜像，镜像 SSL 失败时自动回退官方地址。
-- 下载页打开即显示热门内容（按下载量），输入关键词再精确搜索。
-- 整合包支持 Modrinth `.mrpack` 一键安装（自动装原版 + 加载器 + 内容 + 覆盖配置），也可以把 .mrpack / .zip 直接拖进窗口安装。
-- 加载器下拉按游戏版本过滤：Fabric/Quilt 需要 1.14+，NeoForge 需要 1.20.1+，低版本只列 Forge。
-- 微软登录走设备码：自动开系统浏览器、验证码自动复制。内置了发布者注册的公共客户端（`9c8a21d5-5f66-4dba-b90a-42e47d2aaac1`），用户不用填任何 ID；要换成自己的见 [docs/微软登录-客户端ID申请步骤.md](docs/微软登录-客户端ID申请步骤.md)。
+**安装游戏**
+- 一键安装任意正式版 / 快照 / 旧版，自动补齐 Java 运行库、资源文件、依赖库
+- 自动选择并下载匹配的 Java（Mojang 官方运行时，也可用自己的 Java）
+- 安装失败会重试并校验文件，断点续传
 
-## 功能
+**模组加载器**
+- Fabric / Quilt / Forge / NeoForge，版本列表按所选游戏版本自动过滤
+- 低版本只显示实际可用的加载器（例如 1.12.2 只有原版和 Forge）
 
-- **首页**：当前账号、启动版本、内存上限（平滑滑杆）、启动按钮与状态、版本隔离目录
-- **下载**：游戏版本（原版 + Fabric / Quilt / Forge / NeoForge 加载器）、模组、整合包、光影、资源包、数据包
-- **游戏版本**：已安装版本列表、版本目录与隔离游戏目录、打开目录、删除版本
-- **设置**：内存上限、下载源（BMCLAPI / 官方）、微软客户端 ID、Java 路径与扫描
-- **账号**：左下角切换账号；微软账号登录（OAuth 2.0 设备码，令牌加密保存在本地）
-- **版本隔离**：每个版本使用独立的 `versions/<id>/game` 目录，mods、存档、配置互不影响
-- **镜像**：下载默认走 BMCLAPI（`https://bmclapi2.bangbang93.com`），可在设置里切回官方源
+**整合包**
+- 内置 Modrinth 整合包搜索，选版本、加载器后一键安装
+- 把 `.mrpack` 拖进窗口即可自动安装（自动解析依赖、下载文件、导入 overrides 配置）
+- 整合包安装完成自动生成独立游戏版本
 
-## 界面预览
+**下载内容**
+- 模组 / 光影 / 资源包 / 数据包，Modrinth 搜索 + 按下载量排的热门列表
+- 下载后直接落到对应游戏版本的目录，不用手动搬文件
 
-![首页](docs/screenshots/home.png)
-![下载](docs/screenshots/download.png)
-![游戏版本](docs/screenshots/versions.png)
-![设置](docs/screenshots/settings.png)
+**多版本隔离**
+- 每个游戏版本有独立的 `mods` / `saves` / `config`，互不干扰
+- 版本详情里可查看目录、打开目录、删除版本
 
-扁平浅色界面：左侧导航、内容区卡片，1px 分隔线、8px 圆角、绿色强调色，无渐变与玻璃效果。
+**账号**
+- 微软账号登录（OAuth 2.0 设备码）：点一下自动打开系统浏览器、验证码已复制到剪贴板，确认后自动完成登录
+- 令牌加密保存在本地，重启后免登录，过期自动续期
 
-## 构建与运行
+**启动**
+- 内存上限可调，可指定 Java 路径
+- 启动参数、classpath、natives 按版本清单自动生成
+- 启动日志与错误信息直接显示，方便排查
 
-需要 .NET 10 SDK（界面）或 .NET 10 Desktop Runtime（仅运行）。
+**界面**
+- 扁平浅色风格：`#F6F6F7` 底色、白色卡片、8px 圆角、`#2F9E63` 强调色
+- 导航：首页 / 下载 / 游戏版本 / 设置
+- 便携模式：所有数据放在程序目录，不污染系统
 
-~~~bash
-dotnet build
-dotnet run --project src/DLP.App          # 启动界面
-dotnet publish src/DLP.App -c Release -o dist/DLP.App
-~~~
+## 运行
 
-命令行：
+直接运行 `DLP.App.exe`（需要 .NET 10 桌面运行时）。
 
-~~~bash
-dotnet run --project src/DLP.Cli -- versions
-dotnet run --project src/DLP.Cli -- install 1.12.2
-dotnet run --project src/DLP.Cli -- run 1.12.2 --username Steve --memory 2048
-~~~
+## 说明
 
-## 结构
-
-~~~
-DreamLaunchpad.slnx
-├─ src/DLP.Core    核心库（清单、下载、安装、加载器、Java、认证、启动）
-├─ src/DLP.Cli     命令行
-├─ src/DLP.App     界面
-└─ tests/DLP.Core.Tests
-~~~
-
-## 数据目录
-
-便携模式：启动器只管理自己所在的文件夹。
-
-| 路径 | 内容 |
-| --- | --- |
-| `versions/` | 版本 json / jar；每个版本的隔离目录 `game/` |
-| `libraries/`、`assets/` | 依赖库与资源（BMCLAPI 镜像） |
-| `runtime/` | 自动下载的 Mojang Java 运行时 |
-| `accounts.json` + `accounts.key` | 账号列表；令牌 AES-GCM 加密，密钥仅当前用户可读 |
-| `config.json` | 启动器设置 |
-| `logs/` | 启动器日志（界面不提供日志页） |
-
-## 微软登录
-
-在 [Azure 门户](https://portal.azure.com) 注册「移动和桌面应用」，启用公共客户端流，把 client_id 填到设置页，然后在左下角「切换账号 → 添加微软账号」按提示输入设备码即可。未配置 client_id 时登录会提示「未配置微软客户端 ID」。
-
-## 文档
-
-- [设计文档](docs/设计-Dream-Launchpad-Launcher.md)
-- [PCL / PCL-CE 参考调研](docs/PCL-参考仓库调研.md)
+所有游戏启动都需要有效的微软账号，不提供未授权登录方式，也不绕过正版验证。
