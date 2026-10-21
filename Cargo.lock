@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "dlp-core"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "futures-util",
  "hex",
@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "dlp-desktop"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "dlp-core",
  "reqwest 0.12.28",
@@ -716,6 +716,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

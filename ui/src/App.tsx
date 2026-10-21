@@ -4,6 +4,7 @@ import DownloadPage from "./pages/DownloadPage";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
 import ToolsPage from "./pages/ToolsPage";
+import LaunchOverlay from "./components/LaunchOverlay";
 import { actions, useLauncher } from "./store";
 
 type PageKey = "home" | "download" | "content" | "settings" | "tools";
@@ -138,6 +139,8 @@ export default function App() {
           <Current />
         </div>
       </main>
+
+      <LaunchOverlay />
 
       {/* 全局任务条：下载 / 安装 / 修复都在这里看，和当前在哪个页面无关 */}
       {job && (

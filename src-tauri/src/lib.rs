@@ -132,34 +132,65 @@ async fn msa_refresh(state: State<'_, AppState>) -> Result<Option<dlp_core::acco
     Ok(accounts.list.iter().find(|a| a.id == current.id).cloned())
 }
 /// 用系统默认浏览器打开链接（只放行 https + 微软域名，避免被当成任意命令执行器）
+/// 用系统默认浏览器打开链接。
+///
+/// Windows 上用 ShellExecuteW —— 不走 `cmd /C start`，所以不会闪黑框。
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
-    // 只放行 https：避免被当成「执行任意命令」的入口
     if !url.starts_with("https://") {
         return Err(format!("只允许打开 https 链接：{url}"));
     }
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
-            .spawn()
-            .map_err(|e| format!("打开浏览器失败: {e}"))?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| format!("打开浏览器失败: {e}"))?;
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| format!("打开浏览器失败: {e}"))?;
+    open_external(&url)
+}
+
+#[cfg(target_os = "windows")]
+fn open_external(url: &str) -> Result<(), String> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let wide = |text: &str| -> Vec<u16> {
+        OsStr::new(text)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
+    };
+    let operation = wide("open");
+    let target = wide(url);
+    // SAFETY: 两个字符串都以 NUL 结尾，且活着直到调用结束
+    let result = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            operation.as_ptr(),
+            target.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    if result as isize <= 32 {
+        return Err(format!("打开浏览器失败（ShellExecute 返回 {}）", result as isize));
     }
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn open_external(url: &str) -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg(url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("打开浏览器失败: {e}"))
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn open_external(url: &str) -> Result<(), String> {
+    std::process::Command::new("xdg-open")
+        .arg(url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("打开浏览器失败: {e}"))
 }
 #[tauri::command]
 fn system_info() -> dlp_core::system::SystemInfo {

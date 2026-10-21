@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { actions, selectSelectedVersion, useLauncher } from "../../store";
+import { actions, useLauncher } from "../../store";
 import type { MarketKind, MarketSource } from "../../types";
 import MarketDetail from "./MarketDetail";
 import MarketRow from "./MarketRow";
@@ -58,16 +58,11 @@ const categories: Record<MarketKind, { value: string; label: string }[]> = {
 /** 资源市场容器：筛选 + 列表，点开某条进入详情。 */
 export default function MarketPanel() {
   const state = useLauncher();
-  const selected = selectSelectedVersion(state);
 
   // 版本下拉：清单里的正式版 + 本地已装的
   const versionOptions = state.versions.filter((v) => v.kind === "release" || v.local).slice(0, 200);
 
-  // 首次进入：把选中的版本带进来，并且直接拉一屏热门（不搜索也有内容）
-  useEffect(() => {
-    if (!state.marketMc && selected) actions.setMarketMc(selected.id);
-  }, [selected, state.marketMc]);
-
+  // 首次进入直接拉一屏热门（版本默认「不指定」）
   useEffect(() => {
     if (state.marketHits.length === 0 && !state.marketLoading && !state.marketOpen) {
       void actions.searchMarket();
@@ -79,7 +74,8 @@ export default function MarketPanel() {
   if (state.marketOpen) return <MarketDetail />;
 
   const noVersion = !state.marketMc;
-  const installTarget = state.marketMc;
+  // 没指定版本时装到当前选中的版本（市场页默认「不指定」，不能因此禁用安装）
+  const installTarget = state.marketMc || state.selected || "";
 
   return (
     <section className="panel list-panel">
@@ -197,8 +193,8 @@ export default function MarketPanel() {
 
       <p className="hint">
         {installTarget
-          ? `安装目标：${installTarget} 的 ${state.marketKind === "mod" ? "mods" : state.marketKind === "shader" ? "shaderpacks" : "resourcepacks"} 目录`
-          : "没指定游戏版本也能看热门榜；指定版本后结果会按该版本过滤"}
+          ? `安装目标：${installTarget} 的 ${state.marketKind === "mod" ? "mods" : state.marketKind === "shader" ? "shaderpacks" : "resourcepacks"} 目录${state.marketMc ? "" : "（当前选中版本）"}`
+          : "先选一个游戏版本，或者直接看热门榜"}
         {state.marketSource === "curseforge" && !state.marketHits.length && "（CurseForge 需要在设置里填 API key）"}
       </p>
 

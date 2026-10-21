@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { actions, currentName, selectSelectedVersion, useLauncher } from "../store";
 import type { VersionSummary } from "../types";
+import MsaLoginPanel from "../components/MsaLoginPanel";
 
 /** 版本类型 → 徽章文案与配色键 */
 function tagOf(version: VersionSummary | null): { text: string; kind: string } {
@@ -286,51 +287,7 @@ export default function HomePage() {
             </button>
           </form>
 
-          {state.msa && (
-            <div className="msa-panel">
-              <div className="msa-head">
-                <span className="msa-title">微软账号登录</span>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  title="关闭"
-                  onClick={actions.closeMsaLogin}
-                >
-                  ×
-                </button>
-              </div>
-
-              {state.msa.status === "requesting" ? (
-                <p className="msa-wait">
-                  <span className="spinner" />
-                  {state.msa.message}
-                </p>
-              ) : state.msa.status === "waiting" ? (
-                <>
-                  <p className="msa-hint">在浏览器里打开下面的网址，输入这串码：</p>
-                  <div className="msa-code">{state.msa.code?.user_code}</div>
-                  <div className="msa-actions">
-                    <a
-                      className="ghost msa-link"
-                      href={state.msa.code?.verification_uri}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      打开 {state.msa.code?.verification_uri.replace("https://", "")}
-                    </a>
-                    <span className="msa-wait">
-                      <span className="spinner" />
-                      {state.msa.message}
-                    </span>
-                  </div>
-                </>
-              ) : state.msa.status === "done" ? (
-                <p className="msa-ok">{state.msa.message}</p>
-              ) : (
-                <p className="msg error">{state.msa.message}</p>
-              )}
-            </div>
-          )}
+          <MsaLoginPanel />
         </section>
 
         <section className="card versions-card">

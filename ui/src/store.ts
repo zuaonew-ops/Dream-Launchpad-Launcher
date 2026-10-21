@@ -109,6 +109,8 @@ export interface State {
   system: SystemInfo | null;
   /** 正版登录流程（全局，切页面不中断） */
   msa: MsaLogin | null;
+  /** 正在启动的游戏：步骤 + 进度，null = 没在启动 */
+  launching: LaunchProgress | null;
   crashName: string;
   crashText: string;
   theme: Theme;
@@ -178,6 +180,7 @@ let state: State = {
   versionStats: null,
   system: null,
   msa: null,
+  launching: null,
   crashName: "",
   crashText: "",
   theme: (localStorage.getItem("dlp.theme") as Theme) ?? "light",
@@ -280,7 +283,6 @@ async function refresh() {
       selected: current && versions.some((v) => v.id === current) ? current : fallback,
     });
     if (state.selected) void loadSettings(state.selected);
-    if (!state.marketMc && state.selected) set({ marketMc: state.selected });
   } catch (e) {
     set({ error: String(e) });
   } finally {
@@ -380,17 +382,59 @@ async function launchSelected() {
   const target = selectSelectedVersion(state);
   if (!target || state.busy) return;
   const name = currentName(state);
-  set({ busy: true, error: "", notice: "正在拉起游戏…" });
+  set({
+    busy: true,
+    error: "",
+    notice: "",
+    launching: { id: target.id, step: 0, percent: 0.06, error: "" },
+  });
+
+  // 后端的启动是一次调用，这里用定时器把「阶段」推进到 0.75 左右，
+  // 真正返回 pid 再补到 100% —— 用户能看到走到哪一步，而不是干等。
+  const timer = window.setInterval(() => {
+    const current = state.launching;
+    if (!current) return;
+    const next = Math.min(current.percent + 0.18, 0.75);
+    const step = Math.min(Math.floor(next * LAUNCH_STEPS.length), LAUNCH_STEPS.length - 1);
+    set({ launching: { ...current, percent: next, step } });
+  }, 420);
+
   try {
     const pid = await invoke<number>("launch_game", {
       id: target.id,
       username: name,
     });
-    set({ game: { pid, id: target.id }, notice: `已启动 ${target.id}，进程 ${pid}` });
+    window.clearInterval(timer);
+    set({
+      launching: { id: target.id, step: LAUNCH_STEPS.length, percent: 1, error: "" },
+      game: { pid, id: target.id },
+      notice: `已启动 ${target.id}，进程 ${pid}`,
+    });
+    // 让「完成」状态停留一下再收起来
+    window.setTimeout(() => {
+      if (state.launching?.percent === 1) set({ launching: null });
+    }, 900);
   } catch (e) {
-    set({ error: String(e), notice: "" });
+    window.clearInterval(timer);
+    set({
+      error: String(e),
+      launching: { id: target.id, step: 0, percent: 0, error: String(e) },
+    });
   } finally {
     set({ busy: false });
+  }
+}
+
+function dismissLaunch() {
+  set({ launching: null });
+}
+
+/** 用系统浏览器打开 https 链接（后端用 ShellExecuteW，不会闪 cmd 窗口） */
+async function openUrl(url: string) {
+  try {
+    await invoke("open_url", { url });
+  } catch (e) {
+    set({ error: String(e) });
   }
 }
 
@@ -538,6 +582,25 @@ async function setAllMods(id: string, enabled: boolean) {
 
 /** 拉到某版本的概况；切版本时先清空，避免显示上一个版本的数字 */
 /** 建议上限：留 1G 给系统，最多给到物理内存的 80%，向上取整到 256MB */
+export interface LaunchProgress {
+  /** 正在启动的版本 */
+  id: string;
+  /** 已经走到的步骤下标 */
+  step: number;
+  /** 0–1 */
+  percent: number;
+  /** 出错了就停在这里 */
+  error: string;
+}
+
+/** 启动步骤，界面按这个列表逐条点亮 */
+export const LAUNCH_STEPS = [
+  "检查 Java 运行时",
+  "校验版本文件",
+  "组装启动参数",
+  "拉起游戏进程",
+] as const;
+
 export interface MsaLogin {
   code: DeviceCode | null;
   status: "requesting" | "waiting" | "done" | "error";
@@ -555,6 +618,9 @@ function stopMsaTimer() {
 
 /** 开始正版登录：申请设备码 → 自动打开浏览器 → 轮询 */
 async function startMsaLogin() {
+  // 已经在走流程就别再申请一次（否则会连着开好几个浏览器窗口）
+  const busy = state.msa && (state.msa.status === "requesting" || state.msa.status === "waiting");
+  if (busy) return;
   stopMsaTimer();
   set({
     msa: { code: null, status: "requesting", message: "正在向微软申请设备码…" },
@@ -832,7 +898,9 @@ export const actions = {
   refresh,
   installSelected,
   launchSelected,
+  dismissLaunch,
   openDir,
+  openUrl,
   loadSettings,
   saveSettings,
   loadLoaderOptions,
