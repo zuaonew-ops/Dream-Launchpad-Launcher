@@ -95,6 +95,15 @@ public sealed class MicrosoftAuthService
         return session;
     }
 
+    /// <summary>
+    /// 网页登录（旧版 Live 隐式流）拿到 Microsoft access_token 后，继续换 XBL / XSTS / Minecraft 令牌。
+    /// </summary>
+    public Task<MicrosoftSession> LoginWithMicrosoftTokenAsync(string microsoftAccessToken, string? refreshToken, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(microsoftAccessToken);
+        return ExchangeAsync(microsoftAccessToken, refreshToken ?? string.Empty, ct);
+    }
+
     /// <summary>用 refresh_token 静默续期，无需用户再次授权。</summary>
     public async Task<MicrosoftSession> RefreshAsync(string refreshToken, CancellationToken ct)
     {

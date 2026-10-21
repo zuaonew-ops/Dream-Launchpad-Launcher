@@ -151,6 +151,22 @@ public sealed class AccountManager
         return session;
     }
 
+    /// <summary>网页登录完成后：用 Microsoft access_token 换 Minecraft 账号并保存。</summary>
+    public async Task<MicrosoftSession> CompleteWebLoginAsync(string microsoftAccessToken, string? refreshToken, CancellationToken ct)
+    {
+        var auth = new MicrosoftAuthService(_http, null);
+        var session = await auth.LoginWithMicrosoftTokenAsync(microsoftAccessToken, refreshToken, ct);
+
+        var entry = new AccountEntry("msa", session.Account.Username, session.Account.Uuid);
+        var old = Accounts.FirstOrDefault(a => a.Uuid == entry.Uuid);
+        if (old is not null) Accounts[Accounts.IndexOf(old)] = entry;
+        else Accounts.Add(entry);
+        Current = entry;
+        PersistSession(session);
+        Persist();
+        return session;
+    }
+
     public LaunchAccount GetLaunchAccount()
     {
         var current = Current ?? throw new InvalidOperationException("没有可用账号");

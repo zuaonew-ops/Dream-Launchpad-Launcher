@@ -23,8 +23,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel vm) return;
         AccountPopup.IsOpen = false;
-        var window = new MicrosoftLoginWindow(vm.Services.Accounts,
-            () => vm.SelectedNav = vm.NavItems.FirstOrDefault(item => item.Title == "设置")) { Owner = this };
+        var window = new MicrosoftLoginWindow(vm.Services.Accounts) { Owner = this };
         window.ShowDialog();
     }
 
