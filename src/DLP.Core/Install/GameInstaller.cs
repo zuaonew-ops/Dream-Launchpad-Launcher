@@ -12,7 +12,9 @@ public sealed record InstallProgress(string Stage, int Completed, int Total, lon
 public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
     VersionRepository versions, Log log)
 {
-    public async Task InstallAsync(string versionId, IProgress<InstallProgress>? progress = null, CancellationToken ct = default)
+    /// <param name="asDependency">true 表示这个原版只是加载器/整合包的依赖，不在版本列表里单独显示。</param>
+    public async Task InstallAsync(string versionId, IProgress<InstallProgress>? progress = null,
+        CancellationToken ct = default, bool asDependency = false)
     {
         log.Info($"开始安装 {versionId}");
         var version = await versions.ResolveAsync(versionId, ct);
@@ -26,7 +28,12 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
         await InstallLoggingAsync(version, ct);
 
         await File.WriteAllTextAsync(Path.Combine(paths.VersionDir(versionId), "install.json"),
-            JsonSerializer.Serialize(new { version = versionId, installedAt = DateTimeOffset.Now }, new JsonSerializerOptions { WriteIndented = true }), ct);
+            JsonSerializer.Serialize(new
+            {
+                version = versionId,
+                installedAt = DateTimeOffset.Now,
+                role = asDependency ? "dependency" : "game"
+            }, new JsonSerializerOptions { WriteIndented = true }), ct);
         log.Info($"安装完成 {versionId}");
     }
 

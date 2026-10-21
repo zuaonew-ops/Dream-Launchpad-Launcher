@@ -304,7 +304,7 @@ public sealed class LoaderService(GamePaths paths, HttpClient http, GameInstalle
             if (!File.Exists(paths.VersionJson(mcVersion)))
             {
                 status?.Report($"先安装父版本 {mcVersion}");
-                await installer.InstallAsync(mcVersion, null, ct);
+                await installer.InstallAsync(mcVersion, null, ct, asDependency: true);
             }
             status?.Report($"正在下载 {newId} 的依赖库");
             await installer.InstallAsync(newId, null, ct);

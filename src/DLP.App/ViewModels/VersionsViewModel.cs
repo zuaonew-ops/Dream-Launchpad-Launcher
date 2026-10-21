@@ -92,7 +92,8 @@ public sealed class VersionsViewModel : ObservableObject
         {
             var dir = _services.Paths.VersionDir(id);
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
-            Status = $"已删除 {id}";
+            var cleaned = _services.CleanupOrphanDependencies();
+            Status = cleaned > 0 ? $"已删除 {id}（同时清理 {cleaned} 个依赖原版）" : $"已删除 {id}";
             _services.NotifyInstalledVersionsChanged();
         }
         catch (Exception ex)

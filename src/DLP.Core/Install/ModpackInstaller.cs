@@ -192,7 +192,7 @@ public sealed class ModpackInstaller(
         if (!File.Exists(paths.VersionJson(mcVersion)))
         {
             log.Info($"未检测到原版 {mcVersion}，先安装");
-            await installer.InstallAsync(mcVersion, null, ct);
+            await installer.InstallAsync(mcVersion, null, ct, asDependency: true);
         }
 
         var loaderSpecs = new (string Key, ModLoaderType Type)[]
