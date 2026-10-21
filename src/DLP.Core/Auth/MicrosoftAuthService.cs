@@ -14,7 +14,7 @@ public sealed record MicrosoftDeviceCode(
 
 /// <summary>一次微软登录（或刷新）得到的会话。</summary>
 /// <param name="ExpiresAt">Minecraft 访问令牌的到期时间（UTC）。</param>
-public sealed record MicrosoftSession(LaunchAccount Account, string RefreshToken, DateTimeOffset ExpiresAt);
+public sealed record MicrosoftSession(LaunchAccount Account, string RefreshToken, DateTimeOffset ExpiresAt, string? ClientId = null);
 
 /// <summary>
 /// 微软账号登录：设备码流程拿 Microsoft 令牌，再依次换 Xbox Live、XSTS、Minecraft Services 令牌，
@@ -31,20 +31,53 @@ public sealed class MicrosoftAuthService
     private const string MinecraftProfileEndpoint = "https://api.minecraftservices.com/minecraft/profile";
     private const string DefaultVerificationUri = "https://www.microsoft.com/link";
 
-    private readonly HttpClient _http;
-    private readonly string _clientId;
+    /// <summary>
+    /// 内置的公共客户端 ID：设备码流不需要客户端密钥，用户开箱即可登录，不用自己注册 Azure 应用。
+    /// 设置里填了自定义 client_id 时优先用自定义的；内置的全部失败才会报错。
+    /// </summary>
+    public static IReadOnlyList<string> FallbackClientIds { get; } =
+    [
+        "04b07795-8ddb-461a-bbee-02f9e1bf7b46",
+        "14d82eec-204b-4c2f-b7e8-296a70dab67e",
+    ];
 
-    public MicrosoftAuthService(HttpClient http, string clientId)
+    private readonly HttpClient _http;
+    private string _clientId;
+    private readonly bool _allowFallback;
+
+    public MicrosoftAuthService(HttpClient http, string? clientId)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
-        _clientId = clientId?.Trim() ?? string.Empty;
+        _allowFallback = string.IsNullOrWhiteSpace(clientId);
+        _clientId = _allowFallback ? FallbackClientIds[0] : clientId!.Trim();
     }
+
+    /// <summary>当前实际使用的客户端 ID；登录成功后随账号一起保存，续期时沿用。</summary>
+    public string ClientId => _clientId;
 
     /// <summary>申请设备码，用户需在浏览器打开 <see cref="MicrosoftDeviceCode.VerificationUri"/> 并输入 UserCode。</summary>
     public async Task<MicrosoftDeviceCode> StartDeviceCodeAsync(CancellationToken ct)
     {
-        EnsureClientId();
+        Exception? last = null;
+        foreach (var clientId in _allowFallback ? FallbackClientIds : [_clientId])
+        {
+            _clientId = clientId;
+            try
+            {
+                return await RequestDeviceCodeAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                last = ex;
+            }
+        }
 
+        throw new InvalidOperationException(
+            $"申请微软登录设备码失败：{last?.Message ?? "所有内置客户端都不可用"}", last);
+    }
+
+    private async Task<MicrosoftDeviceCode> RequestDeviceCodeAsync(CancellationToken ct)
+    {
         var response = await PostFormAsync(DeviceCodeEndpoint, new Dictionary<string, string>
         {
             ["client_id"] = _clientId,
@@ -76,7 +109,6 @@ public sealed class MicrosoftAuthService
     public async Task<MicrosoftSession> WaitForLoginAsync(MicrosoftDeviceCode code, IProgress<string>? progress, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(code);
-        EnsureClientId();
 
         progress?.Report($"请在浏览器打开 {code.VerificationUri}，输入代码 {code.UserCode}");
 
@@ -89,7 +121,6 @@ public sealed class MicrosoftAuthService
     /// <summary>用 refresh_token 静默续期，无需用户再次授权。</summary>
     public async Task<MicrosoftSession> RefreshAsync(string refreshToken, CancellationToken ct)
     {
-        EnsureClientId();
         if (string.IsNullOrWhiteSpace(refreshToken))
             throw new ArgumentException("刷新令牌为空，无法续期微软账号", nameof(refreshToken));
 
@@ -185,7 +216,7 @@ public sealed class MicrosoftAuthService
         var (username, uuid) = await GetProfileAsync(mcAccessToken, ct).ConfigureAwait(false);
 
         var account = new LaunchAccount(username, uuid, mcAccessToken, "msa");
-        return new MicrosoftSession(account, refreshToken, mcExpiresAt);
+        return new MicrosoftSession(account, refreshToken, mcExpiresAt, _clientId);
     }
 
     private async Task<(string Token, string UserHash)> XboxLiveAuthenticateAsync(string msAccessToken, CancellationToken ct)

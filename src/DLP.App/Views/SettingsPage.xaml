@@ -40,9 +40,9 @@
                             <ComboBox Style="{StaticResource ComboBoxStyle}" ItemsSource="{Binding Sources}"
                                       SelectedItem="{Binding DownloadSource}" />
 
-                            <TextBlock Text="微软客户端 ID（Azure 应用 client_id）" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
+                            <TextBlock Text="微软客户端 ID（可选，留空用内置）" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
                             <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding MicrosoftClientId, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="在 Azure 门户注册「移动和桌面应用」并启用公共客户端后填入，用于微软登录。"
+                            <TextBlock Text="不用填也能登录：内置了公共客户端走设备码。只有内置的被限流或失效时，才需要填自己在 Azure 注册的公共客户端 ID。"
                                        Style="{StaticResource SmallText}" Margin="0,6,0,0" TextWrapping="Wrap" />
 
                             <StackPanel Orientation="Horizontal" Margin="0,20,0,0">

@@ -34,8 +34,8 @@ public sealed class AccountManager
 
     public ObservableCollection<AccountEntry> Accounts { get; }
 
-    /// <summary>是否已在设置里填写微软客户端 ID；没填就没法走设备码登录。</summary>
-    public bool HasMicrosoftClientId => !string.IsNullOrWhiteSpace(_settings.MicrosoftClientId);
+    /// <summary>是否在设置里填了自定义客户端 ID（不填也能用内置公共客户端登录）。</summary>
+    public bool HasCustomMicrosoftClientId => !string.IsNullOrWhiteSpace(_settings.MicrosoftClientId);
     public event Action? Changed;
 
     public AccountEntry? Current
@@ -106,11 +106,8 @@ public sealed class AccountManager
     /// <summary>微软设备码登录；deviceCode 回调把设备码交给界面显示。</summary>
     public async Task<MicrosoftSession> LoginMicrosoftAsync(IProgress<MicrosoftDeviceCode> deviceCode, CancellationToken ct)
     {
-        var clientId = _settings.MicrosoftClientId;
-        if (string.IsNullOrWhiteSpace(clientId))
-            throw new InvalidOperationException("未配置微软客户端 ID：请在设置页填写 Azure 应用 client_id");
-
-        var auth = new MicrosoftAuthService(_http, clientId);
+        // 设置里没填就用内置公共客户端，用户不需要自己注册 Azure 应用。
+        var auth = new MicrosoftAuthService(_http, _settings.MicrosoftClientId);
         var code = await auth.StartDeviceCodeAsync(ct);
         deviceCode.Report(code);
         var session = await auth.WaitForLoginAsync(code, null, ct);
@@ -138,10 +135,7 @@ public sealed class AccountManager
         if (string.IsNullOrWhiteSpace(stored.RefreshToken))
             throw new InvalidOperationException("微软登录已过期，请重新登录");
 
-        var clientId = _settings.MicrosoftClientId;
-        if (string.IsNullOrWhiteSpace(clientId))
-            throw new InvalidOperationException("未配置微软客户端 ID，无法刷新登录");
-
+        var clientId = stored.ClientId ?? _settings.MicrosoftClientId;
         var session = new MicrosoftAuthService(_http, clientId)
             .RefreshAsync(stored.RefreshToken, CancellationToken.None)
             .GetAwaiter().GetResult();
@@ -154,7 +148,8 @@ public sealed class AccountManager
         var accounts = _store.Load().ToList();
         var index = accounts.FindIndex(a => a.Uuid == session.Account.Uuid);
         var record = new StoredAccount("msa", session.Account.Username, session.Account.Uuid,
-            session.RefreshToken, session.Account.AccessToken, session.ExpiresAt);
+            session.RefreshToken, session.Account.AccessToken, session.ExpiresAt,
+            session.ClientId ?? _settings.MicrosoftClientId);
         if (index >= 0) accounts[index] = record; else accounts.Add(record);
         _store.Save(accounts);
     }

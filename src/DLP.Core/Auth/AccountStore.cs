@@ -13,7 +13,8 @@ public sealed record StoredAccount(
     string Uuid,
     string? RefreshToken,
     string? AccessToken,
-    DateTimeOffset? ExpiresAt);
+    DateTimeOffset? ExpiresAt,
+    string? ClientId = null);
 
 /// <summary>
 /// 账号存储：单个 JSON 文件 + 同目录的 accounts.key（32 字节随机密钥，仅当前用户可读）。

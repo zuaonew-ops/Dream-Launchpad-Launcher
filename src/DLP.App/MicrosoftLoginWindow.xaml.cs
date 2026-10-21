@@ -58,14 +58,6 @@ public partial class MicrosoftLoginWindow : Window, INotifyPropertyChanged
 
     private async Task LoginAsync()
     {
-        if (!_accounts.HasMicrosoftClientId)
-        {
-            ShowSettings = true;
-            Code = "—";
-            Status = "还没配置微软客户端 ID。到「设置 → 微软登录」填入 Azure 应用的客户端 ID 后，点登录会自动打开浏览器登录。";
-            return;
-        }
-
         try
         {
             var progress = new Progress<MicrosoftDeviceCode>(code =>
@@ -94,7 +86,8 @@ public partial class MicrosoftLoginWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             Status = "登录失败：" + ex.Message;
-            if (ex.Message.Contains("未配置微软客户端 ID", StringComparison.Ordinal)) ShowSettings = true;
+            // 只有内置客户端全部失败时才建议用户去填自己的 client_id。
+            if (ex.Message.Contains("客户端 ID", StringComparison.Ordinal)) ShowSettings = true;
         }
     }
 
