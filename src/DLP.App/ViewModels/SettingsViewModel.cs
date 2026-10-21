@@ -28,6 +28,7 @@ public sealed class SettingsViewModel : ObservableObject
         BrowseJavaCommand = new RelayCommand(BrowseJava);
         ScanJavaCommand = new RelayCommand(ScanJava);
         DetectedJava = [];
+        _theme = services.Settings.Theme == ThemeManager.Dark ? "暗色" : "亮色";
         ScanJava();
     }
 
@@ -37,6 +38,25 @@ public sealed class SettingsViewModel : ObservableObject
     public ObservableCollection<string> DetectedJava { get; }
     /// <summary>下载源选项：官方 CDN 实测比镜像快一倍以上，默认官方。</summary>
     public string[] Sources { get; } = ["官方 CDN（推荐）", "BMCLAPI 镜像"];
+
+    /// <summary>外观切换：亮色 / 暗色，选完立即生效。</summary>
+    public string[] Themes { get; } = ["亮色", "暗色"];
+
+    private string _theme = "亮色";
+
+    public string Theme
+    {
+        get => _theme;
+        set
+        {
+            if (!SetProperty(ref _theme, value)) return;
+            var mode = value == "暗色" ? ThemeManager.Dark : ThemeManager.Light;
+            ThemeManager.Apply(mode);
+            _services.Settings.Theme = mode;
+            _services.Settings.Save();
+            Status = $"外观已切换为{value}";
+        }
+    }
 
     private const string OfficialLabel = "官方 CDN（推荐）";
     private const string MirrorLabel = "BMCLAPI 镜像";

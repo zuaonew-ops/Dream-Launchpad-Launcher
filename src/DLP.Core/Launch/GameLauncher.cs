@@ -50,6 +50,19 @@ public sealed class GameLauncher(GamePaths paths, Log log)
             : ExpandLegacy(version.MinecraftArguments, variables);
         gameArgs.AddRange(options.ExtraGameArgs);
 
+        // 界面语言固定简体中文：游戏参数 + JVM 语言环境都设成 zh_CN（所有版本一致）。
+        if (!gameArgs.Contains("--lang"))
+        {
+            gameArgs.Add("--lang");
+            gameArgs.Add("zh_CN");
+        }
+
+        if (!args.Any(a => a.StartsWith("-Duser.language=", StringComparison.OrdinalIgnoreCase)))
+        {
+            args.Add("-Duser.language=zh");
+            args.Add("-Duser.country=CN");
+        }
+
         args.Add(version.MainClass);
         args.AddRange(gameArgs);
 

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="添加离线账号" Width="360" SizeToContent="Height"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
-        Background="{StaticResource WindowBg}" FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="12.5">
+        Background="{DynamicResource WindowBg}" FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="12.5">
     <StackPanel Margin="20">
         <TextBlock Text="离线用户名" Style="{StaticResource FieldLabel}" />
         <TextBox x:Name="NameBox" Style="{StaticResource TextBoxStyle}" Margin="0,6,0,0" MaxLength="16" />

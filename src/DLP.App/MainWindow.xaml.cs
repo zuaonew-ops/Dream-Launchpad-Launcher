@@ -153,6 +153,13 @@ public partial class MainWindow : Window
             return;
 
         e.Handled = true;
-        new ModpackDropWindow(vm.Services, path) { Owner = this }.ShowDialog();
+
+        // 不弹窗：切到「下载 → 整合包 → 本地文件」，安装进度直接显示在那里面板里。
+        var download = vm.NavItems.Select(n => n.Page).OfType<DLP.App.ViewModels.DownloadViewModel>().FirstOrDefault();
+        if (download is not null)
+        {
+            vm.SelectedNav = vm.NavItems.FirstOrDefault(n => ReferenceEquals(n.Page, download));
+            download.StartLocalImport(path);
+        }
     }
 }

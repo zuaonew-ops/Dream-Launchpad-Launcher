@@ -11,6 +11,9 @@ public sealed class AppSettings
     public string? JavaPath { get; set; }
     public string DownloadSource { get; set; } = "official";
 
+    /// <summary>外观：light / dark。</summary>
+    public string Theme { get; set; } = "light";
+
     /// <summary>配置迁移版本；2 表示已把旧的默认镜像源切成官方源。</summary>
     public int SchemaVersion { get; set; }
     public bool VersionIsolation { get; set; } = true;

@@ -20,5 +20,7 @@ public partial class App : Application
         var window = new MainWindow { DataContext = viewModel };
         MainWindow = window;
         window.Show();
+
+        ThemeManager.Apply(services.Settings.Theme);
     }
 }

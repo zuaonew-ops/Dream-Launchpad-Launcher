@@ -72,8 +72,62 @@ public sealed class DownloadViewModel : ObservableObject
     /// <summary>全局任务队列，右下角弹窗与下载详情面板共用。</summary>
     public DownloadMonitor Downloads => _services.Downloads;
 
+    /// <summary>最近一次拖入的整合包安装任务，进度显示在「本地文件」二级菜单里。</summary>
+    private DownloadTaskViewModel? _localImport;
+
+    public DownloadTaskViewModel? LocalImport
+    {
+        get => _localImport;
+        private set
+        {
+            if (!SetProperty(ref _localImport, value)) return;
+            OnPropertyChanged(nameof(HasLocalImport));
+        }
+    }
+
+    public bool HasLocalImport => _localImport is not null;
+
+    /// <summary>拖入 .zip / .mrpack：切到「整合包 → 本地文件」，进度直接显示在这个面板里，不弹窗。</summary>
+    public void StartLocalImport(string path)
+    {
+        var pack = Categories.FirstOrDefault(c => c.Kind == "modpack");
+        if (pack is not null) SelectedCategory = pack;
+        if (SubTabs.Contains("本地文件")) SelectedSubTab = "本地文件";
+        _ = ImportPackAsync(path);
+    }
+
+    private async Task ImportPackAsync(string path)
+    {
+        var fileName = System.IO.Path.GetFileName(path);
+        var task = Downloads.Begin($"安装整合包 {fileName}");
+        LocalImport = task;
+
+        var progress = new Progress<string>(text =>
+        {
+            task.Update(text);
+            Status = text;
+        });
+
+        try
+        {
+            Status = $"正在安装 {fileName}…";
+            var result = await _services.Modpacks.InstallFromFileAsync(path, null, progress, CancellationToken.None);
+            _services.NotifyInstalledVersionsChanged();
+            task.Complete($"安装完成：{result.VersionId}（{result.FilesInstalled} 个文件）");
+            Status = $"整合包安装完成：{result.VersionId}";
+        }
+        catch (Exception ex)
+        {
+            _services.Log.Error($"整合包安装失败：{ex}");
+            task.Fail("安装失败：" + ex.Message);
+            Status = "整合包安装失败：" + ex.Message;
+        }
+    }
+
     /// <summary>二级菜单：按一级分类给出子选项。</summary>
     public ObservableCollection<string> SubTabs { get; } = [];
+
+    private readonly Dictionary<string, string> _versionChannels = new(StringComparer.OrdinalIgnoreCase);
 
     public string SelectedSubTab
     {
@@ -81,6 +135,7 @@ public sealed class DownloadViewModel : ObservableObject
         set
         {
             if (!SetProperty(ref _selectedSubTab, value)) return;
+            if (IsVersionTab) ApplyVersionFilter();
             OnPropertyChanged(nameof(ShowLoader));
             OnPropertyChanged(nameof(ShowSearch));
             OnPropertyChanged(nameof(ShowSearchButton));
@@ -111,7 +166,11 @@ public sealed class DownloadViewModel : ObservableObject
         SubTabs.Clear();
         if (SelectedCategory.IsVersion)
         {
-            // 原版和加载器合并成一个安装表单，不再需要二级菜单。
+            // 正式版 / 快照版 / 愚人节版 分开列，另留一个「全部」。
+            SubTabs.Add(VersionChannel.Release);
+            SubTabs.Add(VersionChannel.Snapshot);
+            SubTabs.Add(VersionChannel.AprilFools);
+            SubTabs.Add("全部");
         }
         else if (SelectedCategory.Kind == "modpack")
         {
@@ -142,6 +201,9 @@ public sealed class DownloadViewModel : ObservableObject
             Results.Clear();
             SelectedProject = null;
             RebuildSubTabs();
+            // 模组列表要按加载器筛：一进模组分类就把加载器定到 Fabric（原版模组基本不存在）。
+            if (value.Kind == "mod" && SelectedLoader == "原版" && AvailableLoaders.Contains("Fabric"))
+                SelectedLoader = "Fabric";
             OnPropertyChanged(nameof(InstallActionText));
             Status = value.IsVersion ? "选择版本后安装" : "加载热门内容…";
             if (value.IsVersion) _ = LoadManifestAsync();
@@ -176,6 +238,7 @@ public sealed class DownloadViewModel : ObservableObject
         {
             if (!SetProperty(ref _selectedLoader, value)) return;
             _ = LoadLoadersAsync();
+            if (IsContentTab && SelectedCategory.Kind == "mod") _ = LoadFeaturedAsync();
         }
     }
 
@@ -258,14 +321,16 @@ public sealed class DownloadViewModel : ObservableObject
             var previous = SelectedGameVersion;
             ManifestVersions.Clear();
             FilteredVersions.Clear();
+            _versionChannels.Clear();
             foreach (var entry in manifest.Versions)
             {
                 ManifestVersions.Add(entry.Id);
-                FilteredVersions.Add(entry.Id);
+                _versionChannels[entry.Id] = VersionChannel.Classify(entry.Id, entry.Type);
             }
-            var fallback = previous is not null && ManifestVersions.Contains(previous)
+            ApplyVersionFilter(keepSelection: false);
+            var fallback = previous is not null && FilteredVersions.Contains(previous)
                 ? previous
-                : manifest.Versions.FirstOrDefault(v => v.Type == "release")?.Id ?? ManifestVersions.FirstOrDefault();
+                : FilteredVersions.FirstOrDefault() ?? ManifestVersions.FirstOrDefault();
             await Application.Current.Dispatcher.InvokeAsync(() => SelectedGameVersion = fallback);
             Status = $"共 {ManifestVersions.Count} 个版本";
             if (IsVersionTab && Search.Trim().Length > 0) ApplyVersionFilter();
@@ -358,18 +423,27 @@ public sealed class DownloadViewModel : ObservableObject
         return new Version(major, minor, patch);
     }
 
-    private void ApplyVersionFilter()
+    private void ApplyVersionFilter(bool keepSelection = true)
     {
         var keyword = Search.Trim();
-        var previous = SelectedGameVersion;
+        var channel = IsVersionTab ? SelectedSubTab : "全部";
+        var previous = keepSelection ? SelectedGameVersion : null;
         FilteredVersions.Clear();
         foreach (var id in ManifestVersions)
-            if (keyword.Length == 0 || id.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                FilteredVersions.Add(id);
+        {
+            if (keyword.Length > 0 && !id.Contains(keyword, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!string.IsNullOrEmpty(channel) && channel != "全部")
+            {
+                var value = _versionChannels.TryGetValue(id, out var v) ? v : VersionChannel.Legacy;
+                if (!string.Equals(value, channel, StringComparison.Ordinal)) continue;
+            }
+            FilteredVersions.Add(id);
+        }
 
+        var channelText = string.IsNullOrEmpty(channel) || channel == "全部" ? "" : channel + " ";
         Status = keyword.Length == 0
-            ? $"共 {ManifestVersions.Count} 个版本，输入版本号过滤"
-            : $"匹配 {FilteredVersions.Count} / {ManifestVersions.Count} 个版本";
+            ? $"{(channelText.Length > 0 ? channelText : "")}共 {FilteredVersions.Count} 个版本"
+            : $"{(channelText.Length > 0 ? channelText : "")}匹配 {FilteredVersions.Count} / {ManifestVersions.Count} 个版本";
 
         SelectedGameVersion = previous is not null && FilteredVersions.Contains(previous)
             ? previous

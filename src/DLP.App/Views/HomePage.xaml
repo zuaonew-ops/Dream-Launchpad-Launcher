@@ -16,9 +16,9 @@
 
                         <Grid Margin="0,16,0,0">
                             <StackPanel Orientation="Horizontal">
-                                <Border Width="36" Height="36" CornerRadius="18" Background="#E4E6E8">
+                                <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource Line}">
                                     <TextBlock Text="{Binding AccountInitial, FallbackValue=?}" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextSecondary}"
+                                               Foreground="{DynamicResource TextSecondary}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
@@ -27,7 +27,7 @@
                                 </StackPanel>
                             </StackPanel>
                             <Border Style="{StaticResource Chip}" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <TextBlock Text="左下角切换账号" FontSize="11" Foreground="{StaticResource TextSecondary}" />
+                                <TextBlock Text="左下角切换账号" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                             </Border>
                         </Grid>
 
@@ -41,7 +41,7 @@
                                     SmallChange="128" LargeChange="1024" Value="{Binding MemoryMb}" />
                             <TextBlock Text="{Binding MemoryMb, StringFormat={}{0} MB}" HorizontalAlignment="Right"
                                        VerticalAlignment="Top" Margin="0,-2,0,0" FontSize="11.5"
-                                       Foreground="{StaticResource TextTertiary}" />
+                                       Foreground="{DynamicResource TextTertiary}" />
                         </Grid>
 
                         <Button Content="启动游戏" Style="{StaticResource PrimaryButton}" Height="42" Margin="0,22,0,0"
@@ -49,7 +49,7 @@
 
                         <TextBlock Text="{Binding Status}" Style="{StaticResource SmallText}" Margin="0,12,0,0" TextWrapping="Wrap" />
                         <TextBlock Text="还没有安装版本，去「下载」页安装一个。" Style="{StaticResource SmallText}"
-                                   Foreground="{StaticResource Danger}" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Danger}" Margin="0,6,0,0" TextWrapping="Wrap"
                                    Visibility="{Binding HasNoVersions, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                 </Border>

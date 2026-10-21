@@ -4,7 +4,7 @@
         Title="Dream Launchpad Launcher"
         Width="1180" Height="760" MinWidth="980" MinHeight="620"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource WindowBg}"
+        Background="{DynamicResource WindowBg}"
         FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="12.5">
     <Grid AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop">
         <Grid.ColumnDefinitions>
@@ -12,7 +12,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -29,7 +29,7 @@
                          Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
-                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                             <Setter Property="Margin" Value="0,1" />
                             <Setter Property="Template">
                                 <Setter.Value>
@@ -39,11 +39,11 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="#E5E6E9" />
+                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Line}" />
                                             </Trigger>
                                             <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}" />
-                                                <Setter Property="Foreground" Value="{StaticResource Accent}" />
+                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoft}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Accent}" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -61,15 +61,15 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+                <Border Grid.Row="2" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
                     <Button x:Name="AccountButton" Click="Account_Click" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bd" Background="Transparent" Padding="14,10">
                                     <StackPanel Orientation="Horizontal">
-                                        <Border Width="30" Height="30" CornerRadius="15" Background="#DEE0E3">
+                                        <Border Width="30" Height="30" CornerRadius="15" Background="{DynamicResource Line}">
                                             <TextBlock Text="{Binding AccountInitial}" FontSize="13" FontWeight="SemiBold"
-                                                       Foreground="{StaticResource TextSecondary}"
+                                                       Foreground="{DynamicResource TextSecondary}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
                                         <StackPanel Margin="9,0,0,0" VerticalAlignment="Center">
@@ -77,13 +77,13 @@
                                             <TextBlock Text="{Binding AccountKind}" Style="{StaticResource SmallText}" Margin="0,1,0,0" />
                                         </StackPanel>
                                         <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="9"
-                                                   Foreground="{StaticResource TextTertiary}"
+                                                   Foreground="{DynamicResource TextTertiary}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
                                     </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Bd" Property="Background" Value="#E5E6E9" />
+                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Line}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -93,7 +93,7 @@
 
                 <Popup x:Name="AccountPopup" PlacementTarget="{Binding ElementName=AccountButton}" Placement="Top"
                        StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" HorizontalOffset="8">
-                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
                             CornerRadius="8" Padding="8" Width="230">
                         <StackPanel>
                             <TextBlock Text="切换账号" Style="{StaticResource SmallText}" Margin="8,4,8,6" />
@@ -120,13 +120,13 @@
                                             <Button Grid.Column="1" Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="9"
                                                     Width="24" Height="24" Margin="12,0,0,0" VerticalAlignment="Center"
                                                     Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                                    Foreground="{StaticResource TextTertiary}"
+                                                    Foreground="{DynamicResource TextTertiary}"
                                                     ToolTip="删除这个账号" Click="RemoveAccount_Click" />
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <Border Height="1" Background="{StaticResource Line}" Margin="6,6" />
+                            <Border Height="1" Background="{DynamicResource Line}" Margin="6,6" />
                             <Button Content="添加离线账号" Style="{StaticResource SecondaryButton}" Click="AddOffline_Click" />
                             <Button Content="添加微软账号" Style="{StaticResource SecondaryButton}" Margin="0,6,0,0" Click="AddMicrosoft_Click" />
                             <TextBlock Text="可以添加多个离线账号，点一下就能切换" Style="{StaticResource SmallText}" Margin="4,8,4,2" />
@@ -140,7 +140,7 @@
 
         <Border x:Name="TaskPopup" Grid.Column="1" Width="330" Margin="0,0,18,18"
                 VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
                 CornerRadius="10" Visibility="Collapsed" Opacity="0" IsHitTestVisible="True">
             <Border.RenderTransform>
                 <TranslateTransform x:Name="TaskPopupOffset" Y="28" />
@@ -153,7 +153,7 @@
                     <TextBlock Text="下载任务" FontSize="12.5" FontWeight="SemiBold" />
                     <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10"
                             HorizontalAlignment="Right" Width="24" Height="24" Cursor="Hand"
-                            Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextTertiary}"
+                            Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextTertiary}"
                             Click="TaskPopupClose_Click" />
                 </Grid>
                 <ItemsControl ItemsSource="{Binding Downloads.Tasks}" Margin="14,0,14,8">
