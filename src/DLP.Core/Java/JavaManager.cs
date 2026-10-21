@@ -75,7 +75,7 @@ public sealed class JavaManager(GamePaths paths, HttpClient http, DownloadClient
                 var text = File.ReadAllText(releaseFile);
                 var version = Regex.Match(text, "JAVA_VERSION=\"([^\"]+)\"").Groups[1].Value;
                 var arch = Regex.Match(text, "OS_ARCH=\"([^\"]+)\"").Groups[1].Value;
-                if (version.Length > 0)
+                if (version.Length > 0 && RunsOk(path))
                     return new JavaRuntime(path, ParseMajor(version), arch.Contains("64"), version, home);
             }
 
@@ -98,6 +98,34 @@ public sealed class JavaManager(GamePaths paths, HttpClient http, DownloadClient
         {
             log.Debug($"探测 Java 失败 {path}：{ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>真的把 java.exe 跑一下，坏掉的运行时（缺 lib/modules 等）会被过滤掉。</summary>
+    private bool RunsOk(string javaExe)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(javaExe, "-version")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var process = Process.Start(psi);
+            if (process is null) return false;
+            var output = process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd();
+            if (!process.WaitForExit(8000))
+            {
+                try { process.Kill(true); } catch { /* 忽略 */ }
+                return false;
+            }
+            return process.ExitCode == 0 && output.Contains("version", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -132,9 +160,53 @@ public sealed class JavaManager(GamePaths paths, HttpClient http, DownloadClient
             _ => "java-runtime-epsilon"
         };
 
-        log.Info($"未找到 Java {required}，下载 Mojang 运行时 {component}");
-        var javaPath = await DownloadRuntimeAsync(component, ct);
-        return new JavaRuntime(javaPath, required, true, required.ToString(), Path.GetDirectoryName(javaPath)!);
+        log.Info($"未找到 Java {required}，下载 Temurin JRE {required}（Adoptium）");
+        return await DownloadAdoptiumAsync(required, ct);
+    }
+
+    /// <summary>
+    /// 下载 Adoptium 的 Temurin JRE 压缩包并解压。
+    /// 不走 Mojang 的按文件清单：那套清单大部分文件只给 .lzma 分片，缺少 LZMA 解码会导致 lib/modules 缺失，JVM 起不来。
+    /// </summary>
+    private async Task<JavaRuntime> DownloadAdoptiumAsync(int major, CancellationToken ct)
+    {
+        var zipPath = Path.Combine(paths.Cache, $"temurin-{major}-win64.zip");
+        var url = $"https://api.adoptium.net/v3/binary/latest/{major}/ga/windows/x64/jre/hotspot/normal/eclipse";
+
+        log.Info($"下载 {url}");
+        using (var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct))
+        {
+            response.EnsureSuccessStatusCode();
+            Directory.CreateDirectory(paths.Cache);
+            await using var input = await response.Content.ReadAsStreamAsync(ct);
+            await using var output = File.Create(zipPath);
+            await input.CopyToAsync(output, ct);
+        }
+
+        var target = Path.Combine(paths.Runtime, $"temurin-{major}");
+        var temp = target + ".extract";
+        if (Directory.Exists(temp)) Directory.Delete(temp, true);
+        Directory.CreateDirectory(temp);
+        System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, temp, overwriteFiles: true);
+
+        var inner = Directory.EnumerateDirectories(temp).FirstOrDefault()
+                    ?? throw new InvalidOperationException("Temurin 压缩包为空");
+        if (Directory.Exists(target)) Directory.Delete(target, true);
+        Directory.Move(inner, target);
+        Directory.Delete(temp, true);
+        TryDelete(zipPath);
+
+        var javaExe = Path.Combine(target, "bin", "java.exe");
+        if (!File.Exists(javaExe)) throw new InvalidOperationException($"解压后未找到 java.exe：{javaExe}");
+        if (!RunsOk(javaExe)) throw new InvalidOperationException($"下载的 Java {major} 无法运行：{javaExe}");
+
+        log.Info($"Java {major} 就绪：{javaExe}");
+        return new JavaRuntime(javaExe, major, true, major.ToString(), target);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { /* 忽略 */ }
     }
 
     private async Task<string> DownloadRuntimeAsync(string component, CancellationToken ct)
