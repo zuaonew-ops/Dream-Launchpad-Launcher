@@ -35,7 +35,7 @@ public sealed class MicrosoftAuthService
     /// 默认客户端 ID：可以通过 MSBuild 属性注入（发布时 <c>-p:MicrosoftClientId=xxx</c>），
     /// 或者放在数据目录的 client_id.txt / 设置页里。留空时登录会给出注册引导。
     /// </summary>
-    public static string DefaultClientId { get; set; } = "";
+    public static string DefaultClientId { get; set; } = "9c8a21d5-5f66-4dba-b90a-42e47d2aaac1";
 
     private readonly HttpClient _http;
     private string _clientId;

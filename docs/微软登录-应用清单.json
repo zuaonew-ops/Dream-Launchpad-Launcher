@@ -29,7 +29,7 @@
 	"api": {
 		"acceptMappedClaims": null,
 		"knownClientApplications": [],
-		"requestedAccessTokenVersion": null,
+		"requestedAccessTokenVersion": 2,
 		"oauth2PermissionScopes": [],
 		"preAuthorizedApplications": []
 	},
