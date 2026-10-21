@@ -8,7 +8,14 @@ using DLP.Core.Minecraft;
 
 var paths = GamePaths.CreateDefault();
 using var log = new Log(paths.Logs);
-using var http = new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) })
+using var http = new HttpClient(new SocketsHttpHandler
+{
+    PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+    MaxConnectionsPerServer = 64,
+    EnableMultipleHttp2Connections = true,
+    AutomaticDecompression = System.Net.DecompressionMethods.All,
+    ConnectTimeout = TimeSpan.FromSeconds(15)
+})
 {
     Timeout = TimeSpan.FromMinutes(5)
 };
@@ -21,7 +28,7 @@ var versions = new VersionRepository(paths, downloader, manifests);
 var java = new JavaManager(paths, http, downloader, log);
 var installer = new GameInstaller(paths, downloader, versions, log);
 var launcher = new GameLauncher(paths, log);
-Mirrors.Enabled = true;
+Mirrors.Enabled = args.Contains("--mirror");
 
 var command = args.FirstOrDefault() ?? "help";
 var rest = args.Skip(1).ToArray();
@@ -40,7 +47,7 @@ try
             Console.WriteLine("""
 DLP 命令行
   dlp versions [--all] [-n 20]      列出可安装版本
-  dlp install <versionId>            安装原版
+  dlp install <versionId> [--mirror] 安装原版（默认官方源，--mirror 走 BMCLAPI）
   dlp java [<versionId>]             扫描/检查 Java（给版本 ID 时确保该版本所需 Java）
   dlp run <versionId> [--username 名字] [--memory 2048] [--java 路径]
   dlp info <versionId>               查看版本详情
@@ -134,7 +141,8 @@ DLP 命令行
         case "install":
         {
             var id = rest.FirstOrDefault() ?? throw new ArgumentException("缺少版本 ID");
-            await installer.InstallAsync(id);
+            await installer.InstallAsync(id, new Progress<InstallProgress>(p =>
+                Console.WriteLine($"{p.Stage} {p.Completed}/{p.Total} {p.DownloadedBytes / 1048576.0:F1}MB/{p.TotalBytes / 1048576.0:F1}MB")));
             var version = await versions.ResolveAsync(id);
             var runtime = await java.EnsureAsync(version);
             Console.WriteLine($"安装完成：{id}，Java {runtime.MajorVersion}（{runtime.Path}）");

@@ -21,7 +21,7 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
         progress?.Report(new InstallProgress("client", 0, 1, 0, jar.Size));
         await downloader.DownloadAsync(jar.Url, paths.VersionJar(versionId), jar.Sha1, jar.Size, ct);
 
-        await InstallLibrariesAsync(version, ct);
+        await InstallLibrariesAsync(version, progress, ct);
         await InstallAssetsAsync(version, progress, ct);
         await InstallLoggingAsync(version, ct);
 
@@ -30,12 +30,16 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
         log.Info($"安装完成 {versionId}");
     }
 
-    private async Task InstallLibrariesAsync(VersionJson version, CancellationToken ct)
+    private async Task InstallLibrariesAsync(VersionJson version, IProgress<InstallProgress>? progress, CancellationToken ct)
     {
         var nativesDir = paths.NativesDir(version.Id);
         Directory.CreateDirectory(nativesDir);
         var jobs = new List<Task>();
-        using var gate = new SemaphoreSlim(8);
+        using var gate = new SemaphoreSlim(16);
+        var done = 0;
+        var bytes = 0L;
+        var totalBytes = version.Libraries.Sum(l => l.Downloads?.Artifact?.Size
+            ?? (l.Downloads?.Classifiers?.Values.Sum(c => c.Size) ?? 0L));
 
         foreach (var library in version.Libraries)
         {
@@ -56,9 +60,17 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
                     try
                     {
                         await downloader.DownloadAsync(nativeArtifact.Url, target, nativeArtifact.Sha1, nativeArtifact.Size, ct);
+                        Interlocked.Add(ref bytes, nativeArtifact.Size);
                         ExtractNatives(target, nativesDir, library.Extract);
                     }
-                    finally { gate.Release(); }
+                    finally
+                    {
+                        gate.Release();
+                        var current = Interlocked.Increment(ref done);
+                        if (current % 20 == 0 || current == version.Libraries.Count)
+                            progress?.Report(new InstallProgress("libraries", current, version.Libraries.Count,
+                                Interlocked.Read(ref bytes), totalBytes));
+                    }
                 }, ct));
                 continue;
             }
@@ -92,10 +104,18 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
                 try
                 {
                     await downloader.DownloadAsync(artifactUrl!, libPath, artifactSha1, artifactSize, ct);
+                    Interlocked.Add(ref bytes, artifactSize ?? 0);
                     // 1.13+ 把 natives 写成普通库（名字带 :natives-windows），这里顺手解压到 natives 目录。
                     if (isNative) ExtractNatives(libPath, nativesDir, library.Extract);
                 }
-                finally { gate.Release(); }
+                finally
+                {
+                    gate.Release();
+                    var current = Interlocked.Increment(ref done);
+                    if (current % 20 == 0 || current == version.Libraries.Count)
+                        progress?.Report(new InstallProgress("libraries", current, version.Libraries.Count,
+                            Interlocked.Read(ref bytes), totalBytes));
+                }
             }, ct));
         }
 
@@ -164,7 +184,9 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
 
         var unique = index.Objects.Values.GroupBy(o => o.Hash).Select(g => g.First()).ToList();
         var done = 0;
-        using var gate = new SemaphoreSlim(16);
+        var bytes = 0L;
+        var totalBytes = unique.Sum(a => a.Size);
+        using var gate = new SemaphoreSlim(32);
         var jobs = new List<Task>(unique.Count);
 
         foreach (var asset in unique)
@@ -178,15 +200,18 @@ public sealed class GameInstaller(GamePaths paths, DownloadClient downloader,
                 {
                     var url = $"https://resources.download.minecraft.net/{asset.Hash[..2]}/{asset.Hash}";
                     await downloader.DownloadAsync(url, target, asset.Hash, asset.Size, ct);
+                    Interlocked.Add(ref bytes, asset.Size);
                     var current = Interlocked.Increment(ref done);
-                    if (current % 200 == 0) progress?.Report(new InstallProgress("assets", current, unique.Count, 0, indexRef.TotalSize));
+                    if (current % 100 == 0 || current == unique.Count)
+                        progress?.Report(new InstallProgress("assets", current, unique.Count,
+                            Interlocked.Read(ref bytes), totalBytes));
                 }
                 finally { gate.Release(); }
             }, ct));
         }
 
         await Task.WhenAll(jobs);
-        progress?.Report(new InstallProgress("assets", unique.Count, unique.Count, 0, indexRef.TotalSize));
+        progress?.Report(new InstallProgress("assets", unique.Count, unique.Count, totalBytes, totalBytes));
     }
 
     private async Task InstallLoggingAsync(VersionJson version, CancellationToken ct)

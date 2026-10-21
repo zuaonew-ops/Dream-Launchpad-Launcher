@@ -263,7 +263,7 @@ public sealed class ModpackInstaller(
         var done = 0;
 
         // 并发下载：CDN 单个连接很慢，串行装 51 个文件要十几分钟。
-        using var gate = new SemaphoreSlim(6);
+        using var gate = new SemaphoreSlim(16);
         var tasks = new List<Task>();
 
         for (var i = 0; i < total; i++)

@@ -22,7 +22,7 @@ public sealed class SettingsViewModel : ObservableObject
         _memoryMb = Math.Clamp(services.Settings.MemoryMb, 512, MaxMemoryMb);
         _username = services.Settings.Username;
         _javaPath = services.Settings.JavaPath ?? "";
-        _downloadSource = services.Settings.DownloadSource;
+        _downloadSource = ToLabel(services.Settings.DownloadSource);
         _clientId = services.Settings.MicrosoftClientId ?? "";
         SaveCommand = new RelayCommand(Save);
         BrowseJavaCommand = new RelayCommand(BrowseJava);
@@ -35,7 +35,14 @@ public sealed class SettingsViewModel : ObservableObject
     public RelayCommand BrowseJavaCommand { get; }
     public RelayCommand ScanJavaCommand { get; }
     public ObservableCollection<string> DetectedJava { get; }
-    public string[] Sources { get; } = ["bmclapi", "official"];
+    /// <summary>下载源选项：官方 CDN 实测比镜像快一倍以上，默认官方。</summary>
+    public string[] Sources { get; } = ["官方 CDN（推荐）", "BMCLAPI 镜像"];
+
+    private const string OfficialLabel = "官方 CDN（推荐）";
+    private const string MirrorLabel = "BMCLAPI 镜像";
+
+    private static string ToLabel(string value) => value == "official" ? OfficialLabel : MirrorLabel;
+    private static string ToValue(string label) => label == OfficialLabel ? "official" : "bmclapi";
 
     public int MemoryMb
     {
@@ -82,12 +89,12 @@ public sealed class SettingsViewModel : ObservableObject
         settings.MemoryMb = Math.Clamp(MemoryMb, 512, MaxMemoryMb);
         settings.Username = string.IsNullOrWhiteSpace(Username) ? "Steve" : Username;
         settings.JavaPath = string.IsNullOrWhiteSpace(JavaPath) ? null : JavaPath;
-        settings.DownloadSource = DownloadSource;
+        settings.DownloadSource = ToValue(DownloadSource);
         settings.MicrosoftClientId = string.IsNullOrWhiteSpace(MicrosoftClientId) ? null : MicrosoftClientId.Trim();
         try
         {
             settings.Save();
-            Mirrors.Enabled = DownloadSource != "official";
+            Mirrors.Enabled = ToValue(DownloadSource) != "official";
             if (_services.Accounts.Current?.Kind != "msa") _services.Accounts.SetOffline(settings.Username);
             Status = "已保存";
         }

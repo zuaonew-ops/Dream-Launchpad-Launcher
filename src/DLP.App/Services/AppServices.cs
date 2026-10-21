@@ -25,6 +25,16 @@ public sealed class AppServices
     public AccountManager Accounts { get; }
     public ModrinthService Modrinth { get; }
     public LoaderService Loaders { get; }
+    /// <summary>下载用 HTTP 客户端：多连接、HTTP/2、连接复用，避免并发下载时被连接数卡住。</summary>
+    internal static SocketsHttpHandler CreateHandler() => new()
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        MaxConnectionsPerServer = 64,
+        EnableMultipleHttp2Connections = true,
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+        ConnectTimeout = TimeSpan.FromSeconds(15)
+    };
+
     public ModpackInstaller Modpacks { get; }
     public DownloadMonitor Downloads { get; } = new();
 
@@ -34,7 +44,7 @@ public sealed class AppServices
     {
         Paths = GamePaths.CreateDefault();
         Log = new Log(Paths.Logs);
-        Http = new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) })
+        Http = new HttpClient(CreateHandler())
         {
             Timeout = TimeSpan.FromMinutes(10)
         };

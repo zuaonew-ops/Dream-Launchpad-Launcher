@@ -20,8 +20,26 @@ public static class Mirrors
         ("https://launcher.mojang.com/", BaseUrl + "/")
     ];
 
-    /// <summary>镜像总开关；false 时 <see cref="Rewrite"/> 不做任何改动。</summary>
+    /// <summary>镜像总开关；false 时 <see cref="Rewrite"/> 不做任何改动（默认走官方，实测官方 CDN 更快）。</summary>
     public static bool Enabled { get; set; }
+
+    /// <summary>给出同一文件的另一个下载源：当前用镜像就返回官方地址，反之返回镜像地址；没有对应源时返回 null。</summary>
+    public static string? Alternative(string officialUrl, string currentUrl)
+    {
+        if (string.IsNullOrEmpty(officialUrl)) return null;
+
+        if (!string.Equals(currentUrl, officialUrl, StringComparison.OrdinalIgnoreCase))
+            return officialUrl;
+
+        foreach (var (prefix, replacement) in Rules)
+        {
+            if (!officialUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+            var mirrored = replacement + officialUrl[prefix.Length..];
+            return string.Equals(mirrored, currentUrl, StringComparison.OrdinalIgnoreCase) ? null : mirrored;
+        }
+
+        return null;
+    }
 
     /// <summary>把官方下载地址改写为镜像地址；不认识的地址原样返回。</summary>
     public static string Rewrite(string url)
