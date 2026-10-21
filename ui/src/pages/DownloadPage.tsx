@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import LoaderPicker from "../components/LoaderPicker";
 import MarketPanel from "../components/market/MarketPanel";
 import ProgressPanel from "../components/ProgressPanel";
+import PackInstaller from "../components/pack/PackInstaller";
 import VersionList from "../components/VersionList";
 import VersionToolbar from "../components/VersionToolbar";
 import {
@@ -46,10 +47,19 @@ export default function DownloadPage() {
           >
             资源
           </button>
+          <button
+            type="button"
+            className={state.downloadTab === "pack" ? "seg-item active" : "seg-item"}
+            onClick={() => actions.setDownloadTab("pack")}
+          >
+            整合包
+          </button>
         </div>
       </header>
 
-      {state.downloadTab === "versions" ? (
+      {state.downloadTab === "pack" ? (
+        <PackInstaller />
+      ) : state.downloadTab === "versions" ? (
         <section className="panel list-panel">
           <VersionToolbar
             keyword={state.search}

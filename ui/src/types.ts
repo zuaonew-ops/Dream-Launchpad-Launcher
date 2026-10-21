@@ -151,6 +151,20 @@ export interface SystemInfo {
   cores: number;
 }
 
+/** 整合包摘要（后端 PackPreview） */
+export interface PackPreview {
+  format: string;
+  name: string;
+  version: string;
+  mc: string;
+  /** [加载器键, 版本]，原版为 null */
+  loader: [string, string] | null;
+  files: number;
+  bytes: number;
+  overrides: number;
+  sample: string[];
+}
+
 export interface VersionStats {
   path: string;
   size: number;

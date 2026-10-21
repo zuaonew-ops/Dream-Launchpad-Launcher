@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type {
+  PackPreview,
   InstallStage,
   Account,
   AccountsPayload,
@@ -53,7 +54,13 @@ export interface State {
   defaultVersion: string | null;
   /** 下载页视图：列表 / 版本详情 / 该版本的设置 */
   downloadView: DownloadView;
-  downloadTab: "versions" | "market";
+  downloadTab: "versions" | "market" | "pack";
+  /** 选中的整合包 zip 绝对路径 */
+  packFile: string;
+  /** 整合包摘要（预览） */
+  packPreview: PackPreview | null;
+  /** 装出来的版本 id（可手改） */
+  packId: string;
   search: string;
   filter: TypeFilter;
   loading: boolean;
@@ -156,6 +163,9 @@ let state: State = {
   defaultVersion: null,
   downloadView: { name: "list" },
   downloadTab: "versions",
+  packFile: "",
+  packPreview: null,
+  packId: "",
   search: "",
   filter: "release",
   loading: false,
@@ -1056,6 +1066,63 @@ async function confirmInstall() {
   }
 }
 
+/** 选一个本地整合包文件 */
+async function pickPack() {
+  try {
+    const path = await invoke<string | null>("pick_pack");
+    if (!path) return;
+    set({ packFile: path, packPreview: null, packId: "", error: "", notice: "" });
+    await loadPackPreview(path);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+/** 读整合包摘要 */
+async function loadPackPreview(path: string) {
+  try {
+    const preview = await invoke<PackPreview>("pack_preview", { path });
+    set({ packPreview: preview, packId: preview.name });
+  } catch (e) {
+    set({ packPreview: null, error: String(e) });
+  }
+}
+
+/** 安装整合包：后端会装依赖版本、下文件、覆盖 overrides */
+async function installPack() {
+  const path = state.packFile;
+  if (!path || state.busy) return;
+  set({
+    busy: true,
+    error: "",
+    notice: "",
+    install: {
+      id: state.packId || "整合包",
+      stage: "准备安装整合包",
+      done: 0,
+      total: 0,
+      percent: 0,
+      bytes_done: 0,
+      bytes_total: 0,
+      current: "",
+      speed: "",
+    },
+  });
+  try {
+    const id = await invoke<string>("install_pack", { path, id: state.packId });
+    await refresh();
+    set({
+      busy: false,
+      notice: `整合包已装成版本 ${id}`,
+      selected: id,
+      install: null,
+      downloadView: { name: "detail", id },
+    });
+  } catch (e) {
+    set({ busy: false, install: null, error: String(e) });
+  }
+}
+
 async function installJava(major: number) {
   set({ busy: true, error: "", notice: `正在下载 Java ${major}…` });
   try {
@@ -1179,7 +1246,11 @@ export const actions = {
   setAllMods,
   loadCrashes,
   readCrash,
-  setDownloadTab: (tab: "versions" | "market") => set({ downloadTab: tab }),
+  setDownloadTab: (tab: "versions" | "market" | "pack") => set({ downloadTab: tab }),
+  setPackId: (packId: string) => set({ packId }),
+  pickPack,
+  loadPackPreview,
+  installPack,
   setSelected: (selected: string) => {
     set({ selected });
     void loadSettings(selected);

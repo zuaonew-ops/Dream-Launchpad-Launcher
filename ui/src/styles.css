@@ -3933,3 +3933,65 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1.7;
   color: #475467;
 }
+
+/* ── 整合包安装 ───────────────────────────────────────── */
+.pack-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f7f8fa;
+}
+
+.pack-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 10px;
+}
+
+.pack-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pack-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.pack-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: #667085;
+  font-size: 13px;
+}
+
+.pack-meta strong {
+  color: #1d2939;
+}
+
+.pack-sample {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 140px;
+  overflow: auto;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.pack-install {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.pack-install .field {
+  flex: 1;
+}

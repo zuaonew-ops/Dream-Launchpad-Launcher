@@ -10,6 +10,7 @@ use std::time::Duration;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
+mod pick;
 mod state;
 mod util;
 
@@ -782,6 +783,9 @@ pub fn run() {
             install_market_file,
             install_market,
             install_java,
+            pick_pack,
+            pack_preview,
+            install_pack,
             open_dir
         ])
         .run(tauri::generate_context!())
@@ -789,3 +793,37 @@ pub fn run() {
 }
 
 
+
+/// 打开文件选择框（整合包 zip）。
+#[tauri::command]
+fn pick_pack() -> Result<Option<String>, String> {
+    Ok(pick::pick_file("选择整合包", "整合包 (*.mrpack;*.zip)", "zip")?
+        .map(|p| p.to_string_lossy().to_string()))
+}
+
+/// 读整合包摘要（不安装）。
+#[tauri::command]
+fn pack_preview(path: String) -> Result<dlp_core::pack::PackPreview, String> {
+    dlp_core::pack::install::preview(std::path::Path::new(&path))
+}
+
+/// 安装整合包：装依赖版本 → 下文件 → 覆盖 overrides。
+#[tauri::command]
+async fn install_pack(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    path: String,
+    id: String,
+) -> Result<String, String> {
+    let progress = progress_to(app.clone());
+    let target = dlp_core::pack::install::install(
+        &state.client,
+        &state.paths,
+        std::path::Path::new(&path),
+        &id,
+        &curseforge_key(&state.paths),
+        Some(progress),
+    )
+    .await?;
+    Ok(target)
+}

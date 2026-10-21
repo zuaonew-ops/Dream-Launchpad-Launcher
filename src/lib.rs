@@ -12,6 +12,7 @@
 //! - [`launch`]    启动参数构建与进程拉起
 //! - [`loader`]    模组加载器（Fabric / Forge / NeoForge / Quilt）与 OptiFine
 //! - [`market`]    资源市场（Modrinth / CurseForge）
+//! - [`pack`]      整合包（.mrpack / CurseForge zip）
 //! - [`content`]   内容管理：模组、存档、资源包、日志、崩溃
 //! - [`sys`]       系统：硬件信息、Java 探测与下载
 
@@ -22,6 +23,7 @@ pub mod loader;
 pub mod market;
 pub mod minecraft;
 pub mod net;
+pub mod pack;
 pub mod store;
 pub mod sys;
 

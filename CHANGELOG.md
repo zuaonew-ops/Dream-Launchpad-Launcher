@@ -2,6 +2,28 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.27.0] - 2026-10-22
+
+整合包能装了：选一个 .mrpack 或 CurseForge 整合包 zip，装成一个独立版本。
+
+### 新增
+
+- **整合包安装**（下载页「整合包」页签）：选文件 → 看摘要（MC 版本、加载器、
+  文件数、大小、覆盖文件数）→ 装成新版本。默认装完进版本详情页
+  - Modrinth `.mrpack`：清单自带每个文件的直链和 SHA1，不需要 API key
+  - CurseForge zip：清单只有 projectID/fileID，用设置里的 API key 批量换直链；
+    作者禁用 API 分发时回退到 forgecdn 的直链公式
+  - 装完的版本是**独立目录**（版本 JSON 的 id 与 inheritsFrom 一起改），
+    不会和手动装的加载器版本互相污染
+- **原生文件选择框**（`src-tauri/src/pick.rs`）：调 `GetOpenFileNameW`，
+  不为一个对话框引 tauri-plugin-dialog
+
+### 实测
+
+- 造了一个最小 .mrpack（26.1 + fabric-loader 0.19.5），装成 `TestPack`：
+  版本 JSON `id=TestPack inheritsFrom=26.1 mainClass=KnotClient`，
+  overrides 里的 `config/test.txt` 正确落地，启动进到 Minecraft 客户端
+
 ## [0.26.0] - 2026-10-22
 
 加载器版本终于能启动了；主页能看出哪个版本是 DLP 装的；core 按域整理。
