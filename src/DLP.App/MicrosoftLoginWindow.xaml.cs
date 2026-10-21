@@ -100,6 +100,8 @@ public partial class MicrosoftLoginWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             Status = "登录失败：" + ex.Message;
+            _accounts.LogAuthFailure(ex.ToString());
+            MessageBox.Show(this, ex.Message, "身份验证失败", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

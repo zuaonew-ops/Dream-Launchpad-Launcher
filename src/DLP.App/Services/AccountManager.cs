@@ -34,6 +34,21 @@ public sealed class AccountManager
 
     public ObservableCollection<AccountEntry> Accounts { get; }
 
+    /// <summary>把登录失败原因写到 logs/auth.log，方便排查。</summary>
+    public void LogAuthFailure(string detail)
+    {
+        try
+        {
+            var dir = Path.Combine(_paths.Root, "logs");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "auth.log"),
+                $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] {detail}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+        }
+    }
+
     /// <summary>把客户端 ID 写进设置（登录窗口里直接填的那种）。</summary>
     public void SaveMicrosoftClientId(string clientId)
     {
