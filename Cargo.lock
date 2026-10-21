@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "dlp-core"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "futures-util",
  "hex",
@@ -701,12 +701,13 @@ dependencies = [
  "serde_json",
  "sha1",
  "tokio",
+ "windows-sys 0.61.2",
  "zip",
 ]
 
 [[package]]
 name = "dlp-desktop"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "dlp-core",
  "reqwest 0.12.28",

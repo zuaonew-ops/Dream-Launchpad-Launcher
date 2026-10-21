@@ -2729,3 +2729,97 @@ textarea:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ---------- 0.17.0：内存量程按真实内存 ---------- */
+
+.memory-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+.memory-quick {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.chip {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid #e4e9f2;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 11px;
+  color: #475467;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip:hover {
+  border-color: #c7d2e5;
+  background: #f8fafd;
+}
+
+.chip.active {
+  border-color: #3f6ef2;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.value-hint {
+  font-style: normal;
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+/* 滑块本体：统一轨道与滑块外观 */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: #e4ebf7;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3f6ef2;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #3f6ef2;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3f6ef2;
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+
+/* 卡片按内容高度，别为了等高留出大片空白 */
+.grid {
+  align-items: start;
+}
+
+.grid > .panel {
+  display: block;
+}
+
+/* 本机卡里的四格数字紧凑一点 */
+.stat-grid dd {
+  font-size: 15px;
+}

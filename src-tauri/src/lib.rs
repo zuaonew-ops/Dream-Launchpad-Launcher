@@ -62,6 +62,11 @@ struct Environment {
 }
 
 #[tauri::command]
+fn system_info() -> dlp_core::system::SystemInfo {
+    dlp_core::system::info()
+}
+
+#[tauri::command]
 async fn environment(state: State<'_, AppState>) -> Result<Environment, String> {
     Ok(Environment {
         os: std::env::consts::OS.to_string(),
@@ -715,6 +720,7 @@ pub fn run() {
             game: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
+            system_info,
             environment,
             list_versions,
             detect_java,

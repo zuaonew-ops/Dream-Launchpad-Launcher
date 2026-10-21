@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { actions, useLauncher } from "../store";
+import { actions, memoryCeiling, useLauncher } from "../store";
 import type { VersionSettings } from "../types";
 
 function formatSize(bytes: number): string {
@@ -21,6 +21,7 @@ const EMPTY: VersionSettings = {
 export default function VersionSettingsPanel({ id }: { id: string }) {
   const state = useLauncher();
   const settings = state.settingsKey === id && state.settings ? state.settings : EMPTY;
+  const ceiling = memoryCeiling(state.system?.total_mb || 16384);
 
   useEffect(() => {
     void actions.loadVersionStats(id);
@@ -87,13 +88,16 @@ export default function VersionSettingsPanel({ id }: { id: string }) {
           <div className="inline">
             <input
               type="range"
-              min={1024}
-              max={16384}
-              step={512}
-              value={settings.memory_mb ?? 2048}
+              min={512}
+              max={ceiling}
+              step={256}
+              value={Math.min(settings.memory_mb ?? 2048, ceiling)}
               onChange={(e) => save({ memory_mb: Number(e.target.value) })}
             />
-            <span className="value">{settings.memory_mb ?? 2048} MB</span>
+            <span className="value">
+              {formatSize((settings.memory_mb ?? 2048) * 1024 * 1024).replace(" MB", " GB")}
+              <em className="value-hint"> / 上限 {Math.round(ceiling / 1024)} GB</em>
+            </span>
           </div>
         </label>
 

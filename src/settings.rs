@@ -27,6 +27,9 @@ pub struct VersionSettings {
     pub game_args: Vec<String>,
 }
 
+/// 内存上限兜底值：系统信息拿不到时按这个算
+pub const FALLBACK_TOTAL_MB: u32 = 16384;
+
 impl VersionSettings {
     /// 用 `other` 覆盖自己（只覆盖有值的字段）
     pub fn overridden_by(&self, other: &VersionSettings) -> VersionSettings {

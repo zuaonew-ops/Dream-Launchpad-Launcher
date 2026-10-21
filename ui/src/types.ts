@@ -104,6 +104,13 @@ export interface CrashEntry {
 }
 
 /** 版本概况 */
+/** 系统信息：内存滑块的上限按真实内存算 */
+export interface SystemInfo {
+  total_mb: number;
+  available_mb: number;
+  cores: number;
+}
+
 export interface VersionStats {
   path: string;
   size: number;

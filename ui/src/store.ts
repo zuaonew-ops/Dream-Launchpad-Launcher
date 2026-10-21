@@ -7,6 +7,7 @@ import type {
   AppSettings,
   Candidate,
   CrashEntry,
+  SystemInfo,
   VersionStats,
   DownloadView,
   Environment,
@@ -92,6 +93,8 @@ export interface State {
   crashes: CrashEntry[];
   /** 当前查看版本的概况（大小/文件数/模组数） */
   versionStats: VersionStats | null;
+  /** 物理内存总量等，内存滑块的量程靠它 */
+  system: SystemInfo | null;
   crashName: string;
   crashText: string;
   theme: Theme;
@@ -154,6 +157,7 @@ let state: State = {
   logText: "",
   crashes: [],
   versionStats: null,
+  system: null,
   crashName: "",
   crashText: "",
   theme: (localStorage.getItem("dlp.theme") as Theme) ?? "light",
@@ -410,6 +414,8 @@ async function init() {
     });
   });
 
+  void loadSystem();
+
   await refresh();
   if (state.selected) {
     void loadContent(state.selected);
@@ -511,6 +517,23 @@ async function setAllMods(id: string, enabled: boolean) {
 }
 
 /** 拉到某版本的概况；切版本时先清空，避免显示上一个版本的数字 */
+/** 建议上限：留 1G 给系统，最多给到物理内存的 80%，向上取整到 256MB */
+export function memoryCeiling(totalMb: number): number {
+  const eighty = Math.floor((totalMb * 8) / 10);
+  const capped = Math.max(totalMb - 1024, 512);
+  const value = Math.min(eighty, capped);
+  return Math.max(512, Math.floor(value / 256) * 256);
+}
+
+async function loadSystem() {
+  try {
+    const system = await invoke<SystemInfo>("system_info");
+    set({ system });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 async function loadVersionStats(id: string) {
   set({ versionStats: null });
   try {
@@ -687,6 +710,7 @@ export const actions = {
   repairVersion,
   deleteVersion,
   loadVersionStats,
+  loadSystem,
   setAllMods,
   loadCrashes,
   readCrash,

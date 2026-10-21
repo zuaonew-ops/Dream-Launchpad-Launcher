@@ -1,4 +1,4 @@
-import { actions, selectSelectedVersion, useLauncher } from "../store";
+import { actions, memoryCeiling, selectSelectedVersion, useLauncher } from "../store";
 import type { VersionSettings } from "../types";
 
 const FALLBACK: VersionSettings = {
@@ -9,12 +9,22 @@ const FALLBACK: VersionSettings = {
     game_args: [],
 };
 
+function formatMemory(mb: number): string {
+  if (mb >= 1024) {
+    const gb = mb / 1024;
+    return `${Number.isInteger(gb) ? gb : gb.toFixed(1)} GB`;
+  }
+  return `${mb} MB`;
+}
+
 export default function SettingsPage() {
   const state = useLauncher();
   const installed = state.versions.filter((v) => v.installed);
   const selected = selectSelectedVersion(state);
   const key = state.settingsKey || selected?.id || "*";
   const settings = state.settings ?? FALLBACK;
+  const ceiling = memoryCeiling(state.system?.total_mb || 16384);
+  const memory = Math.min(settings.memory_mb ?? 2048, ceiling);
 
   const save = (patch: Partial<VersionSettings>) => {
     void actions.saveSettings(key, { ...settings, ...patch });
@@ -71,19 +81,61 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
+          <div className="section-head">
+            <h2>本机</h2>
+            <span className="hint">启动器能用多少资源</span>
+          </div>
+          <dl className="stat-grid">
+            <div>
+              <dt>物理内存</dt>
+              <dd>{formatMemory(state.system?.total_mb ?? 0)}</dd>
+            </div>
+            <div>
+              <dt>当前可用</dt>
+              <dd>{formatMemory(state.system?.available_mb ?? 0)}</dd>
+            </div>
+            <div>
+              <dt>CPU 核心</dt>
+              <dd>{state.system?.cores ?? 0}</dd>
+            </div>
+            <div>
+              <dt>已检测 Java</dt>
+              <dd>{state.javas.length}</dd>
+            </div>
+          </dl>
+        </section>
+        <section className="panel">
           <h2>内存与 Java</h2>
           <label className="field">
             <span className="label">内存上限</span>
             <div className="inline">
               <input
                 type="range"
-                min={1024}
-                max={16384}
-                step={512}
-                value={settings.memory_mb ?? 2048}
+                min={512}
+                max={ceiling}
+                step={256}
+                value={memory}
                 onChange={(e) => save({ memory_mb: Number(e.target.value) })}
               />
-              <span className="value">{settings.memory_mb ?? 2048} MB</span>
+              <span className="value">{formatMemory(memory)}</span>
+            </div>
+            <div className="memory-meta">
+              <span>
+                系统共 {formatMemory(state.system?.total_mb ?? 0)}，当前可用{" "}
+                {formatMemory(state.system?.available_mb ?? 0)}；上限按 80% 计算
+              </span>
+              <div className="memory-quick">
+                {[2048, 4096, 8192, ceiling].map((mb, index) => (
+                  <button
+                    key={mb}
+                    type="button"
+                    className={memory === mb ? "chip active" : "chip"}
+                    onClick={() => save({ memory_mb: mb })}
+                  >
+                    {index === 3 ? "建议" : formatMemory(mb)}
+                  </button>
+                ))}
+              </div>
             </div>
           </label>
 
