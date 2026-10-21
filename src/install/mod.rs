@@ -58,7 +58,8 @@ fn metadata_jobs(paths: &Paths, id: &str, version: &VersionJson) -> Vec<Job> {
             paths.client_jar(id),
             client_jar.sha1.clone(),
             Some(id),
-        ));
+        )
+        .with_size(client_jar.size.unwrap_or(0)));
     }
 
     if let Some(file) = log_config_file(version) {
@@ -70,7 +71,8 @@ fn metadata_jobs(paths: &Paths, id: &str, version: &VersionJson) -> Vec<Job> {
             file.url.clone(),
             paths.log_configs().join(name),
             file.sha1.clone(),
-        ));
+        )
+        .with_size(file.size.unwrap_or(0)));
     }
 
     if let Some(index) = &version.asset_index {
@@ -78,7 +80,8 @@ fn metadata_jobs(paths: &Paths, id: &str, version: &VersionJson) -> Vec<Job> {
             index.url.clone(),
             paths.indexes().join(format!("{}.json", index.id)),
             index.sha1.clone(),
-        ));
+        )
+        .with_size(index.size.unwrap_or(0)));
     }
 
     jobs
@@ -112,7 +115,7 @@ fn libraries_jobs(paths: &Paths, version: &VersionJson) -> (Vec<Job>, Vec<Job>) 
                     paths.libraries().join(path),
                     artifact.sha1.clone(),
                     None,
-                ));
+                ).with_size(artifact.size.unwrap_or(0)));
             }
         }
         if let Some(key) = version.native_key(lib) {
@@ -123,7 +126,8 @@ fn libraries_jobs(paths: &Paths, version: &VersionJson) -> (Vec<Job>, Vec<Job>) 
                         paths.libraries().join(path),
                         native.sha1.clone(),
                         None,
-                    ));
+                    )
+                    .with_size(native.size.unwrap_or(0)));
                 }
             }
         }

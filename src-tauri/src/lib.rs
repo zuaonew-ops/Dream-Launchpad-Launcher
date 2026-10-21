@@ -6,6 +6,7 @@ use dlp_core::{
     settings::{AppSettings, Store},
 };
 use std::collections::HashSet;
+use std::time::Duration;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -37,6 +38,13 @@ struct ProgressPayload {
     stage: String,
     done: usize,
     total: usize,
+    /// 已收字节 / 总字节（0 = 这个阶段不按字节算）
+    bytes_done: u64,
+    bytes_total: u64,
+    /// 当前正在处理的文件名
+    current: String,
+    /// 速度，形如 "3.2 MB/s"
+    speed: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -331,13 +339,17 @@ async fn install_version(
         .ok_or_else(|| format!("找不到版本 {id}"))?;
     install::ensure_version_json(&client, &paths, &entry).await?;
 
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let _ = app.emit(
             "install-progress",
             ProgressPayload {
                 stage: stage.to_string(),
                 done,
                 total,
+                bytes_done: detail.done(),
+                bytes_total: detail.total(),
+                current: detail.current(),
+                speed: detail.speed(),
             },
         );
     });
@@ -486,13 +498,17 @@ async fn install_loader(
 ) -> Result<String, String> {
     let kind = loader::LoaderKind::parse(&kind).ok_or_else(|| format!("未知加载器: {kind}"))?;
     let paths = state.paths.clone();
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let _ = app.emit(
             "install-progress",
             ProgressPayload {
                 stage: stage.to_string(),
                 done,
                 total,
+                bytes_done: detail.done(),
+                bytes_total: detail.total(),
+                current: detail.current(),
+                speed: detail.speed(),
             },
         );
     });
@@ -528,13 +544,17 @@ async fn install_optifine(
     edition: String,
 ) -> Result<String, String> {
     let paths = state.paths.clone();
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let _ = app.emit(
             "install-progress",
             ProgressPayload {
                 stage: stage.to_string(),
                 done,
                 total,
+                bytes_done: detail.done(),
+                bytes_total: detail.total(),
+                current: detail.current(),
+                speed: detail.speed(),
             },
         );
     });
@@ -574,6 +594,12 @@ fn delete_mod(state: State<'_, AppState>, id: String, name: String) -> Result<()
     content::delete_mod(&game_dir(&state.paths, &id), &name)
 }
 
+/// 资源包 / 光影列表（kind = resourcepacks / shaderpacks）
+#[tauri::command]
+fn list_packs(state: State<'_, AppState>, id: String, kind: String) -> Vec<content::ModEntry> {
+    content::list_packs(&game_dir(&state.paths, &id), &kind)
+}
+
 #[tauri::command]
 fn list_saves(state: State<'_, AppState>, id: String) -> Vec<content::SaveEntry> {
     content::list_saves(&game_dir(&state.paths, &id))
@@ -598,13 +624,17 @@ async fn repair_version(
 ) -> Result<(), String> {
     let paths = state.paths.clone();
     let client = state.client.clone();
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let _ = app.emit(
             "install-progress",
             ProgressPayload {
                 stage: stage.to_string(),
                 done,
                 total,
+                bytes_done: detail.done(),
+                bytes_total: detail.total(),
+                current: detail.current(),
+                speed: detail.speed(),
             },
         );
     });
@@ -708,6 +738,8 @@ fn open_version_dir(state: State<'_, AppState>, id: String, kind: String) -> Res
     let target = match kind.as_str() {
         "mods" => instance.join("mods"),
         "saves" => instance.join("saves"),
+        "resourcepacks" => instance.join("resourcepacks"),
+        "shaderpacks" => instance.join("shaderpacks"),
         "instance" => instance,
         _ => state.paths.version_dir(&id),
     };
@@ -848,13 +880,17 @@ async fn install_market_file(
 ) -> Result<String, String> {
     let paths = state.paths.clone();
     let dir = game_dir(&paths, &id);
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let _ = app.emit(
             "install-progress",
             ProgressPayload {
                 stage: stage.to_string(),
                 done,
                 total,
+                bytes_done: detail.done(),
+                bytes_total: detail.total(),
+                current: detail.current(),
+                speed: detail.speed(),
             },
         );
     });
@@ -874,13 +910,17 @@ async fn install_market(
     let dir = game_dir(&paths, &id);
     let mc = base_mc_version(&paths, &id);
     let loader = loader_of(&id);
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let _ = app.emit(
             "install-progress",
             ProgressPayload {
                 stage: stage.to_string(),
                 done,
                 total,
+                bytes_done: detail.done(),
+                bytes_total: detail.total(),
+                current: detail.current(),
+                speed: detail.speed(),
             },
         );
     });
@@ -904,13 +944,17 @@ async fn install_java(
     major: u32,
 ) -> Result<String, String> {
     let paths = state.paths.clone();
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let _ = app.emit(
             "install-progress",
             ProgressPayload {
                 stage: stage.to_string(),
                 done,
                 total,
+                bytes_done: detail.done(),
+                bytes_total: detail.total(),
+                current: detail.current(),
+                speed: detail.speed(),
             },
         );
     });
@@ -956,8 +1000,16 @@ pub fn run() {
     let paths = Paths::new(Paths::default_root());
     std::fs::create_dir_all(&paths.root).ok();
 
+    // 连接池 + 超时都调过：默认值在「几百个小文件 + 几个大文件」这种混合负载下
+    // 会反复建连、也不会复用空闲连接，表现出来就是速度忽快忽慢。
     let client = reqwest::Client::builder()
         .user_agent(concat!("DLP/", env!("CARGO_PKG_VERSION")))
+        .pool_max_idle_per_host(64)
+        .pool_idle_timeout(Duration::from_secs(90))
+        .tcp_keepalive(Duration::from_secs(30))
+        .tcp_nodelay(true)
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(300))
         .build()
         .expect("构建 HTTP 客户端失败");
 
@@ -988,6 +1040,7 @@ pub fn run() {
             install_loader,
             install_optifine,
             list_mods,
+            list_packs,
             set_mod_enabled,
             delete_mod,
             list_saves,

@@ -95,11 +95,21 @@ export default function DownloadPage() {
             <strong>{state.install.id}</strong>
           </div>
           <div className="progress-slot">
+            <div className="progress-head-row">
+              <span className="hint">正在下载 {state.install.id}</span>
+              <button type="button" className="ghost small" onClick={actions.goTaskPage}>
+                进入详情 →
+              </button>
+            </div>
             <ProgressPanel
               stage={state.install.stage}
               percent={state.install.percent}
               done={state.install.done}
               total={state.install.total}
+              bytesDone={state.install.bytes_done}
+              bytesTotal={state.install.bytes_total}
+              current={state.install.current}
+              speed={state.install.speed}
             />
           </div>
         </section>

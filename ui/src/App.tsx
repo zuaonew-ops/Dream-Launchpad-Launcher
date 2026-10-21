@@ -2,16 +2,18 @@ import { useEffect, useState, type ComponentType } from "react";
 import DownloadPage from "./pages/DownloadPage";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
+import TaskPage from "./pages/TaskPage";
 import ToolsPage from "./pages/ToolsPage";
 import LaunchOverlay from "./components/LaunchOverlay";
 import InstallDialog from "./components/market/InstallDialog";
 import { actions, useLauncher } from "./store";
 
-type PageKey = "home" | "download" | "settings" | "tools";
+type PageKey = "home" | "download" | "task" | "settings" | "tools";
 
 const pages: Record<PageKey, ComponentType> = {
   home: HomePage,
   download: DownloadPage,
+  task: TaskPage,
   settings: SettingsPage,
   tools: ToolsPage,
 };

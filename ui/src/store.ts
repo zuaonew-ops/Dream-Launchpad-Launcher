@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type {
+  InstallStage,
   Account,
   AccountsPayload,
   AppSettings,
@@ -60,6 +61,8 @@ export interface State {
   error: string;
   notice: string;
   install: InstallState | null;
+  /** 每个阶段各自的进度（下载详情页用） */
+  installStages: InstallStage[];
   game: RunningGame | null;
 
   /** 当前选中版本的设置（已合并全局默认） */
@@ -100,6 +103,8 @@ export interface State {
   // 内容管理
   mods: ModEntry[];
   saves: SaveEntry[];
+  /** 资源包 / 光影（按需加载） */
+  packs: { resourcepacks: ModEntry[]; shaderpacks: ModEntry[] };
   logs: string[];
   logName: string;
   logText: string;
@@ -158,6 +163,7 @@ let state: State = {
   error: "",
   notice: "",
   install: null,
+  installStages: [],
   game: null,
   settings: null,
   settingsKey: "",
@@ -184,6 +190,7 @@ let state: State = {
   onlyCompatible: true,
   mods: [],
   saves: [],
+  packs: { resourcepacks: [], shaderpacks: [] },
   logs: [],
   logName: "",
   logText: "",
@@ -362,14 +369,27 @@ async function installSelected() {
     busy: true,
     error: "",
     notice: "",
-    install: { id: target.id, stage: "准备中", done: 0, total: 0, percent: 0 },
+    installStages: [],
+    install: {
+      id: target.id,
+      stage: "准备中",
+      done: 0,
+      total: 0,
+      percent: 0,
+      bytes_done: 0,
+      bytes_total: 0,
+      current: "",
+      speed: "",
+    },
   });
 
   let finalId = target.id;
   try {
     await invoke("install_version", { id: target.id });
     if (state.loader !== "none" && state.loaderVersion) {
-      set({ install: { ...state.install!, stage: `安装 ${state.loader}`, percent: 0 } });
+      set({
+        install: { ...state.install!, stage: `安装 ${state.loader}`, percent: 0, current: "" },
+      });
       finalId = await invoke<string>("install_loader", {
         mc: target.id,
         kind: state.loader,
@@ -482,16 +502,50 @@ async function init() {
   started = true;
 
   await listen<ProgressPayload>("install-progress", (event) => {
-    const { stage, done, total } = event.payload;
+    const payload = event.payload;
     if (!state.install) return;
+    // 有字节数就按字节算（大文件才不会长时间停在同一个百分比）
+    const byBytes = payload.bytes_total > 0;
+    const percent = byBytes
+      ? Math.min(1, payload.bytes_done / payload.bytes_total)
+      : payload.total > 0
+        ? payload.done / payload.total
+        : 0;
+    const stagePercent = byBytes
+      ? Math.min(1, payload.bytes_done / payload.bytes_total)
+      : payload.total > 0
+        ? Math.min(1, payload.done / payload.total)
+        : 0;
+
+    const next: InstallStage = {
+      name: payload.stage,
+      done: payload.done,
+      total: payload.total,
+      bytes_done: payload.bytes_done,
+      bytes_total: payload.bytes_total,
+      percent: stagePercent,
+      current: payload.current,
+      speed: payload.speed,
+      active: true,
+    };
+    const stages = [...state.installStages];
+    const index = stages.findIndex((item) => item.name === payload.stage);
+    if (index >= 0) stages[index] = next;
+    else stages.push(next);
+
     set({
       install: {
         ...state.install,
-        stage,
-        done,
-        total,
-        percent: total > 0 ? done / total : 0,
+        stage: payload.stage,
+        done: payload.done,
+        total: payload.total,
+        bytes_done: payload.bytes_done,
+        bytes_total: payload.bytes_total,
+        current: payload.current,
+        speed: payload.speed,
+        percent,
       },
+      installStages: stages.map((item) => ({ ...item, active: item.name === payload.stage })),
     });
   });
 
@@ -520,6 +574,16 @@ async function init() {
     if (running) set({ game: running });
   } catch {
     // 老后端没有这个命令
+  }
+}
+
+/** 拉资源包 / 光影列表 */
+async function loadPacks(id: string, kind: "resourcepacks" | "shaderpacks") {
+  try {
+    const list = await invoke<ModEntry[]>("list_packs", { id, kind });
+    set({ packs: { ...state.packs, [kind]: list } });
+  } catch (e) {
+    set({ error: String(e) });
   }
 }
 
@@ -574,7 +638,18 @@ async function repairVersion(id: string) {
     busy: true,
     error: "",
     notice: "",
-    install: { id, stage: "校验文件", done: 0, total: 0, percent: 0 },
+    installStages: [],
+    install: {
+      id,
+      stage: "校验文件",
+      done: 0,
+      total: 0,
+      percent: 0,
+      bytes_done: 0,
+      bytes_total: 0,
+      current: "",
+      speed: "",
+    },
   });
   try {
     await invoke("repair_version", { id });
@@ -765,7 +840,9 @@ async function readCrash(name: string) {
   }
 }
 
-async function openVersionDir(id: string, kind: "root" | "mods" | "saves" | "instance") {
+type VersionDirKind = "root" | "mods" | "saves" | "instance" | "resourcepacks" | "shaderpacks";
+
+async function openVersionDir(id: string, kind: VersionDirKind) {
   try {
     await invoke("open_version_dir", { id, kind });
   } catch (e) {
@@ -928,7 +1005,17 @@ async function confirmInstall() {
     busy: true,
     error: "",
     installDone: "",
-    install: { id, stage: "准备中", done: 0, total: 0, percent: 0 },
+    install: {
+      id,
+      stage: "准备中",
+      done: 0,
+      total: 0,
+      percent: 0,
+      bytes_done: 0,
+      bytes_total: 0,
+      current: "",
+      speed: "",
+    },
   });
 
   try {
@@ -939,7 +1026,17 @@ async function confirmInstall() {
     });
     set({
       busy: false,
-      install: { id, stage: "完成", done: 1, total: 1, percent: 1 },
+      install: {
+      id,
+      stage: "完成",
+      done: 1,
+      total: 1,
+      percent: 1,
+      bytes_done: 0,
+      bytes_total: 0,
+      current: "",
+      speed: "",
+    },
       installDone: path,
       notice: `已安装 ${path}`,
     });
@@ -987,6 +1084,7 @@ export const actions = {
   setMarketLoader: (marketLoader: string) => set({ marketLoader }),
   setMarketCategory: (marketCategory: string) => set({ marketCategory }),
   loadContent,
+  loadPacks,
   toggleMod,
   deleteMod,
   loadLogs,
@@ -997,6 +1095,10 @@ export const actions = {
   installSelected,
   launchSelected,
   dismissLaunch,
+  /** 跳到下载任务详情页 */
+  goTaskPage: () => window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "task" })),
+  /** 从任务页回下载页 */
+  backToDownload: () => window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" })),
   openDir,
   openUrl,
   openMcmod,

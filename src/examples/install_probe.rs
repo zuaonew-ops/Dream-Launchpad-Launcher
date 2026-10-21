@@ -28,14 +28,20 @@ async fn main() -> Result<(), String> {
     install::ensure_version_json(&client, &paths, &entry).await?;
 
     let last = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
-    let progress = Progress::new(move |stage, done, total| {
+    let progress = Progress::new(move |stage, done, total, detail| {
         let mut previous = last.lock().unwrap();
         if *previous != stage {
             println!("\n[{stage}]");
             *previous = stage.to_string();
         }
         if done == total || done % 128 == 0 {
-            println!("  {done}/{total}");
+            println!(
+                "  {done}/{total} · {}/{} · {} · {}",
+                detail.done(),
+                detail.total(),
+                detail.instant_speed(),
+                detail.current()
+            );
         }
     });
 

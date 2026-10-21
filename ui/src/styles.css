@@ -3674,3 +3674,243 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
   flex: none;
 }
+
+/* ---------- 0.23.0：下载进度细节 ---------- */
+
+.progress-speed {
+  font-size: 11px;
+  color: #1d4ed8;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eef4ff;
+}
+
+.progress-file {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #98a2b3;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.install-file {
+  margin: -4px 0 10px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 0.24.0：下载任务详情页 ---------- */
+
+.progress-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ghost.small {
+  padding: 3px 9px;
+  font-size: 11.5px;
+}
+
+.task-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 22px;
+}
+
+.task-big {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.task-big strong {
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 700;
+  color: #101828;
+  letter-spacing: -1px;
+}
+
+.task-big span {
+  font-size: 16px;
+  color: #98a2b3;
+}
+
+.task-hero-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.progress-track.tall {
+  height: 12px;
+}
+
+.progress-track.slim {
+  height: 5px;
+}
+
+.task-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: #667085;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-hero-meta em {
+  font-style: normal;
+  color: #1d4ed8;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eef4ff;
+}
+
+.task-hero-meta code,
+.stage-meta code {
+  font-size: 11px;
+  color: #98a2b3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+
+.task-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stage-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #eef1f6;
+  background: #fbfcfe;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.stage-item.active {
+  border-color: rgba(63, 110, 242, 0.3);
+  background: #f6f9ff;
+}
+
+.stage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.stage-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #101828;
+}
+
+.stage-pct {
+  font-size: 12px;
+  color: #475467;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #98a2b3;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-meta em {
+  font-style: normal;
+  color: #1d4ed8;
+}
+
+.stage-item.active .stage-name::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: #3f6ef2;
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+
+/* ---------- 0.24.0：版本设置概况页 ---------- */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border-radius: 8px;
+  background: #f7f9fd;
+  border: 1px solid #eef1f6;
+}
+
+.stat-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: #101828;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+.danger {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(220, 75, 80, 0.4);
+  background: #fff5f5;
+  color: #b42318;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.danger:hover:not(:disabled) {
+  background: #fdeaea;
+  border-color: #dc4b50;
+}
+
+.danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

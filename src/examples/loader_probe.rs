@@ -23,7 +23,7 @@ async fn main() -> Result<(), String> {
         .user_agent("DLP-probe/0.1")
         .build()
         .map_err(|e| e.to_string())?;
-    let progress = Progress::new(|stage, done, total| {
+    let progress = Progress::new(|stage, done, total, _detail| {
         println!("  [{stage}] {done}/{total}");
     });
 

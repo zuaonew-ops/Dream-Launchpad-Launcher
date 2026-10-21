@@ -6,6 +6,12 @@ const kindLabel: Record<string, string> = {
   shader: "光影",
 };
 
+function humanBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
+}
+
 const kindDir: Record<string, string> = {
   mod: "mods",
   resourcepack: "resourcepacks",
@@ -70,8 +76,17 @@ export default function InstallDialog() {
             </div>
             <p className="hint install-stage">
               {progress?.stage || "准备中"} · {percent}%
-              {progress && progress.total > 0 && `（${progress.done}/${progress.total}）`}
+              {progress && progress.bytes_total > 0
+                ? `（${humanBytes(progress.bytes_done)} / ${humanBytes(progress.bytes_total)}${progress.speed ? ` · ${progress.speed}` : ""}）`
+                : progress && progress.total > 0
+                  ? `（${progress.done}/${progress.total}）`
+                  : ""}
             </p>
+            {progress?.current && (
+              <p className="hint install-file" title={progress.current}>
+                {progress.current}
+              </p>
+            )}
           </>
         )}
 

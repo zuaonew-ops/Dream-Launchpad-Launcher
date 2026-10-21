@@ -20,7 +20,7 @@ async fn main() -> Result<(), String> {
         .user_agent("DLP-market-probe/0.1")
         .build()
         .map_err(|e| e.to_string())?;
-    let progress = Progress::new(|stage, done, total| println!("  [{stage}] {done}/{total}"));
+    let progress = Progress::new(|stage, done, total, _detail| println!("  [{stage}] {done}/{total}"));
     let mx = market::Market::new(client.clone(), std::env::var("CF_API_KEY").unwrap_or_default());
 
     let action = &args[0];

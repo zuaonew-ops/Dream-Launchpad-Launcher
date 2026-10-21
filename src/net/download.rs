@@ -4,7 +4,8 @@ use futures_util::stream::{self, StreamExt};
 use reqwest::Client;
 use sha1::{Digest, Sha1};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::Mutex;
 use std::sync::Arc;
 use reqwest::header::{CONTENT_RANGE, RANGE};
 use reqwest::StatusCode;
@@ -17,6 +18,8 @@ pub struct Job {
     pub fallback: Option<String>,
     pub dest: PathBuf,
     pub sha1: Option<String>,
+    /// 字节数（未知为 0）—— 用来算按字节的进度
+    pub size: u64,
 }
 
 impl Job {
@@ -26,7 +29,14 @@ impl Job {
             fallback: None,
             dest: dest.into(),
             sha1,
+            size: 0,
         }
+    }
+
+    /// 带上字节数，进度条就能按字节平滑推进
+    pub fn with_size(mut self, size: u64) -> Self {
+        self.size = size;
+        self
     }
 
     /// 官方 URL + 可选镜像：镜像优先，官方兜底。
@@ -43,27 +53,164 @@ impl Job {
                 fallback: Some(official),
                 dest: dest.into(),
                 sha1,
+                size: 0,
             },
             None => Self::new(official, dest, sha1),
         }
     }
 }
 
-/// 进度回调：(阶段名, 已完成, 总数)
+/// 下载中的实时细节：已收字节、总字节、当前文件名。
+///
+/// 这些不进回调参数，而是放在共享结构里 —— 回调每 200ms 被调一次，
+/// 界面直接读它就能显示「正在下载 xxx / 3.2 MB/s」。
+#[derive(Default)]
+pub struct Detail {
+    done: AtomicU64,
+    total: AtomicU64,
+    current: Mutex<String>,
+    speed: Mutex<String>,
+    /// 最近几秒的采样 (时间, 已收字节)，用来算**瞬时**速度
+    samples: Mutex<std::collections::VecDeque<(std::time::Instant, u64)>>,
+}
+
+impl Detail {
+    pub fn reset(&self, total: u64) {
+        self.done.store(0, Ordering::Relaxed);
+        self.total.store(total, Ordering::Relaxed);
+        if let Ok(mut samples) = self.samples.lock() {
+            samples.clear();
+        }
+    }
+
+    pub fn add(&self, bytes: u64) {
+        let total = self.done.fetch_add(bytes, Ordering::Relaxed) + bytes;
+        // 每 250ms 采一个点，只留最近 3 秒 —— 平均速度会因为文件大小不均而跳，
+        // 瞬时速度才看得出「现在快不快」。
+        let mut samples = match self.samples.lock() {
+            Ok(guard) => guard,
+            Err(_) => return,
+        };
+        let now = std::time::Instant::now();
+        let stale = samples
+            .front()
+            .map(|(at, _)| now.duration_since(*at) > std::time::Duration::from_secs(3))
+            .unwrap_or(true);
+        let due = samples
+            .back()
+            .map(|(at, _)| now.duration_since(*at).as_millis() >= 250)
+            .unwrap_or(true);
+        if due || stale {
+            samples.push_back((now, total));
+        }
+        while samples
+            .front()
+            .map(|(at, _)| now.duration_since(*at) > std::time::Duration::from_secs(3))
+            .unwrap_or(false)
+        {
+            samples.pop_front();
+        }
+    }
+
+    /// 最近 3 秒的平均速率（就是用户眼里的「当前速度」）
+    pub fn instant_speed(&self) -> String {
+        let samples = match self.samples.lock() {
+            Ok(guard) => guard,
+            Err(_) => return String::new(),
+        };
+        let (Some((first_at, first_bytes)), Some((last_at, last_bytes))) =
+            (samples.front(), samples.back())
+        else {
+            return String::new();
+        };
+        let seconds = last_at.duration_since(*first_at).as_secs_f64();
+        if seconds < 0.2 || last_bytes <= first_bytes {
+            return String::new();
+        }
+        format!("{}/s", human((last_bytes - first_bytes) as f64 / seconds))
+    }
+
+    pub fn set_current(&self, name: &str) {
+        if let Ok(mut slot) = self.current.lock() {
+            slot.clear();
+            slot.push_str(name);
+        }
+    }
+
+    pub fn done(&self) -> u64 {
+        self.done.load(Ordering::Relaxed)
+    }
+
+    pub fn total(&self) -> u64 {
+        self.total.load(Ordering::Relaxed)
+    }
+
+    pub fn current(&self) -> String {
+        self.current.lock().map(|s| s.clone()).unwrap_or_default()
+    }
+
+    pub fn set_speed(&self, value: &str) {
+        if let Ok(mut slot) = self.speed.lock() {
+            slot.clear();
+            slot.push_str(value);
+        }
+    }
+
+    pub fn speed(&self) -> String {
+        self.speed.lock().map(|s| s.clone()).unwrap_or_default()
+    }
+}
+
+/// 进度里显示的短名字：取文件名，太长就截断
+fn file_label(path: &Path) -> String {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    if name.chars().count() > 48 {
+        name.chars().take(45).collect::<String>() + "…"
+    } else {
+        name
+    }
+}
+
+/// 人类可读的字节数
+pub fn human(bytes: f64) -> String {
+    const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
+    let mut value = bytes;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{value:.0} {}", UNITS[unit])
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
+}
+
+/// 进度回调：(阶段名, 已完成, 总数, 实时字节信息)
 #[derive(Clone)]
-pub struct Progress(Arc<dyn Fn(&'static str, usize, usize) + Send + Sync>);
+pub struct Progress {
+    sink: Arc<dyn Fn(&'static str, usize, usize, &Detail) + Send + Sync>,
+    pub detail: Arc<Detail>,
+}
 
 impl Progress {
-    pub fn new(f: impl Fn(&'static str, usize, usize) + Send + Sync + 'static) -> Self {
-        Self(Arc::new(f))
+    pub fn new(f: impl Fn(&'static str, usize, usize, &Detail) + Send + Sync + 'static) -> Self {
+        Self {
+            sink: Arc::new(f),
+            detail: Arc::new(Detail::default()),
+        }
     }
 
     pub fn none() -> Self {
-        Self(Arc::new(|_, _, _| {}))
+        Self::new(|_, _, _, _| {})
     }
 
     pub fn call(&self, stage: &'static str, done: usize, total: usize) {
-        (self.0)(stage, done, total);
+        (self.sink)(stage, done, total, &self.detail);
     }
 }
 
@@ -76,18 +223,68 @@ pub async fn run(
     progress: &Progress,
 ) -> Result<(), String> {
     let total = jobs.len();
-    let done = Arc::new(AtomicUsize::new(0));
+    let bytes_total: u64 = jobs.iter().map(|job| job.size).sum();
+    if bytes_total > 0 {
+        progress.detail.reset(bytes_total);
+    }
     progress.call(stage, 0, total);
+
+    // 大文件和小文件分开跑：
+    // - 一堆几 KB 的小文件，瓶颈在往返延迟，并发越高越划算
+    // - 几个几十 MB 的大文件，并发太高会互相抢带宽，反而变慢
+    // 混在一起跑就是「一会儿快一会儿慢」的来源。
+    let (small, large): (Vec<Job>, Vec<Job>) = jobs
+        .into_iter()
+        .partition(|job| job.size < SMALL_FILE_BYTES || job.size == 0);
+
+    let small_conc = (concurrency * 2).max(8);
+    let large_conc = (concurrency / 2).max(4);
+
+    let finished = Arc::new(AtomicUsize::new(0));
+    let small_task = run_batch(client, small, small_conc, stage, progress, total, &finished);
+    let large_task = run_batch(client, large, large_conc, stage, progress, total, &finished);
+    let (a, b) = tokio::join!(small_task, large_task);
+    a?;
+    b?;
+
+    progress.call(stage, total, total);
+    Ok(())
+}
+
+/// 小于这个大小的算「小文件」，走高并发
+const SMALL_FILE_BYTES: u64 = 512 * 1024;
+
+/// 跑一批 job，共享同一个计数器
+async fn run_batch(
+    client: &Client,
+    jobs: Vec<Job>,
+    concurrency: usize,
+    stage: &'static str,
+    progress: &Progress,
+    total_all: usize,
+    finished: &Arc<AtomicUsize>,
+) -> Result<(), String> {
+    if jobs.is_empty() {
+        return Ok(());
+    }
+    let bytes_done = Arc::new(AtomicU64::new(0));
 
     let results: Vec<Result<(), String>> = stream::iter(jobs)
         .map(|job| {
             let client = client.clone();
-            let done = done.clone();
+            let finished = finished.clone();
+            let detail = progress.detail.clone();
+            let progress = progress.clone();
+            let bytes_done = bytes_done.clone();
             async move {
-                let result = fetch_one(&client, &job).await;
-                let n = done.fetch_add(1, Ordering::Relaxed) + 1;
-                if n == 1 || n % 8 == 0 || n == total {
-                    progress.call(stage, n, total);
+                detail.set_current(&file_label(&job.dest));
+                let result = fetch_one(&client, &job, &detail).await;
+                let n = finished.fetch_add(1, Ordering::Relaxed) + 1;
+                bytes_done.fetch_add(job.size, Ordering::Relaxed);
+                let speed = detail.instant_speed();
+                detail.set_speed(&speed);
+                if n == 1 || n % 4 == 0 || n == total_all {
+                    progress.call(stage, n, total_all);
                 }
                 result
             }
@@ -96,16 +293,18 @@ pub async fn run(
         .collect()
         .await;
 
-    progress.call(stage, total, total);
     results.into_iter().collect::<Result<Vec<_>, _>>().map(|_| ())
 }
 
-async fn fetch_one(client: &Client, job: &Job) -> Result<(), String> {
+async fn fetch_one(client: &Client, job: &Job, detail: &Detail) -> Result<(), String> {
+    // 缓存命中也要计入字节：否则进度条按字节算时会一直停在 0%
     if let Some(expected) = &job.sha1 {
         if file_matches(&job.dest, expected).await {
+            detail.add(job.size);
             return Ok(());
         }
     } else if job.dest.is_file() {
+        detail.add(job.size);
         return Ok(());
     }
 
@@ -122,7 +321,7 @@ async fn fetch_one(client: &Client, job: &Job) -> Result<(), String> {
             (Some(fallback), 3) => fallback.as_str(),
             _ => job.url.as_str(),
         };
-        match download_to(client, url, &job.dest).await {
+        match download_to(client, url, &job.dest, detail).await {
             Ok(()) => {
                 if let Some(expected) = &job.sha1 {
                     if !file_matches(&job.dest, expected).await {
@@ -136,6 +335,9 @@ async fn fetch_one(client: &Client, job: &Job) -> Result<(), String> {
             Err(e) => {
                 last_error = format!("第 {attempt} 次下载 {url} 失败: {e}");
                 let _ = tokio::fs::remove_file(&job.dest).await;
+                // 退避一下再重试：镜像限速时立刻重发只会更慢
+                tokio::time::sleep(std::time::Duration::from_millis(250 * attempt as u64))
+                    .await;
             }
         }
     }
@@ -145,16 +347,16 @@ async fn fetch_one(client: &Client, job: &Job) -> Result<(), String> {
 /// 超过这个大小才考虑分片（小文件分片反而更慢）
 const MULTIPART_THRESHOLD: u64 = 4 * 1024 * 1024;
 /// 分片数：再多会被镜像限速，收益不明显
-const MULTIPART_PARTS: usize = 4;
+const MULTIPART_PARTS: usize = 6;
 
 /// 下载一个文件：大文件且服务端支持 Range 时走分片多连接，否则单连接。
-async fn download_to(client: &Client, url: &str, dest: &Path) -> Result<(), String> {
+async fn download_to(client: &Client, url: &str, dest: &Path, detail: &Detail) -> Result<(), String> {
     if let Some(size) = probe_size(client, url).await {
         if size >= MULTIPART_THRESHOLD {
             if std::env::var_os("DLP_DEBUG_DOWNLOAD").is_some() {
                 eprintln!("[download] 分片 {MULTIPART_PARTS} 连接 · {size} 字节 · {url}");
             }
-            if download_multipart(client, url, dest, size).await.is_ok() {
+            if download_multipart(client, url, dest, size, detail).await.is_ok() {
                 return Ok(());
             }
             if std::env::var_os("DLP_DEBUG_DOWNLOAD").is_some() {
@@ -164,7 +366,7 @@ async fn download_to(client: &Client, url: &str, dest: &Path) -> Result<(), Stri
             let _ = tokio::fs::remove_file(dest.with_extension("part")).await;
         }
     }
-    download_single(client, url, dest).await
+    download_single(client, url, dest, detail).await
 }
 
 /// 探测文件大小：用 Range 请求首字节，206 且有 Content-Range 才算支持分片。
@@ -184,7 +386,12 @@ async fn probe_size(client: &Client, url: &str) -> Option<u64> {
     (total > 0).then_some(total)
 }
 
-async fn download_single(client: &Client, url: &str, dest: &Path) -> Result<(), String> {
+async fn download_single(
+    client: &Client,
+    url: &str,
+    dest: &Path,
+    detail: &Detail,
+) -> Result<(), String> {
     let response = client
         .get(url)
         .send()
@@ -192,11 +399,23 @@ async fn download_single(client: &Client, url: &str, dest: &Path) -> Result<(), 
         .map_err(|e| e.to_string())?
         .error_for_status()
         .map_err(|e| e.to_string())?;
-    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
     let tmp = dest.with_extension("part");
-    tokio::fs::write(&tmp, &bytes)
+    let mut file = tokio::fs::File::create(&tmp)
         .await
-        .map_err(|e| format!("写入 {} 失败: {e}", tmp.display()))?;
+        .map_err(|e| format!("创建 {} 失败: {e}", tmp.display()))?;
+
+    // 边下边写边计数：进度条才会平滑，不会「下完才跳一格」
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| e.to_string())?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("写入 {} 失败: {e}", tmp.display()))?;
+        detail.add(chunk.len() as u64);
+    }
+    file.flush().await.map_err(|e| e.to_string())?;
+    drop(file);
+
     tokio::fs::rename(&tmp, dest)
         .await
         .map_err(|e| format!("重命名到 {} 失败: {e}", dest.display()))?;
@@ -209,6 +428,7 @@ async fn download_multipart(
     url: &str,
     dest: &Path,
     size: u64,
+    detail: &Detail,
 ) -> Result<(), String> {
     let tmp = dest.with_extension("part");
     let file = tokio::fs::File::create(&tmp)
@@ -228,7 +448,7 @@ async fn download_multipart(
             let tmp = tmp.clone();
             let start = chunk * index as u64;
             let end = ((start + chunk).min(size)).saturating_sub(1);
-            async move { fetch_range(&client, url, &tmp, start, end).await }
+            async move { fetch_range(&client, url, &tmp, start, end, detail).await }
         })
         .buffer_unordered(parts)
         .collect()
@@ -250,6 +470,7 @@ async fn fetch_range(
     tmp: &Path,
     start: u64,
     end: u64,
+    detail: &Detail,
 ) -> Result<(), String> {
     let response = client
         .get(url)
@@ -280,6 +501,7 @@ async fn fetch_range(
             .await
             .map_err(|e| format!("写入分片失败: {e}"))?;
         written += chunk.len() as u64;
+        detail.add(chunk.len() as u64);
     }
     writer.flush().await.map_err(|e| e.to_string())?;
     drop(writer);

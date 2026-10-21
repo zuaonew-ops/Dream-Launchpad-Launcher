@@ -17,6 +17,8 @@ pub struct AssetIndex {
 #[derive(Debug, Deserialize)]
 pub struct AssetObject {
     pub hash: String,
+    #[serde(default)]
+    pub size: u64,
 }
 
 pub fn load_index(path: &Path) -> Result<AssetIndex, String> {
@@ -43,6 +45,7 @@ pub async fn download_objects(
                 fallback: Some(official),
                 dest: paths.objects().join(prefix).join(&obj.hash),
                 sha1: Some(obj.hash.clone()),
+                size: obj.size,
             }
         })
         .collect();

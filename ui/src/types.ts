@@ -63,6 +63,24 @@ export interface ProgressPayload {
   stage: string;
   done: number;
   total: number;
+  bytes_done: number;
+  bytes_total: number;
+  current: string;
+  speed: string;
+}
+
+/** 一个阶段的进度快照（下载详情页用） */
+export interface InstallStage {
+  name: string;
+  done: number;
+  total: number;
+  bytes_done: number;
+  bytes_total: number;
+  percent: number;
+  current: string;
+  speed: string;
+  /** 是不是当前正在跑的那个阶段 */
+  active: boolean;
 }
 
 export interface InstallState {
@@ -71,6 +89,13 @@ export interface InstallState {
   done: number;
   total: number;
   percent: number;
+  /** 已收字节 / 总字节（0 = 这个阶段不按字节算） */
+  bytes_done: number;
+  bytes_total: number;
+  /** 当前正在下载的文件名 */
+  current: string;
+  /** 速度，形如 "3.2 MB/s" */
+  speed: string;
 }
 
 /** 每个版本独立的启动设置（null = 跟随全局默认） */

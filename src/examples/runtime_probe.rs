@@ -19,7 +19,7 @@ async fn main() -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let progress = Progress::new(|stage, done, total| println!("  [{stage}] {done}/{total}"));
+    let progress = Progress::new(|stage, done, total, _detail| println!("  [{stage}] {done}/{total}"));
     let path = runtime::install(&client, &paths, major, Some(progress)).await?;
     println!("✅ Java {major}: {}", path.display());
     Ok(())
