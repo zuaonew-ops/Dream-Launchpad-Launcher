@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "dlp-core"
-version = "0.8.0"
+version = "0.10.0"
 dependencies = [
  "futures-util",
  "hex",
@@ -706,7 +706,7 @@ dependencies = [
 
 [[package]]
 name = "dlp-desktop"
-version = "0.8.0"
+version = "0.10.0"
 dependencies = [
  "dlp-core",
  "reqwest 0.12.28",

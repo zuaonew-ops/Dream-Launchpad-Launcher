@@ -96,6 +96,23 @@ export default function SettingsPage() {
             </div>
           </label>
 
+          <div className="field">
+            <span className="label">下载 Java（Adoptium JRE，装到数据目录 runtime/）</span>
+            <div className="inline">
+              {[8, 17, 21, 25].map((major) => (
+                <button
+                  key={major}
+                  type="button"
+                  className="ghost"
+                  disabled={state.busy}
+                  onClick={() => void actions.installJava(major)}
+                >
+                  Java {major}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <label className="field">
             <span className="label">Java 运行时</span>
             <select

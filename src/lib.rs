@@ -8,6 +8,8 @@
 //! - [`auth`]       离线账号（UUID v3）
 //! - [`java`]       Java 运行时探测
 //! - [`minecraft`]  版本清单、版本 JSON（继承链）、规则求值
+//! - [`market`]     Modrinth 资源搜索与安装
+//! - [`runtime`]    Java 运行时下载
 //! - [`net`]        并行下载与校验
 //! - [`install`]    安装编排（元数据 / 依赖库 / natives / 资源）
 //! - [`content`]    mods / 存档 / 日志
@@ -21,9 +23,11 @@ pub mod install;
 pub mod java;
 pub mod launch;
 pub mod loader;
+pub mod market;
 pub mod minecraft;
 pub mod net;
 pub mod paths;
+pub mod runtime;
 pub mod settings;
 
 pub use paths::Paths;

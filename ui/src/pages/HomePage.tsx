@@ -1,10 +1,4 @@
-import {
-  actions,
-  javaLabel,
-  selectLatestReleases,
-  selectSelectedVersion,
-  useLauncher,
-} from "../store";
+import { actions, javaLabel, selectLatestReleases, selectSelectedVersion, useLauncher } from "../store";
 
 export default function HomePage() {
   const state = useLauncher();
@@ -46,7 +40,9 @@ export default function HomePage() {
           </p>
           <ul className="empty-list">
             <li>去「下载」页装一个原版（可顺便加装模组加载器 / OptiFine）</li>
-            <li>把已有的 <code>.minecraft/versions</code> 整个复制进来</li>
+            <li>
+              把已有的 <code>.minecraft/versions</code> 整个复制进来
+            </li>
           </ul>
           <code className="path">{state.environment?.data_dir ?? "…"}</code>
           <div className="inline">
@@ -72,73 +68,120 @@ export default function HomePage() {
             离线登录 · 已安装 {installed} 个版本 · 共 {state.versions.length} 个可用
           </p>
         </div>
-        <div className="hero-actions">
-          <button type="button" className="ghost" onClick={() => void actions.openDir("data")}>
-            打开游戏目录
-          </button>
-          <button
-            type="button"
-            className="primary"
-            disabled={state.busy || !selected || Boolean(running)}
-            onClick={primary}
-          >
-            {primaryLabel}
-          </button>
-        </div>
       </header>
 
-      <div className="cards">
-        <article className="card">
-          <p className="card-label">当前版本</p>
-          <p className="card-value">{selected?.id ?? "未选择"}</p>
-          <p className="card-hint">
-            {running
-              ? `运行中 · ${running.id} · pid ${running.pid}`
-              : selected?.installed
-                ? "已安装，可直接启动"
-                : "尚未安装"}
-          </p>
-        </article>
-
-        <article className="card">
-          <p className="card-label">账号</p>
-          <p className="card-value">{state.username}</p>
-          <p className="card-hint">离线模式 · UUID 本地生成</p>
-        </article>
-
-        <article className="card">
-          <p className="card-label">Java 运行时</p>
-          <p className="card-value">{javaLabel(state.javas)}</p>
-          <p className="card-hint">{state.javas.length} 个可用</p>
-        </article>
-      </div>
-
-      <section className="section">
-        <div className="section-head">
-          <h2>推荐版本</h2>
-          <span className="hint">最新正式版</span>
-        </div>
-        <div className="quick">
-          {latest.map((version) => (
-            <button
-              key={version.id}
-              type="button"
-              className={state.selected === version.id ? "quick-item active" : "quick-item"}
-              onClick={() => actions.setSelected(version.id)}
-            >
-              <span className="quick-id">{version.id}</span>
-              <span className={version.installed ? "quick-state on" : "quick-state"}>
-                {version.installed ? "已安装" : "未安装"}
+      <div className="home-grid">
+        <section className="instance">
+          <div className="instance-top">
+            <div className="instance-tile">{(selected?.id ?? "?").slice(0, 2).toUpperCase()}</div>
+            <div className="instance-name">
+              <strong>{selected?.id ?? "未选择版本"}</strong>
+              <span>
+                {running
+                  ? `运行中 · pid ${running.pid}`
+                  : selected?.installed
+                    ? "已安装，可直接启动"
+                    : "尚未安装"}
               </span>
-            </button>
-          ))}
-        </div>
-      </section>
+            </div>
+          </div>
 
-      <section className="panel note">
-        <p className="card-label">状态</p>
-        <p className="card-hint">{state.notice || state.error || "等待操作"}</p>
-      </section>
+          <div className="instance-rows">
+            <div className="instance-row">
+              <span>账号</span>
+              <span>{state.username}</span>
+            </div>
+            <div className="instance-row">
+              <span>Java</span>
+              <span>{javaLabel(state.javas)}</span>
+            </div>
+            <div className="instance-row">
+              <span>已安装</span>
+              <span>
+                {installed} / {state.versions.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="instance-actions">
+            <button
+              type="button"
+              className="primary"
+              disabled={state.busy || !selected || Boolean(running)}
+              onClick={primary}
+            >
+              {primaryLabel}
+            </button>
+            <div className="instance-foot">
+              <button type="button" className="ghost" onClick={() => void actions.openDir("data")}>
+                打开目录
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => window.dispatchEvent(new CustomEvent("dlp:nav", { detail: "download" }))}
+              >
+                下载版本
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div className="home-right">
+          <section className="card">
+            <div className="section-head">
+              <h2>推荐版本</h2>
+              <span className="hint">最新正式版</span>
+            </div>
+            <div className="quick">
+              {latest.map((version) => (
+                <button
+                  key={version.id}
+                  type="button"
+                  className={state.selected === version.id ? "quick-item active" : "quick-item"}
+                  onClick={() => actions.setSelected(version.id)}
+                >
+                  <span className="quick-id">{version.id}</span>
+                  <span className={version.installed ? "quick-state on" : "quick-state"}>
+                    {version.installed ? "已安装" : "未安装"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="section-head">
+              <h2>已安装</h2>
+              <span className="hint">点一下切换当前版本</span>
+            </div>
+            <div className="quick">
+              {state.versions
+                .filter((v) => v.installed)
+                .map((version) => (
+                  <button
+                    key={version.id}
+                    type="button"
+                    className={state.selected === version.id ? "quick-item active" : "quick-item"}
+                    onClick={() => actions.setSelected(version.id)}
+                  >
+                    <span className="quick-id">{version.id}</span>
+                    <span className="quick-state on">
+                      {version.local ? "本地" : "已安装"}
+                    </span>
+                  </button>
+                ))}
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="section-head">
+              <h2>状态</h2>
+            </div>
+            <p className="card-hint">{state.notice || state.error || "等待操作"}</p>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

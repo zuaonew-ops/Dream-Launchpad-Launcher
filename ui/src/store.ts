@@ -8,6 +8,9 @@ import type {
   JavaInfo,
   LoaderKind,
   ProgressPayload,
+  MarketHit,
+  MarketKind,
+  MarketPage,
   ModEntry,
   SaveEntry,
   Theme,
@@ -54,6 +57,14 @@ export interface State {
   loaderOptions: Candidate[];
   optifineOptions: Candidate[];
 
+  // 资源搜索（Modrinth）
+  marketQuery: string;
+  marketKind: MarketKind;
+  marketHits: MarketHit[];
+  marketTotal: number;
+  marketLoading: boolean;
+  baseVersion: string;
+
   // 内容管理
   mods: ModEntry[];
   saves: SaveEntry[];
@@ -94,12 +105,18 @@ let state: State = {
   optifineEdition: "",
   loaderOptions: [],
   optifineOptions: [],
+  marketQuery: "",
+  marketKind: "mod",
+  marketHits: [],
+  marketTotal: 0,
+  marketLoading: false,
+  baseVersion: "",
   mods: [],
   saves: [],
   logs: [],
   logName: "",
   logText: "",
-  theme: (localStorage.getItem("dlp.theme") as Theme) ?? "dark",
+  theme: (localStorage.getItem("dlp.theme") as Theme) ?? "light",
 };
 
 const listeners = new Set<() => void>();
@@ -351,7 +368,10 @@ async function init() {
   });
 
   await refresh();
-  if (state.selected) void loadContent(state.selected);
+  if (state.selected) {
+    void loadContent(state.selected);
+    void loadBaseVersion(state.selected);
+  }
 
   try {
     const running = await invoke<RunningGame | null>("running_game");
@@ -418,7 +438,81 @@ function setTheme(theme: Theme) {
   set({ theme });
 }
 
+async function loadBaseVersion(id: string) {
+  try {
+    const baseVersion = await invoke<string>("base_version", { id });
+    set({ baseVersion });
+  } catch {
+    set({ baseVersion: id });
+  }
+}
+
+function loaderOf(id: string): string {
+  const lower = id.toLowerCase();
+  if (lower.includes("neoforge")) return "neoforge";
+  if (lower.includes("fabric")) return "fabric";
+  if (lower.includes("quilt")) return "quilt";
+  if (lower.includes("forge")) return "forge";
+  return "";
+}
+
+async function searchMarket() {
+  const gameId = state.selected;
+  if (!gameId) return;
+  const mc = state.baseVersion || gameId;
+  set({ marketLoading: true, error: "" });
+  try {
+    const page = await invoke<MarketPage>("search_market", {
+      query: state.marketQuery,
+      kind: state.marketKind,
+      mc,
+      loader: loaderOf(gameId) || null,
+      offset: 0,
+      limit: 30,
+    });
+    set({ marketHits: page.hits, marketTotal: page.total });
+  } catch (e) {
+    set({ error: String(e), marketHits: [] });
+  } finally {
+    set({ marketLoading: false });
+  }
+}
+
+async function installMarket(project: string, kind: MarketKind) {
+  const gameId = state.selected;
+  if (!gameId) return;
+  set({ busy: true, error: "", notice: "" });
+  try {
+    const file = await invoke<string>("install_market", { id: gameId, project, kind });
+    set({ notice: `已安装 ${file}` });
+    await loadContent(gameId);
+  } catch (e) {
+    set({ error: String(e) });
+  } finally {
+    set({ busy: false });
+  }
+}
+
+async function installJava(major: number) {
+  set({ busy: true, error: "", notice: `正在下载 Java ${major}…` });
+  try {
+    const path = await invoke<string>("install_java", { major });
+    const javas = await invoke<JavaInfo[]>("detect_java");
+    set({ javas, notice: `Java ${major} 已就绪: ${path}` });
+  } catch (e) {
+    set({ error: String(e), notice: "" });
+  } finally {
+    set({ busy: false });
+  }
+}
+
 export const actions = {
+  searchMarket,
+  installMarket,
+  installJava,
+  loadBaseVersion,
+  setMarketQuery: (marketQuery: string) => set({ marketQuery }),
+  setMarketKind: (marketKind: MarketKind) => set({ marketKind }),
   loadContent,
   toggleMod,
   deleteMod,
@@ -444,6 +538,7 @@ export const actions = {
     set({ selected });
     void loadSettings(selected);
     void loadContent(selected);
+    void loadBaseVersion(selected);
   },
   setLoader: (loader: LoaderKind, mc: string) => void loadLoaderOptions(mc, loader),
   setLoaderVersion: (loaderVersion: string) => set({ loaderVersion }),

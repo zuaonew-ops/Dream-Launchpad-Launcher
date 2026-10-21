@@ -75,3 +75,21 @@ export interface SaveEntry {
 }
 
 export type Theme = "dark" | "light";
+
+/** Modrinth 搜索结果 */
+export interface MarketHit {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  downloads: number;
+  icon: string | null;
+}
+
+export interface MarketPage {
+  hits: MarketHit[];
+  total: number;
+  offset: number;
+}
+
+export type MarketKind = "mod" | "resourcepack" | "shader";

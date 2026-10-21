@@ -118,7 +118,7 @@ export default function DownloadPage() {
         </section>
       )}
 
-      <footer className="action">
+      <footer className="action action-sticky">
         <div className="picked">
           <span className="label">当前选择</span>
           <strong>{selected?.id ?? "未选择"}</strong>

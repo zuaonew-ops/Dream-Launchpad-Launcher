@@ -13,8 +13,13 @@ pub struct JavaInfo {
 
 /// 探测本机可用的 Java（去重，按版本降序）。
 pub fn detect() -> Vec<JavaInfo> {
+    detect_with(&crate::paths::Paths::default_root().join("runtime"))
+}
+
+/// 同上，但额外扫描运行时目录（启动器下载的 Java 放在这里）。
+pub fn detect_with(runtime: &Path) -> Vec<JavaInfo> {
     let mut found: Vec<JavaInfo> = Vec::new();
-    for path in candidates() {
+    for path in candidates(runtime) {
         if found.iter().any(|j| j.path == path.to_string_lossy()) {
             continue;
         }
@@ -30,8 +35,17 @@ fn java_binary(home: &Path) -> PathBuf {
     home.join("bin").join(if cfg!(windows) { "java.exe" } else { "java" })
 }
 
-fn candidates() -> Vec<PathBuf> {
+fn candidates(runtime: &Path) -> Vec<PathBuf> {
     let mut list = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(runtime) {
+        for entry in entries.flatten() {
+            let exe = java_binary(&entry.path());
+            if exe.is_file() {
+                list.push(exe);
+            }
+        }
+    }
 
     if let Some(home) = std::env::var_os("JAVA_HOME") {
         list.push(java_binary(Path::new(&home)));

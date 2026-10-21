@@ -16,17 +16,30 @@ const pages: Record<PageKey, ComponentType> = {
   tools: ToolsPage,
 };
 
-const nav: { key: PageKey; label: string }[] = [
-  { key: "home", label: "主页" },
-  { key: "download", label: "下载" },
-  { key: "content", label: "内容" },
-  { key: "settings", label: "设置" },
-  { key: "tools", label: "工具" },
+const navGroups: { label: string; items: { key: PageKey; label: string }[] }[] = [
+  {
+    label: "游戏",
+    items: [
+      { key: "home", label: "主页" },
+      { key: "download", label: "下载" },
+    ],
+  },
+  {
+    label: "资源",
+    items: [{ key: "content", label: "内容" }],
+  },
+  {
+    label: "其它",
+    items: [
+      { key: "settings", label: "设置" },
+      { key: "tools", label: "工具" },
+    ],
+  },
 ];
 
 function Icon({ name }: { name: PageKey }) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
       {name === "home" && <path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z" />}
       {name === "download" && <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />}
       {name === "content" && (
@@ -51,6 +64,7 @@ export default function App() {
   const [page, setPage] = useState<PageKey>("home");
   const state = useLauncher();
   const Current = pages[page];
+  const dark = state.theme === "dark";
 
   useEffect(() => {
     void actions.init();
@@ -60,26 +74,62 @@ export default function App() {
     document.documentElement.dataset.theme = state.theme;
   }, [state.theme]);
 
+  useEffect(() => {
+    const onNav = (e: Event) => setPage((e as CustomEvent<PageKey>).detail);
+    window.addEventListener("dlp:nav", onNav);
+    return () => window.removeEventListener("dlp:nav", onNav);
+  }, []);
+
   return (
     <div className="app">
       <nav className="rail">
-        <div className="logo">DLP</div>
-
-        <div className="nav">
-          {nav.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={page === item.key ? "nav-item active" : "nav-item"}
-              onClick={() => setPage(item.key)}
-            >
-              <Icon name={item.key} />
-              <span>{item.label}</span>
-            </button>
-          ))}
+        <div className="brand">
+          <div className="brand-mark">DLP</div>
+          <div className="brand-text">
+            <span className="brand-name">Dream Launchpad</span>
+            <span className="brand-sub">Launcher</span>
+          </div>
         </div>
 
-        <div className="rail-foot">{state.environment ? `v${state.environment.core}` : ""}</div>
+        {navGroups.map((group) => (
+          <div className="nav-group" key={group.label}>
+            <span className="nav-group-label">{group.label}</span>
+            {group.items.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={page === item.key ? "nav-item active" : "nav-item"}
+                onClick={() => setPage(item.key)}
+              >
+                <Icon name={item.key} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+
+        <div className="rail-foot">
+          <span>{state.environment ? `v${state.environment.core}` : ""}</span>
+          <button
+            type="button"
+            className="theme-btn"
+            title={dark ? "切换到浅色" : "切换到深色"}
+            onClick={() => actions.setTheme(dark ? "light" : "dark")}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                {dark ? (
+                  <>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4m0-12.8-1.4 1.4m-10 10L5.6 18.4" />
+                  </>
+                ) : (
+                  <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
+                )}
+              </g>
+            </svg>
+          </button>
+        </div>
       </nav>
 
       <main className="view">

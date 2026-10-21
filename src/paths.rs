@@ -55,6 +55,11 @@ impl Paths {
         self.version_dir(id).join("natives")
     }
 
+    /// 启动器自己下载的 Java 运行时
+    pub fn runtime_dir(&self) -> PathBuf {
+        self.root.join("runtime")
+    }
+
     pub fn libraries(&self) -> PathBuf {
         self.root.join("libraries")
     }

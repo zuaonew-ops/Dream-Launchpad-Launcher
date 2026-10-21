@@ -1,5 +1,6 @@
 use dlp_core::{
-    content, install, java, launch, loader, minecraft, net::Progress, paths::Paths, settings::Store,
+    content, install, java, launch, loader, market, minecraft, net::Progress, paths::Paths,
+    runtime, settings::Store,
 };
 use std::collections::HashSet;
 use serde::Serialize;
@@ -417,6 +418,124 @@ fn open_path(dir: &std::path::Path) -> Result<(), String> {
     command.spawn().map(|_| ()).map_err(|e| format!("打开目录失败: {e}"))
 }
 
+/// 从版本 id 猜加载器（Modrinth 搜索要用）
+fn loader_of(id: &str) -> Option<String> {
+    let lower = id.to_ascii_lowercase();
+    if lower.contains("neoforge") {
+        Some("neoforge".into())
+    } else if lower.contains("fabric") {
+        Some("fabric".into())
+    } else if lower.contains("quilt") {
+        Some("quilt".into())
+    } else if lower.contains("forge") {
+        Some("forge".into())
+    } else {
+        None
+    }
+}
+
+/// 版本 id → 对应的原版版本号（fabric-loader-0.19.5-26.3 → 26.3）
+fn base_mc_version(paths: &Paths, id: &str) -> String {
+    minecraft::load_version(paths, id)
+        .ok()
+        .and_then(|v| v.inherits_from.clone())
+        .unwrap_or_else(|| id.to_string())
+}
+
+#[tauri::command]
+fn base_version(state: State<'_, AppState>, id: String) -> String {
+    base_mc_version(&state.paths, &id)
+}
+
+#[tauri::command]
+async fn search_market(
+    state: State<'_, AppState>,
+    query: String,
+    kind: String,
+    mc: Option<String>,
+    loader: Option<String>,
+    offset: u64,
+    limit: u64,
+) -> Result<market::SearchPage, String> {
+    market::search(
+        &state.client,
+        &query,
+        &kind,
+        mc.as_deref(),
+        loader.as_deref(),
+        offset,
+        limit,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn market_files(
+    state: State<'_, AppState>,
+    project: String,
+    mc: Option<String>,
+    loader: Option<String>,
+) -> Result<Vec<market::FileChoice>, String> {
+    market::files(&state.client, &project, mc.as_deref(), loader.as_deref()).await
+}
+
+/// 把资源装进该版本的游戏目录，返回文件名
+#[tauri::command]
+async fn install_market(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    project: String,
+    kind: String,
+) -> Result<String, String> {
+    let paths = state.paths.clone();
+    let dir = game_dir(&paths, &id);
+    let mc = base_mc_version(&paths, &id);
+    let loader = loader_of(&id);
+    let progress = Progress::new(move |stage, done, total| {
+        let _ = app.emit(
+            "install-progress",
+            ProgressPayload {
+                stage: stage.to_string(),
+                done,
+                total,
+            },
+        );
+    });
+
+    market::install(
+        &state.client,
+        &dir,
+        &project,
+        &kind,
+        Some(&mc),
+        loader.as_deref(),
+        Some(progress),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn install_java(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    major: u32,
+) -> Result<String, String> {
+    let paths = state.paths.clone();
+    let progress = Progress::new(move |stage, done, total| {
+        let _ = app.emit(
+            "install-progress",
+            ProgressPayload {
+                stage: stage.to_string(),
+                done,
+                total,
+            },
+        );
+    });
+    let path = runtime::install(&state.client, &paths, major, Some(progress)).await?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn open_dir(state: State<'_, AppState>, kind: String) -> Result<(), String> {
     let base = state.paths.root.clone();
@@ -487,6 +606,11 @@ pub fn run() {
             list_logs,
             read_log,
             open_version_dir,
+            base_version,
+            search_market,
+            market_files,
+            install_market,
+            install_java,
             open_dir
         ])
         .run(tauri::generate_context!())
