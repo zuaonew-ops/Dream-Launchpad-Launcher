@@ -12,6 +12,9 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<NavItem> NavItems { get; }
     public ObservableCollection<AccountEntry> Accounts => Services.Accounts.Accounts;
+
+    /// <summary>右下角下载任务弹窗的数据源。</summary>
+    public DownloadMonitor Downloads => Services.Downloads;
     public string AccountName => Services.Accounts.CurrentName;
     public string AccountKind => Services.Accounts.CurrentKind;
     public string AccountInitial => Services.Accounts.CurrentInitial;

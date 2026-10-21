@@ -50,6 +50,8 @@ public sealed class DownloadViewModel : ObservableObject
         InstallVersionCommand = new AsyncRelayCommand(InstallVersionAsync, () => !IsBusy && SelectedGameVersion is not null);
         InstallContentCommand = new AsyncRelayCommand(InstallContentAsync, () => !IsBusy && SelectedProject is not null);
 
+        RebuildSubTabs();
+        Status = "选择版本后安装";
         _ = LoadManifestAsync();
     }
 
@@ -65,6 +67,56 @@ public sealed class DownloadViewModel : ObservableObject
     public AsyncRelayCommand InstallVersionCommand { get; }
     public AsyncRelayCommand InstallContentCommand { get; }
 
+    /// <summary>全局任务队列，右下角弹窗与下载详情面板共用。</summary>
+    public DownloadMonitor Downloads => _services.Downloads;
+
+    /// <summary>二级菜单：按一级分类给出子选项。</summary>
+    public ObservableCollection<string> SubTabs { get; } = [];
+
+    public string SelectedSubTab
+    {
+        get => _selectedSubTab;
+        set
+        {
+            if (!SetProperty(ref _selectedSubTab, value)) return;
+            OnPropertyChanged(nameof(ShowLoader));
+            OnPropertyChanged(nameof(ShowSearch));
+            OnPropertyChanged(nameof(ShowLocalHint));
+            OnPropertyChanged(nameof(SubTabHint));
+        }
+    }
+
+    public bool ShowSearch => IsVersionTab || SelectedSubTab != "热门";
+    public bool ShowLocalHint => SelectedCategory.Kind == "modpack" && SelectedSubTab == "本地文件";
+    public string SubTabHint => SelectedSubTab switch
+    {
+        "本地文件" => "把 .mrpack 文件拖进启动器窗口即可自动安装（也会提示解析结果和安装进度）",
+        "加载器安装" => "先装原版，再按所选游戏版本安装加载器",
+        "热门" => "按下载量排行的热门内容",
+        _ => "",
+    };
+
+    private void RebuildSubTabs()
+    {
+        SubTabs.Clear();
+        if (SelectedCategory.IsVersion)
+        {
+            SubTabs.Add("原版安装");
+            SubTabs.Add("加载器安装");
+        }
+        else if (SelectedCategory.Kind == "modpack")
+        {
+            SubTabs.Add("在线搜索");
+            SubTabs.Add("本地文件");
+        }
+        else
+        {
+            SubTabs.Add("热门");
+            SubTabs.Add("搜索");
+        }
+        SelectedSubTab = SubTabs[0];
+    }
+
     public DownloadCategory SelectedCategory
     {
         get => _selectedCategory;
@@ -76,6 +128,7 @@ public sealed class DownloadViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowLoader));
             Results.Clear();
             SelectedProject = null;
+            RebuildSubTabs();
             OnPropertyChanged(nameof(InstallActionText));
             Status = value.IsVersion ? "选择版本后安装" : "加载热门内容…";
             if (value.IsVersion) _ = LoadManifestAsync();
@@ -88,7 +141,7 @@ public sealed class DownloadViewModel : ObservableObject
 
     public bool IsVersionTab => SelectedCategory.IsVersion;
     public bool IsContentTab => !SelectedCategory.IsVersion;
-    public bool ShowLoader => IsVersionTab || SelectedCategory.Kind == "mod";
+    public bool ShowLoader => IsVersionTab && SelectedSubTab == "加载器安装";
 
     public string? SelectedGameVersion
     {
@@ -145,6 +198,8 @@ public sealed class DownloadViewModel : ObservableObject
         get => _progress;
         set => SetProperty(ref _progress, value);
     }
+
+    private string _selectedSubTab = "";
 
     public bool IsBusy
     {
@@ -365,13 +420,16 @@ public sealed class DownloadViewModel : ObservableObject
         if (SelectedGameVersion is not { } mc) return;
         IsBusy = true;
         Progress = 0;
+        var task = Downloads.Begin($"安装 {mc}" + (CurrentLoaderType is null ? "" : $" + {SelectedLoader}"));
         try
         {
             Status = $"安装原版 {mc}…";
+            task.Update($"开始安装 {mc}");
             await _services.Installer.InstallAsync(mc, new Progress<InstallProgress>(p =>
             {
                 Progress = p.Total > 0 ? (double)p.Completed / p.Total : 0;
                 Status = p.Stage;
+                task.Update(p.Stage, p.Completed, p.Total, p.DownloadedBytes, p.TotalBytes);
             }));
 
             _services.NotifyInstalledVersionsChanged();
@@ -385,8 +443,9 @@ public sealed class DownloadViewModel : ObservableObject
                     return;
                 }
                 Status = $"安装 {SelectedLoader} {loaderVersion}…";
+                task.Update($"安装 {SelectedLoader} {loaderVersion}");
                 var id = await _loaders.InstallAsync(type, mc, loaderVersion,
-                    new Progress<string>(s => Status = s), CancellationToken.None);
+                    new Progress<string>(s => { Status = s; task.Update(s); }), CancellationToken.None);
                 var installed = _services.GetInstalledVersions();
                 var actual = installed.FirstOrDefault(v => v.Equals(id, StringComparison.OrdinalIgnoreCase))
                     ?? installed.FirstOrDefault(v => v.Contains(mc) && v.Contains(SelectedLoader.ToLowerInvariant()));
@@ -398,10 +457,12 @@ public sealed class DownloadViewModel : ObservableObject
             }
 
             _services.NotifyInstalledVersionsChanged();
+            Downloads.Finish(task, "安装完成");
         }
         catch (Exception ex)
         {
             Status = "安装失败：" + ex.Message;
+            Downloads.Fail(task, "安装失败：" + ex.Message);
         }
         finally
         {
@@ -414,6 +475,7 @@ public sealed class DownloadViewModel : ObservableObject
         if (SelectedProject is not { } project || SelectedGameVersion is not { } mc) return;
         IsBusy = true;
         Progress = 0;
+        var task = Downloads.Begin($"下载 {SelectedProject?.Title ?? "内容"}");
         try
         {
             var kind = CurrentContentKind;
@@ -421,6 +483,7 @@ public sealed class DownloadViewModel : ObservableObject
             if (kind != ContentKind.Modpack && !Directory.Exists(_services.Paths.VersionDir(mc)))
             {
                 Status = $"请先安装 {mc} 再下载内容";
+                Downloads.Fail(task, $"请先安装 {mc}");
                 return;
             }
             var gameDir = _services.Paths.GameDir(mc);
@@ -429,22 +492,26 @@ public sealed class DownloadViewModel : ObservableObject
             if (kind == ContentKind.Modpack)
             {
                 Status = $"安装整合包 {project.Title}…";
-                var progress = new Progress<string>(s => Status = s);
+                var progress = new Progress<string>(s => { Status = s; task.Update(s); });
                 var result = await _services.Modpacks.InstallAsync(project.Slug, mc, loader, progress, CancellationToken.None);
                 _services.NotifyInstalledVersionsChanged();
                 Status = $"已安装整合包：{result.VersionId}（{result.FilesInstalled} 个文件），去「游戏版本」里启动";
+                Downloads.Finish(task, $"完成：{result.FilesInstalled} 个文件，{result.OverridesInstalled} 个配置");
                 App.Current.Dispatcher.Invoke(() => SelectedGameVersion = mc);
                 return;
             }
 
             Status = $"下载 {project.Title}…";
+            task.Update($"下载 {project.Title}");
             var path = await _services.Modrinth.InstallAsync(kind, project.Id, mc, loader, gameDir,
-                new Progress<double>(v => Progress = v), CancellationToken.None);
+                new Progress<double>(v => { Progress = v; task.Update(null, null, null, null, null); }), CancellationToken.None);
             Status = "已下载：" + path;
+            Downloads.Finish(task, "下载完成：" + path);
         }
         catch (Exception ex)
         {
             Status = "下载失败：" + ex.Message;
+            Downloads.Fail(task, "下载失败：" + ex.Message);
         }
         finally { IsBusy = false; }
     }

@@ -9,6 +9,7 @@
         <ResourceDictionary>
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
             <conv:BoolToVisibilityConverter x:Key="InverseBoolToVisibility" Invert="True" />
+            <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
 
             <SolidColorBrush x:Key="WindowBg" Color="#F6F6F7" />
             <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />

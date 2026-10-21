@@ -119,5 +119,45 @@
         </Border>
 
         <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+
+        <Border x:Name="TaskPopup" Grid.Column="1" Width="330" Margin="0,0,18,18"
+                VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                CornerRadius="10" Visibility="Collapsed" Opacity="0" IsHitTestVisible="True">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="TaskPopupOffset" Y="28" />
+            </Border.RenderTransform>
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.14" Color="#000000" />
+            </Border.Effect>
+            <StackPanel>
+                <Grid Margin="14,10,8,4">
+                    <TextBlock Text="下载任务" FontSize="12.5" FontWeight="SemiBold" />
+                    <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                            HorizontalAlignment="Right" Width="24" Height="24" Cursor="Hand"
+                            Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextTertiary}"
+                            Click="TaskPopupClose_Click" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Downloads.Tasks}" Margin="14,0,14,8">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,4">
+                                <Grid>
+                                    <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Speed}" Style="{StaticResource SmallText}" HorizontalAlignment="Right" />
+                                </Grid>
+                                <Grid Margin="0,3,0,0">
+                                    <TextBlock Text="{Binding Stage}" Style="{StaticResource SmallText}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource SmallText}" HorizontalAlignment="Right" />
+                                </Grid>
+                                <ProgressBar Style="{StaticResource ProgressBarStyle}" Height="5" Margin="0,4,0,0"
+                                             Value="{Binding Percent, Mode=OneWay}" Maximum="100" IsIndeterminate="{Binding IsIndeterminate}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
     </Grid>
 </Window>

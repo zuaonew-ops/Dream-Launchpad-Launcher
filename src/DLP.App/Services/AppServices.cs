@@ -26,6 +26,7 @@ public sealed class AppServices
     public ModrinthService Modrinth { get; }
     public LoaderService Loaders { get; }
     public ModpackInstaller Modpacks { get; }
+    public DownloadMonitor Downloads { get; } = new();
 
     public event Action? InstalledVersionsChanged;
 
