@@ -51,7 +51,7 @@ public sealed class DownloadViewModel : ObservableObject
         InstallContentCommand = new AsyncRelayCommand(InstallContentAsync, () => !IsBusy && SelectedProject is not null);
 
         RebuildSubTabs();
-        Status = "选择版本后安装";
+        Status = "选好游戏版本和加载器，一次装好";
         _ = LoadManifestAsync();
     }
 
@@ -81,17 +81,25 @@ public sealed class DownloadViewModel : ObservableObject
             if (!SetProperty(ref _selectedSubTab, value)) return;
             OnPropertyChanged(nameof(ShowLoader));
             OnPropertyChanged(nameof(ShowSearch));
+            OnPropertyChanged(nameof(ShowSearchButton));
             OnPropertyChanged(nameof(ShowLocalHint));
             OnPropertyChanged(nameof(SubTabHint));
         }
     }
 
+    /// <summary>有二级菜单才显示那一条标签栏（游戏版本已经合并成一个安装表单，不再分）。</summary>
+    public bool HasSubTabs => SubTabs.Count > 0;
+
+    /// <summary>版本号过滤框：版本列表和内容搜索都要用。</summary>
     public bool ShowSearch => IsVersionTab || SelectedSubTab != "热门";
+
+    /// <summary>「搜索」按钮只给内容搜索用，版本列表是实时过滤。</summary>
+    public bool ShowSearchButton => IsContentTab && SelectedSubTab != "热门";
+
     public bool ShowLocalHint => SelectedCategory.Kind == "modpack" && SelectedSubTab == "本地文件";
     public string SubTabHint => SelectedSubTab switch
     {
         "本地文件" => "把 .mrpack 文件拖进启动器窗口即可自动安装（也会提示解析结果和安装进度）",
-        "加载器安装" => "先装原版，再按所选游戏版本安装加载器",
         "热门" => "按下载量排行的热门内容",
         _ => "",
     };
@@ -101,8 +109,7 @@ public sealed class DownloadViewModel : ObservableObject
         SubTabs.Clear();
         if (SelectedCategory.IsVersion)
         {
-            SubTabs.Add("原版安装");
-            SubTabs.Add("加载器安装");
+            // 原版和加载器合并成一个安装表单，不再需要二级菜单。
         }
         else if (SelectedCategory.Kind == "modpack")
         {
@@ -114,7 +121,11 @@ public sealed class DownloadViewModel : ObservableObject
             SubTabs.Add("热门");
             SubTabs.Add("搜索");
         }
-        SelectedSubTab = SubTabs[0];
+        SelectedSubTab = SubTabs.FirstOrDefault() ?? "";
+        OnPropertyChanged(nameof(HasSubTabs));
+        OnPropertyChanged(nameof(ShowSearch));
+        OnPropertyChanged(nameof(ShowSearchButton));
+        OnPropertyChanged(nameof(ShowLoader));
     }
 
     public DownloadCategory SelectedCategory
@@ -141,7 +152,8 @@ public sealed class DownloadViewModel : ObservableObject
 
     public bool IsVersionTab => SelectedCategory.IsVersion;
     public bool IsContentTab => !SelectedCategory.IsVersion;
-    public bool ShowLoader => IsVersionTab && SelectedSubTab == "加载器安装";
+    /// <summary>加载器下拉：版本安装永远显示（默认「原版」），模组下载需要知道目标加载器。</summary>
+    public bool ShowLoader => IsVersionTab || SelectedCategory.Kind == "mod";
 
     public string? SelectedGameVersion
     {
@@ -430,7 +442,7 @@ public sealed class DownloadViewModel : ObservableObject
                 Progress = p.Total > 0 ? (double)p.Completed / p.Total : 0;
                 Status = p.Stage;
                 task.Update(p.Stage, p.Completed, p.Total, p.DownloadedBytes, p.TotalBytes);
-            }));
+            }), CancellationToken.None, asDependency: CurrentLoaderType is not null);
 
             _services.NotifyInstalledVersionsChanged();
 

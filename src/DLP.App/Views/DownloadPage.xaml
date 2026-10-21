@@ -51,7 +51,7 @@
             </Grid.RowDefinitions>
 
             <!-- 二级菜单 -->
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Visibility="{Binding HasSubTabs, Converter={StaticResource BoolToVisibility}}">
                 <ListBox Background="Transparent" BorderThickness="0" ItemsSource="{Binding SubTabs}"
                          SelectedItem="{Binding SelectedSubTab}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemsPanel>
@@ -92,7 +92,7 @@
                            Margin="10,0,0,0" TextWrapping="Wrap" MaxWidth="420" />
             </StackPanel>
 
-            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16" Margin="0,10,0,0">
+            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,0">
                 <StackPanel Orientation="Horizontal">
                     <StackPanel Width="180">
                         <TextBlock Text="游戏版本" Style="{StaticResource FieldLabel}" />
@@ -117,8 +117,9 @@
                     </StackPanel>
                     <Button Content="安装" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" Margin="16,0,0,0"
                             Command="{Binding InstallVersionCommand}" Visibility="{Binding IsVersionTab, Converter={StaticResource BoolToVisibility}}" />
-                    <TextBlock Text="选择版本后点安装；装完可在「游戏版本」里管理" Style="{StaticResource SmallText}"
-                               VerticalAlignment="Bottom" Margin="14,0,0,8" TextWrapping="Wrap"
+                    <TextBlock Text="加载器选「原版」就只装原版；选了加载器会连原版一起装好，版本列表里只显示带加载器的那个"
+                               Style="{StaticResource SmallText}" VerticalAlignment="Bottom" Margin="14,0,0,8"
+                               TextWrapping="Wrap" MaxWidth="260"
                                Visibility="{Binding IsVersionTab, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
             </Border>
@@ -128,7 +129,7 @@
                          Visibility="{Binding ShowSearch, Converter={StaticResource BoolToVisibility}}" />
                 <Button Content="搜索" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Right"
                         Command="{Binding SearchCommand}"
-                        Visibility="{Binding ShowSearch, Converter={StaticResource BoolToVisibility}}" />
+                        Visibility="{Binding ShowSearchButton, Converter={StaticResource BoolToVisibility}}" />
                 <TextBlock Text="输入版本号可实时过滤列表" Style="{StaticResource SmallText}" HorizontalAlignment="Right"
                            VerticalAlignment="Center" IsHitTestVisible="False" Margin="0,0,4,0"
                            Visibility="{Binding IsVersionTab, Converter={StaticResource BoolToVisibility}}" />

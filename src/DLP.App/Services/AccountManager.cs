@@ -125,26 +125,52 @@ public sealed class AccountManager
         Current = entry;
     }
 
-    public void SetOffline(string username)
+    /// <summary>离线账号改名或切换：同名已存在就直接切过去，否则新建一个离线账号。</summary>
+    public void SetOffline(string username) => AddOffline(username);
+
+    /// <summary>添加（或切换到）一个离线账号，允许同时存在多个。</summary>
+    public AccountEntry AddOffline(string username)
     {
         username = string.IsNullOrWhiteSpace(username) ? "Steve" : username.Trim();
-        var existing = Accounts.FirstOrDefault(a => a.Kind == "offline");
+        var offline = LaunchAccount.Offline(username);
+        var existing = Accounts.FirstOrDefault(a => a.Kind == "offline"
+            && string.Equals(a.Username, offline.Username, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            var index = Accounts.IndexOf(existing);
-            var updated = existing with { Username = username };
-            Accounts[index] = updated;
-            Current = updated;
+            Current = existing;
+            Persist();
+            return existing;
         }
-        else
-        {
-            var offline = LaunchAccount.Offline(username);
-            var entry = new AccountEntry("offline", offline.Username, offline.Uuid);
-            Accounts.Add(entry);
-            Current = entry;
-        }
+
+        var entry = new AccountEntry("offline", offline.Username, offline.Uuid);
+        Accounts.Add(entry);
+        Current = entry;
         Persist();
+        return entry;
     }
+
+    /// <summary>删除账号：离线账号直接移除；微软账号同时清掉本地令牌。</summary>
+    public bool RemoveAccount(AccountEntry entry)
+    {
+        var existing = Accounts.FirstOrDefault(a => a.Uuid == entry.Uuid);
+        if (existing is null) return false;
+
+        Accounts.Remove(existing);
+        if (existing.Kind == "msa")
+        {
+            var records = _store.Load().Where(r => r.Uuid != existing.Uuid).ToList();
+            _store.Save(records);
+        }
+
+        if (ReferenceEquals(Current, existing) || Current?.Uuid == existing.Uuid)
+            _current = Accounts.FirstOrDefault();
+        Persist();
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>离线账号数量（界面上用来判断能不能删）。</summary>
+    public int OfflineCount => Accounts.Count(a => a.Kind == "offline");
 
     /// <summary>微软设备码登录；deviceCode 回调把设备码交给界面显示。</summary>
     public async Task<MicrosoftSession> LoginMicrosoftAsync(IProgress<MicrosoftDeviceCode> deviceCode, CancellationToken ct)

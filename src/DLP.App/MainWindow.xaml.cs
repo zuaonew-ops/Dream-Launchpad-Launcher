@@ -97,6 +97,36 @@ public partial class MainWindow : Window
         if (e.AddedItems.Count > 0) AccountPopup.IsOpen = false;
     }
 
+    private void AddOffline_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        AccountPopup.IsOpen = false;
+        var window = new OfflineAccountWindow(vm.Services.Accounts.Current?.Kind == "offline" ? vm.Services.Accounts.Current.Username : null)
+        {
+            Owner = this
+        };
+        if (window.ShowDialog() != true) return;
+        vm.Services.Accounts.AddOffline(window.Username);
+    }
+
+    private void RemoveAccount_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        if ((sender as FrameworkElement)?.DataContext is not AccountEntry entry) return;
+        if (vm.Services.Accounts.Accounts.Count <= 1)
+        {
+            MessageBox.Show("至少要保留一个账号", "删除账号", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show($"确定删除账号「{entry.Username}」？", "删除账号",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        vm.Services.Accounts.RemoveAccount(entry);
+        if (vm.Services.Accounts.Accounts.Count == 0) vm.Services.Accounts.AddOffline("Steve");
+    }
+
     private void AddMicrosoft_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel vm) return;
