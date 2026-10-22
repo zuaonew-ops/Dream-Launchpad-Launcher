@@ -20,7 +20,8 @@ public sealed class DownloadClient(HttpClient http, Log log)
     /// <summary>单次请求的基础超时，实际按文件大小放大，避免大文件被误杀。</summary>
     private static readonly TimeSpan BaseAttemptTimeout = TimeSpan.FromSeconds(20);
 
-    public async Task DownloadAsync(string url, string destination, string? sha1 = null, long? size = null, CancellationToken ct = default)
+    public async Task DownloadAsync(string url, string destination, string? sha1 = null, long? size = null, CancellationToken ct = default,
+        bool allowRange = true)
     {
         if (IsValid(destination, sha1, size)) return;
 
@@ -32,7 +33,7 @@ public sealed class DownloadClient(HttpClient http, Log log)
         {
             try
             {
-                await TransferAsync(current, temp, size, ct);
+                await TransferAsync(current, temp, size, ct, allowRange);
                 if (sha1 is not null && !string.Equals(HashFile(temp), sha1, StringComparison.OrdinalIgnoreCase))
                     throw new DownloadException($"SHA1 校验失败：{destination}");
 
@@ -64,8 +65,8 @@ public sealed class DownloadClient(HttpClient http, Log log)
         }
     }
 
-    private Task TransferAsync(string url, string temp, long? size, CancellationToken ct)
-        => size is { } length && length >= RangeThreshold
+    private Task TransferAsync(string url, string temp, long? size, CancellationToken ct, bool allowRange)
+        => allowRange && size is { } length && length >= RangeThreshold
             ? DownloadInPartsAsync(url, temp, length, ct)
             : DownloadSingleAsync(url, temp, size, ct);
 
@@ -155,8 +156,8 @@ public sealed class DownloadClient(HttpClient http, Log log)
     /// <summary>超时按大小放大：每 MB 给 3 秒，20 秒起步，最多 3 分钟。</summary>
     private static TimeSpan TimeoutFor(long bytes)
     {
-        var seconds = 20 + bytes / (1024.0 * 1024.0) * 3;
-        return TimeSpan.FromSeconds(Math.Clamp(seconds, 20, 180));
+        var seconds = 60 + bytes / (1024.0 * 1024.0) * 3;
+        return TimeSpan.FromSeconds(Math.Clamp(seconds, 60, 240));
     }
 
     public static bool IsValid(string path, string? sha1, long? size)

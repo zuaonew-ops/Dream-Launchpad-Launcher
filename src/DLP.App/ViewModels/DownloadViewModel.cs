@@ -156,7 +156,7 @@ public sealed class DownloadViewModel : ObservableObject
     public bool ShowLocalHint => SelectedCategory.Kind == "modpack" && SelectedSubTab == "本地文件";
     public string SubTabHint => SelectedSubTab switch
     {
-        "本地文件" => "把 .mrpack 文件拖进启动器窗口即可自动安装（也会提示解析结果和安装进度）",
+        "本地文件" => "把 .mrpack 或 CurseForge 整合包 zip 拖进窗口（也可以用 DLP.App.exe --import 文件路径），安装进度就在这个面板里显示",
         "热门" => "按下载量排行的热门内容",
         _ => "",
     };

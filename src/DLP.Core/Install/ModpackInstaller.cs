@@ -1,4 +1,5 @@
-// 整合包（.mrpack）安装：解析 Modrinth 整合包清单，安装基础版本与加载器，落盘全部内容文件与覆盖文件。
+// 整合包安装：Modrinth（.mrpack，根目录 modrinth.index.json）与 CurseForge（zip，根目录 manifest.json）两种格式。
+// 解析清单 → 安装基础版本与加载器 → 落盘内容文件与覆盖文件。
 using System.IO.Compression;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -9,13 +10,14 @@ using DLP.Core.Infrastructure;
 
 namespace DLP.Core.Install;
 
-/// <summary>整合包安装结果。</summary>
+/// <summary>整合包安装结果；<see cref="FailedFiles"/> 为 CurseForge 整合包里下载失败的模组数（Modrinth 格式目前失败即抛异常）。</summary>
 public sealed record ModpackInstallResult(
     string VersionId,
     string VersionName,
     string GameDir,
     int FilesInstalled,
-    int OverridesInstalled);
+    int OverridesInstalled,
+    int FailedFiles = 0);
 
 /// <summary>Modrinth 整合包安装：mrpack 下载 / 解压 / 基础版本 / 加载器 / 内容文件 / 覆盖文件。</summary>
 public sealed class ModpackInstaller(
@@ -26,13 +28,21 @@ public sealed class ModpackInstaller(
     ModrinthService modrinth,
     Log log)
 {
-    /// <summary>兼容按 (paths, http, downloader, installer, loaders, modrinth, log) 构造的调用方；http 由 downloader / modrinth 复用。</summary>
+    private HttpClient? _http;
+    private CurseForgeInstaller? _curseForge;
+
+    /// <summary>兼容按 (paths, http, downloader, installer, loaders, modrinth, log) 构造的调用方；http 由 downloader / modrinth / CurseForge 元数据复用。</summary>
     public ModpackInstaller(GamePaths paths, HttpClient http, DownloadClient downloader, GameInstaller installer,
         LoaderService loaders, ModrinthService modrinth, Log log)
         : this(paths, downloader, installer, loaders, modrinth, log)
     {
         ArgumentNullException.ThrowIfNull(http);
+        _http = http;
     }
+
+    /// <summary>CurseForge 格式安装器：第一次用到时才创建（App 走 6 参构造，由它自己建元数据用的 HttpClient）。</summary>
+    private CurseForgeInstaller CurseForge => _curseForge ??= new CurseForgeInstaller(
+        paths, downloader, installer, loaders, new CurseForgeApi(_http), log);
 
     private const string IndexFileName = "modrinth.index.json";
     // 中文名与 "+08:00" 时区偏移按原样写出，不转义成 \uXXXX。
@@ -99,8 +109,10 @@ public sealed class ModpackInstaller(
     }
 
     /// <summary>
-    /// 安装本地整合包文件：.mrpack，或改名为 .zip 的同结构压缩包（以根目录 modrinth.index.json 为准）。
-    /// 游戏版本优先取清单 dependencies.minecraft，缺失时用 <paramref name="mcVersionHint"/>。
+    /// 安装本地整合包文件，按压缩包内容自动分派：
+    /// 根目录有 modrinth.index.json → Modrinth 格式（.mrpack，或改名为 .zip 的同结构包）；
+    /// 根目录有 manifest.json 且 manifestType=minecraftModpack → CurseForge 格式（manifest.json + overrides/）。
+    /// 游戏版本优先取清单声明，缺失时用 <paramref name="mcVersionHint"/>。
     /// </summary>
     public async Task<ModpackInstallResult> InstallFromFileAsync(string mrpackPath, string? mcVersionHint,
         IProgress<string>? status, CancellationToken ct)
@@ -109,8 +121,20 @@ public sealed class ModpackInstaller(
         var fullPath = Path.GetFullPath(mrpackPath);
         if (!File.Exists(fullPath))
             throw new FileNotFoundException("找不到整合包文件", fullPath);
-        if (!IsZipArchive(fullPath))
-            throw new InvalidOperationException("不是有效的整合包压缩包");
+
+        status?.Report("读取整合包清单");
+        switch (DetectFormat(fullPath))
+        {
+            case PackArchiveFormat.CurseForge:
+                log.Info($"识别为 CurseForge 整合包：{fullPath}");
+                var curseForgeResult = await CurseForge.InstallAsync(fullPath, mcVersionHint, status, ct);
+                return new ModpackInstallResult(curseForgeResult.VersionId, curseForgeResult.Name,
+                    curseForgeResult.GameDir, curseForgeResult.ModsInstalled, curseForgeResult.OverridesInstalled,
+                    curseForgeResult.ModsFailed);
+
+            case PackArchiveFormat.Unknown:
+                throw new InvalidOperationException("不是有效的整合包压缩包（既没有 modrinth.index.json，也没有 CurseForge 的 manifest.json）");
+        }
 
         status?.Report("解压整合包");
         var tempDir = CreateTempDirectory();
@@ -396,18 +420,57 @@ public sealed class ModpackInstaller(
         return tempDir;
     }
 
-    /// <summary>能否按 zip 打开；不是 zip 时返回 false。</summary>
-    private static bool IsZipArchive(string path)
+    /// <summary>整合包压缩包格式。</summary>
+    private enum PackArchiveFormat { Unknown, Modrinth, CurseForge }
+
+    /// <summary>
+    /// 只看压缩包目录判断格式（不解压）：根目录有 modrinth.index.json → Modrinth；
+    /// 根目录有 manifest.json 且 manifestType 为 minecraftModpack → CurseForge；其余（含打不开的非 zip）→ Unknown。
+    /// </summary>
+    private static PackArchiveFormat DetectFormat(string path)
     {
         try
         {
             using var archive = ZipFile.OpenRead(path);
-            return true;
+            ZipArchiveEntry? manifest = null;
+            foreach (var entry in archive.Entries)
+            {
+                var name = NormalizeEntryPath(entry.FullName);
+                if (string.Equals(name, IndexFileName, StringComparison.OrdinalIgnoreCase))
+                    return PackArchiveFormat.Modrinth;
+                if (string.Equals(name, CurseForgeInstaller.ManifestFileName, StringComparison.OrdinalIgnoreCase))
+                    manifest = entry;
+            }
+
+            if (manifest is null) return PackArchiveFormat.Unknown;
+
+            using var stream = manifest.Open();
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            using var document = JsonDocument.Parse(reader.ReadToEnd());
+            if (document.RootElement.ValueKind != JsonValueKind.Object) return PackArchiveFormat.Unknown;
+            if (!document.RootElement.TryGetProperty("manifestType", out var type) || type.ValueKind != JsonValueKind.String)
+                return PackArchiveFormat.Unknown;
+
+            return string.Equals(type.GetString(), CurseForgeInstaller.ManifestType, StringComparison.OrdinalIgnoreCase)
+                ? PackArchiveFormat.CurseForge
+                : PackArchiveFormat.Unknown;
         }
         catch (InvalidDataException)
         {
-            return false;
+            return PackArchiveFormat.Unknown; // 不是 zip
         }
+        catch (JsonException)
+        {
+            return PackArchiveFormat.Unknown; // 清单不是合法 JSON，交给后续流程报错
+        }
+    }
+
+    /// <summary>统一 zip 条目路径：反斜杠转斜杠、去掉开头的 "./"。</summary>
+    private static string NormalizeEntryPath(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+        while (normalized.StartsWith("./", StringComparison.Ordinal)) normalized = normalized[2..];
+        return normalized;
     }
 
     /// <summary>由整合包名称生成小写 slug：只保留字母数字，其余折叠成单个 '-'。</summary>
