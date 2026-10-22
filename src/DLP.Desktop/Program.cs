@@ -1,6 +1,7 @@
 using Avalonia;
+using DLP.Avalonia;
 
-namespace DLP.Avalonia;
+namespace DLP.Desktop;
 
 internal static class Program
 {
@@ -9,7 +10,7 @@ internal static class Program
         .StartWithClassicDesktopLifetime(args);
 
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+        => AppBuilder.Configure<global::DLP.Avalonia.App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();

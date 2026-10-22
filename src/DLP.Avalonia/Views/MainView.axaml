@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DLP.Avalonia.ViewModels"
+             x:Class="DLP.Avalonia.Views.MainView"
+             x:DataType="vm:MainViewModel">
+
+    <Grid>
+        <!-- 宽屏：左侧导航 -->
+        <Grid ColumnDefinitions="200,*" IsVisible="{Binding IsWide}">
+            <Border Grid.Column="0" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+                <DockPanel Margin="10,14">
+                    <StackPanel DockPanel.Dock="Top" Margin="6,0,6,18" Spacing="2">
+                        <TextBlock Text="Dream Launchpad" FontSize="15" FontWeight="SemiBold" />
+                        <TextBlock Text="Minecraft 启动器" Classes="tertiary" FontSize="11" />
+                    </StackPanel>
+
+                    <StackPanel DockPanel.Dock="Bottom" Spacing="4">
+                        <TextBlock Text="{Binding AccountName}" Classes="secondary" FontSize="12" Margin="8,0" />
+                        <TextBlock Text="bata0.1.0 · Avalonia" Classes="tertiary" FontSize="11" Margin="8,0,8,4" />
+                    </StackPanel>
+
+                    <ListBox Background="Transparent" BorderThickness="0"
+                             ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:NavItem">
+                                <TextBlock Text="{Binding Title}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <DockPanel Grid.Column="1">
+                <Border DockPanel.Dock="Top" Height="52" Background="{DynamicResource Surface}"
+                        BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="24,0">
+                    <TextBlock Text="{Binding CurrentTitle}" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" />
+                </Border>
+                <ContentControl Content="{Binding CurrentPage}" />
+            </DockPanel>
+        </Grid>
+
+        <!-- 窄屏：顶部标签栏 -->
+        <DockPanel IsVisible="{Binding IsCompact}">
+            <Border DockPanel.Dock="Top" Background="{DynamicResource Surface}"
+                    BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="12,8">
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Dream Launchpad" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding AccountName}" Classes="tertiary" FontSize="11" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ListBox Background="Transparent" BorderThickness="0" Height="44"
+                             ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="4" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:NavItem">
+                                <TextBlock Text="{Binding Title}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+            <ContentControl Content="{Binding CurrentPage}" />
+        </DockPanel>
+    </Grid>
+</UserControl>

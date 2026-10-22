@@ -5,6 +5,8 @@
     <Project Path="src/DLP.Core/DLP.Core.csproj" />
     <Project Path="src/DLP.Common/DLP.Common.csproj" />
     <Project Path="src/DLP.Avalonia/DLP.Avalonia.csproj" />
+    <Project Path="src/DLP.Desktop/DLP.Desktop.csproj" />
+    <Project Path="src/DLP.Android/DLP.Android.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DLP.Core.Tests/DLP.Core.Tests.csproj" />

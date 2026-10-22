@@ -18,14 +18,16 @@ public partial class App : Application
         UiDispatcher.Post = action => global::Avalonia.Threading.Dispatcher.UIThread.Post(action);
 
         var services = new AppServices();
-        var viewModel = new MainViewModel(
-            services,
-            new HomeViewModel(services),
-            new SettingsViewModel(services));
+        var viewModel = MainViewModel.Create(services);
 
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        switch (ApplicationLifetime)
         {
-            desktop.MainWindow = new MainWindow { DataContext = viewModel };
+            case IClassicDesktopStyleApplicationLifetime desktop:
+                desktop.MainWindow = new MainWindow { DataContext = viewModel };
+                break;
+            case ISingleViewApplicationLifetime singleView:
+                singleView.MainView = new MainView { DataContext = viewModel };
+                break;
         }
 
         ThemeManager.Apply(services.Settings.Theme);

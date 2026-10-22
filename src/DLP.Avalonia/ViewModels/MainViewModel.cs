@@ -46,6 +46,10 @@ public sealed class MainViewModel : ObservableObject
         };
     }
 
+    /// <summary>按外壳需要创建视图模型（桌面/移动共用）。</summary>
+    public static MainViewModel Create(AppServices services) =>
+        new(services, new HomeViewModel(services), new SettingsViewModel(services));
+
     public AppServices Services { get; }
 
     /// <summary>「下载」页的视图模型（首次显示时再拉一次版本清单）。</summary>
@@ -67,6 +71,21 @@ public sealed class MainViewModel : ObservableObject
             if (ReferenceEquals(_selectedNav?.Page, Download)) Download.EnsureLoaded();
         }
     }
+
+    private bool _isCompact;
+
+    /// <summary>窄屏（手机/小窗口）时换成顶部标签栏布局。</summary>
+    public bool IsCompact
+    {
+        get => _isCompact;
+        set
+        {
+            if (!SetProperty(ref _isCompact, value)) return;
+            OnPropertyChanged(nameof(IsWide));
+        }
+    }
+
+    public bool IsWide => !IsCompact;
 
     public string AccountName => Services.Accounts.CurrentName;
     public object? CurrentPage => SelectedNav?.Page;
