@@ -75,6 +75,12 @@ export default function OverviewPanel({ id }: { id: string }) {
           <button type="button" className="ghost" onClick={() => void actions.openDir("logs")}>
             打开日志
           </button>
+          <button type="button" className="ghost" onClick={() => void actions.cloneVersion(id)}>
+            复制版本
+          </button>
+          <button type="button" className="ghost" onClick={() => void actions.renameVersion(id)}>
+            重命名
+          </button>
         </div>
       </section>
 

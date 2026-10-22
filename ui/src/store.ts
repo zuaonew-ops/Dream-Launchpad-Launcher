@@ -1087,6 +1087,32 @@ async function confirmInstall() {
   }
 }
 
+/** 复制一个版本 */
+async function cloneVersion(from: string) {
+  const to = window.prompt(`把 ${from} 复制成：`, `${from}-副本`);
+  if (!to || to === from) return;
+  try {
+    await invoke("clone_version", { from, to });
+    await refresh();
+    set({ notice: `已复制成 ${to}` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+/** 版本改名 */
+async function renameVersion(from: string) {
+  const to = window.prompt(`把 ${from} 改名为（会重建目录）：`, from);
+  if (!to || to === from) return;
+  try {
+    await invoke("rename_version", { from, to });
+    await refresh();
+    set({ selected: to, notice: `已改名为 ${to}` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 皮肤库 + 是否装了 CustomSkinLoader */
 async function loadSkins(id: string) {
   try {
@@ -1415,6 +1441,8 @@ export const actions = {
   setPackId: (packId: string) => set({ packId }),
   saveAppSettings,
   exportPack,
+  cloneVersion,
+  renameVersion,
   loadSkins,
   importSkin,
   deleteSkin,

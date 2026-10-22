@@ -1,6 +1,7 @@
 //! 安装一个版本：元数据 → 依赖库 → natives → 资源文件。
 
 pub mod assets;
+pub mod clone;
 pub mod natives;
 
 use crate::minecraft::{load_version, manifest::VersionEntry, platform, version::Artifact, VersionJson};

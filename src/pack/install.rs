@@ -146,65 +146,14 @@ async fn ensure_base(
     }
 }
 
-/// 把装好的版本目录另存为整合包自己的 id：复制目录、改 JSON 里的 id 与 inheritsFrom。
+/// 把装好的版本目录另存为整合包自己的 id。
 ///
 /// 为什么要另存：整合包的 mods 是它自己的，和手动装的加载器版本混在一起会互相污染。
 fn adopt_as(paths: &Paths, from: &str, to: &str) -> Result<(), String> {
     if from == to {
         return Ok(());
     }
-    let src = paths.version_dir(from);
-    let dst = paths.version_dir(to);
-    if dst.exists() {
-        std::fs::remove_dir_all(&dst).map_err(|e| format!("清理旧目录失败: {e}"))?;
-    }
-    copy_dir(&src, &dst)?;
-
-    // JSON 里写着自己的 id，继承关系也指向它，改名后必须同步
-    let json = dst.join(format!("{from}.json"));
-    if json.is_file() {
-        let text = std::fs::read_to_string(&json).map_err(|e| e.to_string())?;
-        let mut value: serde_json::Value =
-            serde_json::from_str(&text).map_err(|e| format!("解析版本 JSON 失败: {e}"))?;
-        value["id"] = serde_json::Value::String(to.to_string());
-        if value.get("inheritsFrom").and_then(|v| v.as_str()) == Some(from) {
-            value["inheritsFrom"] = serde_json::Value::String(to.to_string());
-        }
-        let out = dst.join(format!("{to}.json"));
-        std::fs::write(
-            &out,
-            serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| format!("写入 {} 失败: {e}", out.display()))?;
-        let _ = std::fs::remove_file(&json);
-    }
-    // jar 也跟着改名，否则按 id 找 jar 会落空
-    let jar = dst.join(format!("{from}.jar"));
-    if jar.is_file() {
-        let _ = std::fs::rename(&jar, dst.join(format!("{to}.jar")));
-    }
-    Ok(())
-}
-
-/// 递归复制目录。
-fn copy_dir(from: &Path, to: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(to).map_err(|e| format!("创建 {} 失败: {e}", to.display()))?;
-    let entries = std::fs::read_dir(from).map_err(|e| format!("读 {} 失败: {e}", from.display()))?;
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let target = to.join(entry.file_name());
-        if path.is_dir() {
-            copy_dir(&path, &target)?;
-        } else {
-            // 没下完的临时文件不带过去
-            if path.extension().map(|e| e == "part").unwrap_or(false) {
-                continue;
-            }
-            std::fs::copy(&path, &target)
-                .map_err(|e| format!("复制 {} 失败: {e}", path.display()))?;
-        }
-    }
-    Ok(())
+    install::clone::clone_version(paths, from, to)
 }
 
 /// 清单 → 下载任务。文件按清单里的相对路径落到游戏目录。

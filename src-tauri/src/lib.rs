@@ -790,6 +790,8 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            clone_version,
+            rename_version,
             list_skins,
             import_skin,
             delete_skin,
@@ -974,4 +976,24 @@ fn apply_skin(
 #[tauri::command]
 fn has_customskinloader(state: State<'_, AppState>, id: String) -> bool {
     content::has_customskinloader(&game_dir(&state.paths, &id))
+}
+
+/// 复制一个版本（换 id，目录/JSON/jar 一起改）。
+#[tauri::command]
+fn clone_version(
+    state: State<'_, AppState>,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    install::clone::clone_version(&state.paths, &from, &to)
+}
+
+/// 给版本改名。
+#[tauri::command]
+fn rename_version(
+    state: State<'_, AppState>,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    install::clone::rename_version(&state.paths, &from, &to)
 }
