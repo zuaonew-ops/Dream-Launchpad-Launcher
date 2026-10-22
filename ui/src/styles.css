@@ -4109,3 +4109,52 @@ input[type="range"]::-moz-range-thumb {
   color: #667085;
   white-space: pre-wrap;
 }
+
+/* ── 启动失败诊断横幅 ───────────────────────────────── */
+.diagnosis {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(220, 75, 80, 0.35);
+  border-left: 3px solid #dc4b50;
+  border-radius: 10px;
+  background: rgba(220, 75, 80, 0.06);
+}
+
+.diagnosis-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diagnosis-main strong {
+  color: #b42318;
+  font-size: 14px;
+}
+
+.diagnosis-main span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.diagnosis-main code {
+  display: block;
+  margin-top: 2px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  color: #475467;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diagnosis-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}

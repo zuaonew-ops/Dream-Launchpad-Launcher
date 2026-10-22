@@ -2,6 +2,25 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.42.0] - 2026-10-22
+
+游戏挂掉之后，启动器会说是为什么。
+
+### 新增
+
+- **启动失败诊断**：游戏非正常退出时，读 `logs/latest.log` 与最新的崩溃报告，
+  在界面顶部挂一条横幅 —— 结论 + 怎么办 + 支撑结论的那行日志 + 「看崩溃报告」
+- 认得这几类：Java 版本太低（UnsupportedClassVersionError）、内存不够（OutOfMemoryError）、
+  模组装重了（DuplicateModsFoundException）、缺前置模组、Mixin 注入失败、
+  缺类（NoClassDefFoundError）、启动时下载失败
+- 退出码 0 或被杀（无退出码）不打扰
+
+### 实测
+
+`diagnose_probe`：
+- `OutOfMemoryError: Java heap space` → `内存不够` + 建议调大内存
+- `UnsupportedClassVersionError ... more recent version` → `Java 版本太低` + 建议换 Java
+
 ## [0.41.0] - 2026-10-22
 
 服务器列表能一键直连了。

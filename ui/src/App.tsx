@@ -133,6 +133,37 @@ export default function App() {
       </nav>
 
       <main className="view">
+        {/* 上次启动失败：横幅一直挂着，直到手动关掉 */}
+        {state.diagnosis && (
+          <div className="diagnosis">
+            <div className="diagnosis-main">
+              <strong>{state.diagnosis.title}</strong>
+              {state.diagnosis.advice.map((line) => (
+                <span key={line}>{line}</span>
+              ))}
+              {state.diagnosis.evidence.map((line) => (
+                <code key={line}>{line}</code>
+              ))}
+            </div>
+            <div className="diagnosis-actions">
+              {state.diagnosis.crash && (
+                <button
+                  type="button"
+                  className="ghost small"
+                  onClick={() => {
+                    actions.readCrash(state.diagnosis!.crash!);
+                    setPage("tools");
+                  }}
+                >
+                  看崩溃报告
+                </button>
+              )}
+              <button type="button" className="ghost small" onClick={actions.dismissDiagnosis}>
+                知道了
+              </button>
+            </div>
+          </div>
+        )}
         <div className="page-fade" key={page}>
           <Current />
         </div>

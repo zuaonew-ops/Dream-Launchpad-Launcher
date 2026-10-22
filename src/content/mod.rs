@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 pub mod backup;
 pub mod leveldat;
+pub mod diagnose;
 pub mod logs;
 pub mod modmeta;
 pub mod mods;

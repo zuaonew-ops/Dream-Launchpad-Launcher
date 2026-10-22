@@ -154,6 +154,13 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface Diagnosis {
+  title: string;
+  advice: string[];
+  evidence: string[];
+  crash: string | null;
+}
+
 export interface ModDetail {
   file_name: string;
   id: string;

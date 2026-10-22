@@ -213,8 +213,7 @@ async fn launch_game(
     state: State<'_, AppState>,
     id: String,
     username: String,
-    /// 只在这次启动追加的游戏参数（例如直连服务器），不写进设置
-    extra_args: Option<Vec<String>>,
+    extra_args: Option<Vec<String>>, // 只在这次启动追加的游戏参数（例如直连服务器），不写进设置
 ) -> Result<u32, String> {
     let paths = state.paths.clone();
     let version = minecraft::load_version(&paths, &id)?;
@@ -294,12 +293,18 @@ async fn launch_game(
                 *guard = None;
             }
         }
+        let code = status.ok().and_then(|s| s.code());
+        // 游戏非正常退出时，从日志/崩溃报告里挑一个最可能的原因
+        let diagnosis = handle
+            .try_state::<AppState>()
+            .and_then(|state| dlp_core::content::diagnose::after_exit(&state.paths, code));
         let _ = handle.emit(
             "game-exit",
             GameExit {
                 pid,
                 id,
-                code: status.ok().and_then(|s| s.code()),
+                code,
+                diagnosis,
             },
         );
     });

@@ -53,6 +53,8 @@ pub struct GameExit {
     pub pid: u32,
     pub id: String,
     pub code: Option<i32>,
+    /// 非正常退出时最可能的原因；正常退出是 None
+    pub diagnosis: Option<dlp_core::content::diagnose::Diagnosis>,
 }
 
 #[derive(Serialize)]

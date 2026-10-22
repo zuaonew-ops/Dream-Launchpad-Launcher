@@ -12,6 +12,7 @@ import type {
   GameOptions,
   LevelInfo,
   ModDetail,
+  Diagnosis,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -52,6 +53,8 @@ export interface RunningGame {
 
 interface GameExit extends RunningGame {
   code: number | null;
+  /** 非正常退出时最可能的原因 */
+  diagnosis: Diagnosis | null;
 }
 
 export interface State {
@@ -97,6 +100,8 @@ export interface State {
   levelInfo: Record<string, LevelInfo | null>;
   /** 点开的模组详情 */
   modDetail: ModDetail | null;
+  /** 上次启动失败的诊断（横幅），关掉就清空 */
+  diagnosis: Diagnosis | null;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -216,6 +221,7 @@ let state: State = {
   gameOptions: null,
   levelInfo: {},
   modDetail: null,
+  diagnosis: null,
   packId: "",
   search: "",
   filter: "release",
@@ -613,13 +619,15 @@ async function init() {
 
   await listen<GameExit>("game-exit", (event) => {
     if (state.game?.pid !== event.payload.pid) return;
-    const code = event.payload.code;
+    const { code, id, diagnosis } = event.payload;
+    // 异常退出且有诊断时挂横幅，正常退出只留一句提示
     set({
       game: null,
+      diagnosis: diagnosis ?? null,
       notice:
         code === null || code === 0
-          ? `${event.payload.id} 已退出`
-          : `${event.payload.id} 异常退出（退出码 ${code}）`,
+          ? `${id} 已退出`
+          : `${id} 异常退出（退出码 ${code}）`,
     });
   });
 
@@ -1156,6 +1164,11 @@ function compareMc(a: string, b: string): number {
   return 0;
 }
 
+/** 关掉启动失败横幅 */
+function dismissDiagnosis() {
+  set({ diagnosis: null });
+}
+
 /** 模组详情：点文件名打开，再点关闭 */
 async function openModDetail(id: string, file: string) {
   if (state.modDetail?.file_name === file) {
@@ -1656,6 +1669,7 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  dismissDiagnosis,
   openModDetail,
   launchQuickPlay,
   loadLevelInfo,
