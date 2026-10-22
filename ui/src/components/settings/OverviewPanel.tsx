@@ -77,6 +77,24 @@ export default function OverviewPanel({ id }: { id: string }) {
           </button>
         </div>
       </section>
+
+      <section className="panel">
+        <h2>导出与分享</h2>
+        <p className="hint">
+          把 mods、config、资源包、光影和选项打包成一个 .mrpack —— 别人用「下载 → 整合包」
+          就能装出一模一样的版本；存档和日志不会被打包
+        </p>
+        <div className="inline">
+          <button
+            type="button"
+            className="pill"
+            disabled={state.busy}
+            onClick={() => void actions.exportPack(id)}
+          >
+            导出成 .mrpack
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

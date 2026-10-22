@@ -6,8 +6,11 @@
 //! - CurseForge：清单只给 projectID/fileID，得用官方 API 换直链（需要 key）
 
 pub mod curseforge;
+pub mod export;
 pub mod install;
 pub mod mrpack;
+
+pub use export::ExportResult;
 
 use serde::Serialize;
 

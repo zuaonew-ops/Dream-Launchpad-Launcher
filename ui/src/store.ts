@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import type {
   BackupEntry,
+  ExportResult,
   PackPreview,
   ServerEntry,
   InstallStage,
@@ -1079,6 +1080,24 @@ async function confirmInstall() {
   }
 }
 
+/** 把一个版本导出成 .mrpack */
+async function exportPack(id: string) {
+  try {
+    const path = await invoke<string | null>("pick_export_path", {
+      defaultName: `${id}.mrpack`,
+    });
+    if (!path) return;
+    set({ busy: true, error: "", notice: "" });
+    const result = await invoke<ExportResult>("export_pack", { id, path });
+    set({
+      busy: false,
+      notice: `已导出：${result.files} 个文件，${result.path}`,
+    });
+  } catch (e) {
+    set({ busy: false, error: String(e) });
+  }
+}
+
 /** 保存应用级设置（下载源 / CurseForge key / 默认版本） */
 async function saveAppSettings(patch: Partial<AppSettings>) {
   const current = state.appSettings;
@@ -1345,6 +1364,7 @@ export const actions = {
   setDownloadTab: (tab: "versions" | "market" | "pack") => set({ downloadTab: tab }),
   setPackId: (packId: string) => set({ packId }),
   saveAppSettings,
+  exportPack,
   setDownloadSource: (source: "mirror" | "official") => void saveAppSettings({ download_source: source }),
   setCurseForgeKey: (key: string) => void saveAppSettings({ curseforge_api_key: key }),
   pickPack,

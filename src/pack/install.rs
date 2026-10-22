@@ -82,8 +82,17 @@ pub async fn install(
     let overrides = unpack_overrides(zip, &dir)?;
 
     // 4) 版本目录里留个说明，界面能显示整合包信息
+    // 记下加载器，导出时不用再从 mainClass 猜
+    let loader_json = match &preview.loader {
+        Some((key, version)) => format!(
+            "[{},{}]",
+            serde_json::to_string(key).unwrap_or_else(|_| "\"\"".into()),
+            serde_json::to_string(version).unwrap_or_else(|_| "\"\"".into())
+        ),
+        None => "null".into(),
+    };
     let info = format!(
-        "{{\"name\":{},\"version\":{},\"files\":{total},\"overrides\":{overrides}}}",
+        "{{\"name\":{},\"version\":{},\"files\":{total},\"overrides\":{overrides},\"loader\":{loader_json}}}",
         serde_json::to_string(&preview.name).unwrap_or_else(|_| "\"\"".into()),
         serde_json::to_string(&preview.version).unwrap_or_else(|_| "\"\"".into()),
     );
@@ -114,6 +123,8 @@ async fn ensure_base(
             };
             // 加载器装出来的是 <mc>-<loader>-<版本>；整合包要的是自己那份 id，
             // 装完把版本目录复制/改名成 id（JSON 里的 id 也一起改）
+            // 导出时推不出具体版本会写 "latest"；Fabric/Quilt 的 meta 认 "stable"
+            let version = if version == "latest" { "stable" } else { version.as_str() };
             let produced =
                 loader::install_meta(client, paths, &preview.mc, kind, version, progress.clone())
                     .await?;

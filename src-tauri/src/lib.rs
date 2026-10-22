@@ -790,6 +790,8 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            export_pack,
+            pick_export_path,
             backup_save,
             list_backups,
             restore_backup,
@@ -908,4 +910,26 @@ fn save_app_settings(
     // 立刻生效，不用重开程序
     dlp_core::net::mirror::set_use_mirror(cfg.download_source != "official");
     Ok(cfg)
+}
+
+/// 把一个版本导出成 .mrpack（mods/配置/资源包打进 overrides）。
+#[tauri::command]
+fn export_pack(
+    state: State<'_, AppState>,
+    id: String,
+    path: String,
+) -> Result<dlp_core::pack::ExportResult, String> {
+    let target = if path.trim().is_empty() {
+        dlp_core::pack::export::default_target(&state.paths.root.join("dlp").join("exports"), &id)
+    } else {
+        PathBuf::from(path)
+    };
+    dlp_core::pack::export::export(&state.paths, &id, &target)
+}
+
+/// 选一个保存位置（导出整合包用）。
+#[tauri::command]
+fn pick_export_path(default_name: String) -> Result<Option<String>, String> {
+    Ok(pick::pick_save("导出整合包", "Modrinth 整合包 (*.mrpack)", &default_name)?
+        .map(|p| p.to_string_lossy().to_string()))
 }

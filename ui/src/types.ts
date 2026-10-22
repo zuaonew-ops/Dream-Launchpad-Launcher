@@ -154,6 +154,14 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface ExportResult {
+  path: string;
+  files: number;
+  bytes: number;
+  mc: string;
+  loader: string | null;
+}
+
 export interface BackupEntry {
   name: string;
   world: string;
