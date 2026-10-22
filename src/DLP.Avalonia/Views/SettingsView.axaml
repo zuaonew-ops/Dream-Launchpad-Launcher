@@ -29,9 +29,10 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <TextBlock Text="内存上限" Classes="secondary" VerticalAlignment="Center" Width="70" />
-                        <NumericUpDown Width="140" Minimum="512" Maximum="65536" Increment="512"
+                        <NumericUpDown Width="140" Minimum="512" Maximum="{Binding MaxMemoryMb}" Increment="512"
                                        Value="{Binding MemoryMb}" FormatString="0" />
                         <TextBlock Text="MB" Classes="tertiary" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding MemoryLimitText}" Classes="tertiary" FontSize="11" VerticalAlignment="Center" />
                     </StackPanel>
                 </StackPanel>
             </Border>

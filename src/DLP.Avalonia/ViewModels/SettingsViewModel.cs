@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using DLP.App.Mvvm;
+using DLP.App.Services;
 using DLP.Avalonia.Services;
 
 namespace DLP.Avalonia.ViewModels;
@@ -16,7 +17,7 @@ public sealed class SettingsViewModel : ObservableObject
     {
         _services = services;
         _theme = services.Settings.Theme == ThemeManager.Dark ? "暗色" : "亮色";
-        _memoryMb = Math.Clamp(services.Settings.MemoryMb, 512, 65536);
+        _memoryMb = Math.Clamp(services.Settings.MemoryMb, 512, MaxMemoryMb);
         _username = services.Settings.Username;
         _source = services.Settings.DownloadSource == "official" ? "官方 CDN（推荐）" : "镜像加速";
 
@@ -24,6 +25,9 @@ public sealed class SettingsViewModel : ObservableObject
         Sources = ["官方 CDN（推荐）", "镜像加速"];
         OpenDataFolderCommand = new RelayCommand(() => Shell.Open(_services.Paths.Root));
     }
+
+    public int MaxMemoryMb => SystemMemory.MaxAllocatableMb;
+    public string MemoryLimitText => SystemMemory.LimitText;
 
     public IReadOnlyList<string> Themes { get; }
     public IReadOnlyList<string> Sources { get; }

@@ -18,8 +18,8 @@ public sealed class HomeViewModel : ObservableObject
     private string _status = "就绪";
     private bool _isBusy;
 
-    public int MaxMemoryMb { get; } = Math.Clamp(
-        (int)(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024 / 1024), 1024, 65536);
+    public int MaxMemoryMb => SystemMemory.MaxAllocatableMb;
+    public string MemoryLimitText => SystemMemory.LimitText;
 
     public HomeViewModel(AppServices services)
     {

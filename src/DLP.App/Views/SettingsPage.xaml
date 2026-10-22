@@ -29,6 +29,7 @@
                             <Grid>
                                 <Slider Style="{StaticResource SliderStyle}" Minimum="512" Maximum="{Binding MaxMemoryMb}"
                                         SmallChange="128" LargeChange="1024" Value="{Binding MemoryMb}" />
+                                <TextBlock Text="{Binding MemoryLimitText}" Foreground="{DynamicResource TextTertiary}" FontSize="11" Margin="0,2,0,0" />
                                 <TextBlock Text="{Binding MemoryMb, StringFormat={}{0} MB}" HorizontalAlignment="Right"
                                            FontSize="11.5" Foreground="{DynamicResource TextTertiary}" />
                             </Grid>

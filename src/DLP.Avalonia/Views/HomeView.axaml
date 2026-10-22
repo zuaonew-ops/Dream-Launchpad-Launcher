@@ -41,6 +41,7 @@
                     <TextBlock Text="运行设置" Classes="section" />
                     <TextBlock Text="{Binding MemoryMb, StringFormat='内存上限 {0} MB'}" Classes="secondary" />
                     <Slider Minimum="512" Maximum="{Binding MaxMemoryMb}" Value="{Binding MemoryMb}" />
+                <TextBlock Text="{Binding MemoryLimitText}" Classes="tertiary" FontSize="11" />
                     <TextBlock Text="数据目录" Classes="tertiary" FontSize="11" Margin="0,8,0,0" />
                     <TextBlock Text="{Binding DataRoot}" Classes="secondary" FontSize="12" TextWrapping="Wrap" />
                     <TextBlock Text="{Binding InstalledVersionCount, StringFormat='已安装 {0} 个版本'}"

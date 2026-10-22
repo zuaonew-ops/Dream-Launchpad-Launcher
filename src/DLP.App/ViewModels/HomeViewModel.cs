@@ -21,8 +21,8 @@ public sealed class HomeViewModel : ObservableObject
     private bool _isRunning;
 
     /// <summary>物理内存上限（MB），避免滑杆允许超过本机内存导致启动失败。</summary>
-    public int MaxMemoryMb { get; } = Math.Clamp(
-        (int)(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024 / 1024), 1024, 65536);
+    public int MaxMemoryMb => SystemMemory.MaxAllocatableMb;
+    public string MemoryLimitText => SystemMemory.LimitText;
 
     public HomeViewModel(AppServices services)
     {

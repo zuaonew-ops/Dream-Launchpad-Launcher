@@ -18,7 +18,6 @@ public sealed class SettingsViewModel : ObservableObject
     public SettingsViewModel(AppServices services)
     {
         _services = services;
-        MaxMemoryMb = Math.Clamp((int)(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024 / 1024), 1024, 65536);
         _memoryMb = Math.Clamp(services.Settings.MemoryMb, 512, MaxMemoryMb);
         _username = services.Settings.Username;
         _javaPath = services.Settings.JavaPath ?? "";
@@ -101,7 +100,8 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     public string DataRoot => _services.Paths.Root;
-    public int MaxMemoryMb { get; }
+    public int MaxMemoryMb => SystemMemory.MaxAllocatableMb;
+    public string MemoryLimitText => SystemMemory.LimitText;
 
     private void Save()
     {
