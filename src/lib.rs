@@ -16,6 +16,9 @@
 //! - [`content`]   内容管理：模组、存档、资源包、日志、崩溃
 //! - [`sys`]       系统：硬件信息、Java 探测与下载
 
+#[cfg(test)]
+mod testdir;
+
 pub mod content;
 pub mod install;
 pub mod launch;

@@ -154,6 +154,13 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface SkinEntry {
+  name: string;
+  width: number;
+  height: number;
+  bytes: number;
+}
+
 export interface ExportResult {
   path: string;
   files: number;

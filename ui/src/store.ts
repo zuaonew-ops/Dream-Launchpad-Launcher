@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import type {
   BackupEntry,
   ExportResult,
+  SkinEntry,
   PackPreview,
   ServerEntry,
   InstallStage,
@@ -68,6 +69,10 @@ export interface State {
   servers: ServerEntry[];
   /** 应用级设置（下载源、CurseForge key、默认版本） */
   appSettings: AppSettings | null;
+  /** 皮肤库 */
+  skins: SkinEntry[];
+  /** 这个版本装没装 CustomSkinLoader */
+  hasCsl: boolean;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -177,6 +182,8 @@ let state: State = {
   backups: [],
   servers: [],
   appSettings: null,
+  skins: [],
+  hasCsl: false,
   packId: "",
   search: "",
   filter: "release",
@@ -1080,6 +1087,49 @@ async function confirmInstall() {
   }
 }
 
+/** 皮肤库 + 是否装了 CustomSkinLoader */
+async function loadSkins(id: string) {
+  try {
+    const [skins, hasCsl] = await Promise.all([
+      invoke<SkinEntry[]>("list_skins", { id }),
+      invoke<boolean>("has_customskinloader", { id }),
+    ]);
+    set({ skins, hasCsl });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function importSkin(id: string) {
+  const name = window.prompt("给这个皮肤起个名字（不用写 .png）", "skin");
+  if (!name) return;
+  try {
+    const saved = await invoke<string>("import_skin", { id, name });
+    set({ notice: `已导入皮肤 ${saved}` });
+    await loadSkins(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function deleteSkin(id: string, name: string) {
+  try {
+    await invoke("delete_skin", { id, name });
+    await loadSkins(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function applySkin(id: string, skin: string, player: string) {
+  try {
+    const placed = await invoke<string>("apply_skin", { id, skin, player });
+    set({ notice: `皮肤已放到 ${placed}` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 把一个版本导出成 .mrpack */
 async function exportPack(id: string) {
   try {
@@ -1365,6 +1415,10 @@ export const actions = {
   setPackId: (packId: string) => set({ packId }),
   saveAppSettings,
   exportPack,
+  loadSkins,
+  importSkin,
+  deleteSkin,
+  applySkin,
   setDownloadSource: (source: "mirror" | "official") => void saveAppSettings({ download_source: source }),
   setCurseForgeKey: (key: string) => void saveAppSettings({ curseforge_api_key: key }),
   pickPack,

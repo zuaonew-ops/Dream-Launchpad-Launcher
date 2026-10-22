@@ -4007,3 +4007,12 @@ input[type="range"]::-moz-range-thumb {
 .server-form .field {
   flex: 1;
 }
+
+/* ── 皮肤 ───────────────────────────────────────────── */
+.hint.warn {
+  color: #b45309;
+  background: #fdf6e7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}

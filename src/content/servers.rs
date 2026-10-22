@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn roundtrip_servers() {
-        let dir = std::env::temp_dir().join(format!("dlp-servers-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-servers");
         let _ = std::fs::remove_dir_all(&dir);
 
         assert!(read_servers(&dir).is_empty());
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn same_ip_replaces_instead_of_duplicating() {
-        let dir = std::env::temp_dir().join(format!("dlp-servers2-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-servers2");
         let _ = std::fs::remove_dir_all(&dir);
         add_server(&dir, "旧名", "same.host").unwrap();
         add_server(&dir, "新名", "same.host").unwrap();

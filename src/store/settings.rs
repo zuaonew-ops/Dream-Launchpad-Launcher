@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn settings_roundtrip_through_disk() {
-        let dir = std::env::temp_dir().join(format!("dlp-settings-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-settings");
         let paths = Paths::new(&dir);
         let mut store = Store::load(&paths);
         store.set(

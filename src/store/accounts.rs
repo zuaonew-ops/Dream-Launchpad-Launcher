@@ -186,7 +186,7 @@ mod tests {
     use super::*;
 
     fn fresh() -> (Accounts, Paths) {
-        let dir = std::env::temp_dir().join(format!("dlp-acc-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-acc");
         let _ = std::fs::remove_dir_all(&dir);
         (Accounts::default(), Paths::new(&dir))
     }

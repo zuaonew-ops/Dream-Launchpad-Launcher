@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn scan_finds_json_versions_and_skips_empty_dirs() {
-        let dir = std::env::temp_dir().join(format!("dlp-scan-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-scan");
         let _ = fs::remove_dir_all(&dir);
         let version_dir = dir.join("versions").join("1.20.1");
         fs::create_dir_all(&version_dir).unwrap();
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn missing_versions_dir_is_empty() {
-        let dir = std::env::temp_dir().join(format!("dlp-scan-none-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-scan-none");
         assert!(scan(&Paths::new(&dir)).is_empty());
     }
 }

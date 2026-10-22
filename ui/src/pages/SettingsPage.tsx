@@ -3,6 +3,7 @@ import { actions, memoryCeiling, selectSelectedVersion, useLauncher } from "../s
 import ModPanel from "../components/content/ModPanel";
 import SavePanel from "../components/content/SavePanel";
 import ServerPanel from "../components/content/ServerPanel";
+import SkinPanel from "../components/content/SkinPanel";
 import PackPanel from "../components/content/PackPanel";
 import OverviewPanel from "../components/settings/OverviewPanel";
 import ModifyPanel from "../components/settings/ModifyPanel";
@@ -33,6 +34,7 @@ export default function SettingsPage() {
     | "mods"
     | "saves"
     | "servers"
+    | "skins"
     | "resourcepacks"
     | "shaderpacks";
   const [tab, setTab] = useState<Tab>("settings");
@@ -46,6 +48,9 @@ export default function SettingsPage() {
   const contentId = state.settingsKey || selected?.id || "";
   useEffect(() => {
     if (!contentId) return;
+    if (tab === "skins") {
+      void actions.loadSkins(contentId);
+    }
     if (tab === "mods" || tab === "saves" || tab === "servers" || tab === "overview") {
       void actions.loadContent(contentId);
     }
@@ -78,6 +83,7 @@ export default function SettingsPage() {
     { key: "mods", label: "模组", show: !isGlobal && hasModLoader },
     { key: "saves", label: "存档", show: !isGlobal },
     { key: "servers", label: "服务器", show: !isGlobal },
+    { key: "skins", label: "皮肤", show: !isGlobal && hasModLoader },
     { key: "resourcepacks", label: "资源包", show: !isGlobal },
     { key: "shaderpacks", label: "光影", show: !isGlobal && (hasModLoader || hasShaderLoader) },
   ];
@@ -143,6 +149,8 @@ export default function SettingsPage() {
         <SavePanel id={contentId} />
       ) : tab === "servers" && contentId ? (
         <ServerPanel id={contentId} />
+      ) : tab === "skins" && contentId ? (
+        <SkinPanel id={contentId} />
       ) : tab === "resourcepacks" && contentId ? (
         <PackPanel id={contentId} kind="resourcepacks" />
       ) : tab === "shaderpacks" && contentId ? (

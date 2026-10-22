@@ -12,6 +12,7 @@ pub mod mods;
 pub mod packs;
 pub mod saves;
 pub mod servers;
+pub mod skins;
 pub mod stats;
 
 pub use backup::{backup, delete_backup, list_backups, restore, BackupEntry};
@@ -20,6 +21,7 @@ pub use mods::{delete_mod, list_mods, set_all_mods, set_mod_enabled};
 pub use packs::{delete_pack, list_packs};
 pub use saves::list_saves;
 pub use servers::{add_server, read_servers, remove_server, write_servers, ServerEntry};
+pub use skins::{apply_skin, delete_skin, has_customskinloader, import_skin, list_skins, SkinEntry};
 pub use stats::version_stats;
 
 #[derive(Debug, Clone, Serialize)]
@@ -71,7 +73,7 @@ mod tests {
 
     #[test]
     fn mods_toggle_by_suffix() {
-        let dir = std::env::temp_dir().join(format!("dlp-mods-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-mods");
         let mods = dir.join("mods");
         std::fs::create_dir_all(&mods).unwrap();
         std::fs::write(mods.join("a.jar"), b"x").unwrap();
@@ -91,7 +93,7 @@ mod tests {
 
     #[test]
     fn saves_only_dirs_with_level_dat_are_valid() {
-        let dir = std::env::temp_dir().join(format!("dlp-saves-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-saves");
         let saves = dir.join("saves");
         std::fs::create_dir_all(saves.join("good")).unwrap();
         std::fs::write(saves.join("good").join("level.dat"), b"x").unwrap();
@@ -107,7 +109,7 @@ mod tests {
 
     #[test]
     fn log_tail_keeps_last_lines() {
-        let dir = std::env::temp_dir().join(format!("dlp-logs-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-logs");
         let logs = dir.join("logs");
         std::fs::create_dir_all(&logs).unwrap();
         std::fs::write(logs.join("latest.log"), "a\nb\nc\n").unwrap();

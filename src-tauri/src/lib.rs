@@ -790,6 +790,11 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            list_skins,
+            import_skin,
+            delete_skin,
+            apply_skin,
+            has_customskinloader,
             export_pack,
             pick_export_path,
             backup_save,
@@ -932,4 +937,41 @@ fn export_pack(
 fn pick_export_path(default_name: String) -> Result<Option<String>, String> {
     Ok(pick::pick_save("导出整合包", "Modrinth 整合包 (*.mrpack)", &default_name)?
         .map(|p| p.to_string_lossy().to_string()))
+}
+
+// ── 皮肤 ──────────────────────────────────────────────
+
+#[tauri::command]
+fn list_skins(state: State<'_, AppState>, id: String) -> Vec<content::SkinEntry> {
+    content::list_skins(&game_dir(&state.paths, &id))
+}
+
+/// 选一个 PNG 当皮肤导入皮肤库。
+#[tauri::command]
+fn import_skin(state: State<'_, AppState>, id: String, name: String) -> Result<String, String> {
+    let Some(path) = pick::pick_file("选择皮肤 PNG", "PNG 图片 (*.png)", "png")? else {
+        return Err("没有选择文件".into());
+    };
+    content::import_skin(&game_dir(&state.paths, &id), &path, &name)
+}
+
+#[tauri::command]
+fn delete_skin(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
+    content::delete_skin(&game_dir(&state.paths, &id), &name)
+}
+
+/// 皮肤装到某个玩家名下（需要 CustomSkinLoader）。
+#[tauri::command]
+fn apply_skin(
+    state: State<'_, AppState>,
+    id: String,
+    skin: String,
+    player: String,
+) -> Result<String, String> {
+    content::apply_skin(&game_dir(&state.paths, &id), &skin, &player)
+}
+
+#[tauri::command]
+fn has_customskinloader(state: State<'_, AppState>, id: String) -> bool {
+    content::has_customskinloader(&game_dir(&state.paths, &id))
 }

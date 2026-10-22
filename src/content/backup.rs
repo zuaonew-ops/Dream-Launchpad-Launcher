@@ -202,7 +202,7 @@ mod tests {
 
     #[test]
     fn backup_then_restore_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("dlp-backup-{}", std::process::id()));
+        let dir = crate::testdir::temp_dir("dlp-backup");
         let world = dir.join("saves").join("世界");
         std::fs::create_dir_all(world.join("region")).unwrap();
         std::fs::write(world.join("level.dat"), b"data").unwrap();
