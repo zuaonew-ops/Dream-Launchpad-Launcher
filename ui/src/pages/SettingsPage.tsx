@@ -5,6 +5,7 @@ import SavePanel from "../components/content/SavePanel";
 import ServerPanel from "../components/content/ServerPanel";
 import SkinPanel from "../components/content/SkinPanel";
 import ShotPanel from "../components/content/ShotPanel";
+import OptionsPanel from "../components/content/OptionsPanel";
 import PackPanel from "../components/content/PackPanel";
 import OverviewPanel from "../components/settings/OverviewPanel";
 import ModifyPanel from "../components/settings/ModifyPanel";
@@ -37,6 +38,7 @@ export default function SettingsPage() {
     | "servers"
     | "skins"
     | "shots"
+    | "ingame"
     | "resourcepacks"
     | "shaderpacks";
   const [tab, setTab] = useState<Tab>("settings");
@@ -50,6 +52,9 @@ export default function SettingsPage() {
   const contentId = state.settingsKey || selected?.id || "";
   useEffect(() => {
     if (!contentId) return;
+    if (tab === "ingame") {
+      void actions.loadGameOptions(contentId);
+    }
     if (tab === "shots") {
       void actions.loadShots(contentId);
     }
@@ -90,6 +95,7 @@ export default function SettingsPage() {
     { key: "servers", label: "服务器", show: !isGlobal },
     { key: "skins", label: "皮肤", show: !isGlobal && hasModLoader },
     { key: "shots", label: "截图", show: !isGlobal },
+    { key: "ingame", label: "游戏内", show: !isGlobal },
     { key: "resourcepacks", label: "资源包", show: !isGlobal },
     { key: "shaderpacks", label: "光影", show: !isGlobal && (hasModLoader || hasShaderLoader) },
   ];
@@ -159,6 +165,8 @@ export default function SettingsPage() {
         <SkinPanel id={contentId} />
       ) : tab === "shots" && contentId ? (
         <ShotPanel id={contentId} />
+      ) : tab === "ingame" && contentId ? (
+        <OptionsPanel id={contentId} />
       ) : tab === "resourcepacks" && contentId ? (
         <PackPanel id={contentId} kind="resourcepacks" />
       ) : tab === "shaderpacks" && contentId ? (

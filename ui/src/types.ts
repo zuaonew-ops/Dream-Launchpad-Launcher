@@ -154,6 +154,20 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface GameOptions {
+  render_distance: number;
+  simulation_distance: number;
+  max_fps: number;
+  fov: number;
+  gui_scale: number;
+  gamma: number;
+  graphics: string;
+  particles: string;
+  language: string;
+  fullscreen: boolean;
+  exists: boolean;
+}
+
 export interface ServerStatus {
   host: string;
   port: number;

@@ -9,6 +9,7 @@ import type {
   DuplicateGroup,
   ShotEntry,
   ServerStatus,
+  GameOptions,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -88,6 +89,8 @@ export interface State {
   shots: ShotEntry[];
   /** 服务器在线状态（按 host:port 索引） */
   serverStatus: Record<string, ServerStatus>;
+  /** 游戏内设置（options.txt） */
+  gameOptions: GameOptions | null;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -204,6 +207,7 @@ let state: State = {
   modDuplicates: [],
   shots: [],
   serverStatus: {},
+  gameOptions: null,
   packId: "",
   search: "",
   filter: "release",
@@ -1108,6 +1112,25 @@ async function confirmInstall() {
   }
 }
 
+/** 游戏内设置 */
+async function loadGameOptions(id: string) {
+  try {
+    const gameOptions = await invoke<GameOptions>("game_options", { id });
+    set({ gameOptions });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function saveGameOptions(id: string, options: GameOptions) {
+  set({ gameOptions: options });
+  try {
+    await invoke("save_game_options", { id, options });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 查所有服务器的在线状态 */
 async function pingServers(id: string) {
   try {
@@ -1560,6 +1583,8 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  loadGameOptions,
+  saveGameOptions,
   pingServers,
   loadShots,
   openShot,

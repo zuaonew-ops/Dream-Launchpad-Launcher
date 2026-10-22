@@ -790,6 +790,8 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            game_options,
+            save_game_options,
             ping_server,
             ping_servers,
             list_shots,
@@ -1168,4 +1170,20 @@ fn split_host(ip: &str) -> (String, u16) {
         ),
         None => (ip.to_string(), 25565),
     }
+}
+
+/// 读游戏内设置（options.txt）。
+#[tauri::command]
+fn game_options(state: State<'_, AppState>, id: String) -> content::GameOptions {
+    content::options::read(&game_dir(&state.paths, &id))
+}
+
+/// 写游戏内设置（只改认识的键，其它行原样保留）。
+#[tauri::command]
+fn save_game_options(
+    state: State<'_, AppState>,
+    id: String,
+    options: content::GameOptions,
+) -> Result<(), String> {
+    content::options::write(&game_dir(&state.paths, &id), &options)
 }
