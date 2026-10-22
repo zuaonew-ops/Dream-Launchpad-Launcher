@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DLP.Core\DLP.Core.csproj" />
+    <ProjectReference Include="..\DLP.Common\DLP.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>

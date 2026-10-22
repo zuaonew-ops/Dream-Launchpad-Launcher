@@ -1,0 +1,260 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DLP.Avalonia.ViewModels"
+             xmlns:svc="using:DLP.App.Services"
+             xmlns:install="using:DLP.Core.Install"
+             xmlns:img="using:Avalonia.Media.Imaging"
+             x:Class="DLP.Avalonia.Views.DownloadPage"
+             x:DataType="vm:DownloadViewModel">
+
+    <UserControl.Styles>
+        <!-- 二级菜单：胶囊形状的标签 -->
+        <Style Selector="ListBox.pills ListBoxItem">
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+        </Style>
+
+        <!-- 内容列表的一行：整行铺满 -->
+        <Style Selector="ListBox.rows ListBoxItem">
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="Stretch" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="TextBlock.fieldLabel">
+            <Setter Property="Foreground" Value="{DynamicResource TextTertiary}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource TextTertiary}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Margin="24" ColumnDefinitions="170,16,*">
+        <!-- 一级分类 -->
+        <Border Grid.Column="0" Classes="card" Padding="8" VerticalAlignment="Top">
+            <ListBox Background="Transparent" BorderThickness="0"
+                     ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DownloadCategory">
+                        <TextBlock Text="{Binding Title}" FontSize="13" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*,Auto">
+            <!-- 二级菜单 -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasSubTabs}">
+                <ListBox Classes="pills" Background="Transparent" BorderThickness="0"
+                         ItemsSource="{Binding SubTabs}" SelectedItem="{Binding SelectedSubTab}">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{Binding}" FontSize="12.5" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Text="{Binding SubTabHint}" Classes="hint" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="420" />
+            </StackPanel>
+
+            <!-- 版本号 + 加载器合并的安装表单 -->
+            <Border Grid.Row="1" Classes="card" Padding="16" Margin="0,12,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <StackPanel Width="180">
+                        <TextBlock Text="游戏版本" Classes="fieldLabel" />
+                        <ComboBox ItemsSource="{Binding ManifestVersions}"
+                                  SelectedItem="{Binding SelectedGameVersion}" PlaceholderText="加载中…" />
+                    </StackPanel>
+                    <StackPanel Width="130" IsVisible="{Binding ShowLoader}">
+                        <TextBlock Text="模组加载器" Classes="fieldLabel" />
+                        <ComboBox ItemsSource="{Binding AvailableLoaders}" SelectedItem="{Binding SelectedLoader}" />
+                    </StackPanel>
+                    <StackPanel Width="190" IsVisible="{Binding ShowLoader}">
+                        <TextBlock Text="加载器版本" Classes="fieldLabel" />
+                        <ComboBox ItemsSource="{Binding LoaderVersions}" SelectedItem="{Binding SelectedLoaderVersion}"
+                                  PlaceholderText="原版无需选择">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="install:LoaderVersion">
+                                    <TextBlock Text="{Binding DisplayName}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <Button Classes="primary" Content="安装" Command="{Binding InstallVersionCommand}"
+                            IsVisible="{Binding IsVersionTab}" VerticalAlignment="Bottom" />
+                    <TextBlock Text="加载器选「原版」就只装原版；选了加载器会连原版一起装好，版本列表里只显示带加载器的那个"
+                               Classes="hint" VerticalAlignment="Bottom" TextWrapping="Wrap" MaxWidth="260"
+                               Margin="0,0,0,6" IsVisible="{Binding IsVersionTab}" />
+                </StackPanel>
+            </Border>
+
+            <!-- 搜索 / 过滤 -->
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                <TextBox Text="{Binding Search}" Watermark="输入关键词或版本号" IsVisible="{Binding ShowSearch}" />
+                <Button Grid.Column="1" Content="搜索" Command="{Binding SearchCommand}" Margin="8,0,0,0"
+                        IsVisible="{Binding ShowSearchButton}" />
+                <TextBlock Grid.Column="1" Text="输入版本号可实时过滤列表" Classes="hint"
+                           VerticalAlignment="Center" HorizontalAlignment="Right" IsVisible="{Binding IsVersionTab}" />
+            </Grid>
+
+            <!-- 列表：版本 / 内容 -->
+            <Border Grid.Row="3" Classes="card" Padding="10" Margin="0,12,0,0">
+                <Grid>
+                    <ListBox Background="Transparent" BorderThickness="0" ItemsSource="{Binding FilteredVersions}"
+                             SelectedItem="{Binding SelectedGameVersion}" IsVisible="{Binding IsVersionTab}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{Binding}" FontSize="12.5" Margin="6,3" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <ListBox Classes="rows" Background="Transparent" BorderThickness="0" ItemsSource="{Binding Results}"
+                             SelectedItem="{Binding SelectedProject}" IsVisible="{Binding IsContentTab}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ContentItemViewModel">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <Border Width="44" Height="44" CornerRadius="6" Background="{DynamicResource SurfaceMuted}"
+                                            ClipToBounds="True" VerticalAlignment="Center">
+                                        <Panel>
+                                            <TextBlock Text="?" Classes="hint" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <Image Source="{Binding Icon}" Stretch="UniformToFill" />
+                                        </Panel>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" Spacing="3">
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Description}" Classes="hint" TextTrimming="CharacterEllipsis" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Author}" Classes="hint" />
+                                            <TextBlock Text=" · " Classes="hint" />
+                                            <TextBlock Text="{Binding DownloadsText}" Classes="hint" />
+                                            <TextBlock Text=" 次下载" Classes="hint" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- 详情 / 进度 -->
+            <Border Grid.Row="4" Classes="card" Padding="16" Margin="0,12,0,0">
+                <StackPanel Spacing="10">
+                    <Border CornerRadius="8" ClipToBounds="True" Height="150" Background="{DynamicResource SurfaceMuted}"
+                            IsVisible="{Binding HasBanner}">
+                        <Image Source="{Binding SelectedBanner}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                  IsVisible="{Binding HasGallery}">
+                        <ItemsControl ItemsSource="{Binding Gallery}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="img:Bitmap">
+                                    <Border Width="150" Height="86" CornerRadius="6" ClipToBounds="True"
+                                            Background="{DynamicResource SurfaceMuted}">
+                                        <Image Source="{Binding}" Stretch="UniformToFill" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="primary" Content="{Binding InstallActionText}"
+                                Command="{Binding InstallContentCommand}" IsVisible="{Binding IsContentTab}" Margin="12,0,0,0" />
+                    </Grid>
+
+                    <ProgressBar Value="{Binding Progress}" Maximum="100" />
+
+                    <!-- 详细下载过程 -->
+                    <ContentControl Content="{Binding Downloads.Current}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate x:DataType="svc:DownloadTaskViewModel">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{Binding PercentLabel}" Classes="hint" />
+                                            <TextBlock Text="{Binding Stage}" Classes="hint" />
+                                            <TextBlock Text="{Binding Detail}" Classes="hint" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <ProgressBar Value="{Binding Percent}" Maximum="100"
+                                                 IsIndeterminate="{Binding IsIndeterminate}" />
+                                    <ScrollViewer MaxHeight="90" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Lines}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <TextBlock Text="{Binding}" Classes="hint" TextWrapping="Wrap" Margin="0,1" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+
+                    <TextBlock Text="{Binding SubTabHint}" Classes="hint" TextWrapping="Wrap"
+                               IsVisible="{Binding ShowLocalHint}" />
+
+                    <!-- 拖入整合包的安装进度：就在这个面板里，不弹窗 -->
+                    <StackPanel IsVisible="{Binding HasLocalImport}">
+                        <ContentControl Content="{Binding LocalImport}">
+                            <ContentControl.ContentTemplate>
+                                <DataTemplate x:DataType="svc:DownloadTaskViewModel">
+                                    <StackPanel Spacing="6">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Stage}" Classes="hint" />
+                                        </Grid>
+                                        <ProgressBar Value="{Binding Percent}" Maximum="100"
+                                                     IsIndeterminate="{Binding IsIndeterminate}" />
+                                        <TextBlock Text="{Binding Detail}" Classes="hint" />
+                                        <ScrollViewer MaxHeight="90" VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemsSource="{Binding Lines}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="x:String">
+                                                        <TextBlock Text="{Binding}" Classes="hint" TextWrapping="Wrap" Margin="0,1" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ContentControl.ContentTemplate>
+                        </ContentControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

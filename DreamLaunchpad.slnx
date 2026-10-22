@@ -3,6 +3,8 @@
     <Project Path="src/DLP.App/DLP.App.csproj" />
     <Project Path="src/DLP.Cli/DLP.Cli.csproj" />
     <Project Path="src/DLP.Core/DLP.Core.csproj" />
+    <Project Path="src/DLP.Common/DLP.Common.csproj" />
+    <Project Path="src/DLP.Avalonia/DLP.Avalonia.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DLP.Core.Tests/DLP.Core.Tests.csproj" />

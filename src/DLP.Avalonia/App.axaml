@@ -1,0 +1,43 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DLP.Avalonia.ViewModels"
+             xmlns:views="using:DLP.Avalonia.Views"
+             x:Class="DLP.Avalonia.App"
+             RequestedThemeVariant="Light">
+
+    <Application.DataTemplates>
+        <DataTemplate DataType="vm:HomeViewModel">
+            <views:HomeView />
+        </DataTemplate>
+        <DataTemplate DataType="vm:DownloadViewModel">
+            <views:DownloadPage />
+        </DataTemplate>
+        <DataTemplate DataType="vm:VersionsViewModel">
+            <views:VersionsPage />
+        </DataTemplate>
+        <DataTemplate DataType="vm:SettingsViewModel">
+            <views:SettingsView />
+        </DataTemplate>
+    </Application.DataTemplates>
+
+    <Application.Resources>
+        <SolidColorBrush x:Key="WindowBg" Color="#F6F6F7" />
+        <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="SurfaceAlt" Color="#EFEFF1" />
+        <SolidColorBrush x:Key="SurfaceMuted" Color="#F1F2F4" />
+        <SolidColorBrush x:Key="HoverBg" Color="#EDEEF0" />
+        <SolidColorBrush x:Key="Line" Color="#E2E3E6" />
+        <SolidColorBrush x:Key="TextBrush" Color="#191A1C" />
+        <SolidColorBrush x:Key="TextSecondary" Color="#5E6369" />
+        <SolidColorBrush x:Key="TextTertiary" Color="#8B9097" />
+        <SolidColorBrush x:Key="Accent" Color="#2F9E63" />
+        <SolidColorBrush x:Key="AccentHover" Color="#278754" />
+        <SolidColorBrush x:Key="AccentSoft" Color="#E8F4ED" />
+        <SolidColorBrush x:Key="Danger" Color="#C0392B" />
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://DLP.Avalonia/Styles/Theme.axaml" />
+    </Application.Styles>
+</Application>

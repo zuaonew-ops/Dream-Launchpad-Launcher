@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DLP.Avalonia.ViewModels"
+             x:Class="DLP.Avalonia.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="14" MaxWidth="760" HorizontalAlignment="Left">
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="外观" Classes="section" />
+                    <ComboBox Width="220" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="下载源" Classes="section" />
+                    <ComboBox Width="220" ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="游戏" Classes="section" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="用户名" Classes="secondary" VerticalAlignment="Center" Width="70" />
+                        <TextBox Width="200" Text="{Binding Username}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="内存上限" Classes="secondary" VerticalAlignment="Center" Width="70" />
+                        <NumericUpDown Width="140" Minimum="512" Maximum="65536" Increment="512"
+                                       Value="{Binding MemoryMb}" FormatString="0" />
+                        <TextBlock Text="MB" Classes="tertiary" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="关于" Classes="section" />
+                    <TextBlock Text="{Binding Version, StringFormat='版本 {0}'}" Classes="secondary" />
+                    <TextBlock Text="{Binding DataRoot, StringFormat='数据目录：{0}'}" Classes="tertiary" FontSize="12" TextWrapping="Wrap" />
+                    <Button Content="打开数据目录" Command="{Binding OpenDataFolderCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

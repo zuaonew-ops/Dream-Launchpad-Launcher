@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http;
-using System.Windows;
 using DLP.App.Mvvm;
 using DLP.Core.Auth;
 using DLP.Core.Infrastructure;

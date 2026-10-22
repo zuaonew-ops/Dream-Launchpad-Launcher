@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DLP.Avalonia.ViewModels"
+             xmlns:svc="using:DLP.App.Services"
+             x:Class="DLP.Avalonia.Views.AccountsView"
+             x:DataType="vm:AccountsViewModel">
+
+    <Border Classes="card">
+        <StackPanel Spacing="12">
+            <TextBlock Text="账号管理" Classes="section" />
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding CurrentName}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <Border Background="{DynamicResource AccentSoft}" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding CurrentKind}" FontSize="10.5" Foreground="{DynamicResource Accent}" />
+                </Border>
+            </StackPanel>
+
+            <ListBox x:Name="AccountList" Height="150" Background="Transparent" BorderThickness="0"
+                     ItemsSource="{Binding Accounts}" SelectedItem="{Binding Selected}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="svc:AccountEntry">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding Username}" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding KindLabel}" Classes="tertiary"
+                                       FontSize="10.5" VerticalAlignment="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="切换" Command="{Binding SwitchCommand}" />
+                <Button Content="删除" Foreground="{DynamicResource Danger}" Command="{Binding RequestRemoveCommand}" />
+                <TextBlock Text="{Binding AccountCount, StringFormat='共 {0} 个账号'}" Classes="tertiary"
+                           FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Width="170" Text="{Binding NewOfflineName}" Watermark="离线用户名" />
+                <Button Classes="primary" Content="添加离线账号" Command="{Binding AddOfflineCommand}" />
+            </StackPanel>
+
+            <Border IsVisible="{Binding IsConfirmingRemove}" Background="{DynamicResource SurfaceAlt}"
+                    CornerRadius="6" Padding="12">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="删除确认" FontSize="12.5" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ConfirmMessage}" Classes="secondary" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="primary" Content="确认删除" Command="{Binding ConfirmRemoveCommand}" />
+                        <Button Content="取消" Command="{Binding CancelRemoveCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="{Binding Status}" Classes="secondary" FontSize="12" TextWrapping="Wrap" />
+        </StackPanel>
+    </Border>
+</UserControl>

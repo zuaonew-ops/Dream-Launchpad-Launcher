@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:DLP.Avalonia.Views"
+             xmlns:vm="using:DLP.Avalonia.ViewModels"
+             x:Class="DLP.Avalonia.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+
+    <Grid Margin="24" RowDefinitions="Auto,*">
+        <StackPanel Grid.Row="0" Spacing="14" Margin="0,0,0,16">
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
+                        <TextBlock Text="当前账号" Classes="tertiary" FontSize="11" />
+                        <TextBlock Text="{Binding AccountName}" FontSize="16" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding AccountKind}" Classes="secondary" FontSize="12" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Status}" Classes="secondary"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" MaxWidth="460" TextWrapping="Wrap" />
+
+                    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
+                                Spacing="10" Margin="0,14,0,0">
+                        <ComboBox Width="260" ItemsSource="{Binding InstalledVersions}"
+                                  SelectedItem="{Binding SelectedVersion}" PlaceholderText="还没有已安装的版本" />
+                        <Button Content="刷新" Command="{Binding RefreshCommand}" />
+                        <Button Content="打开游戏目录" Command="{Binding OpenFolderCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
+                                Spacing="10" Margin="0,14,0,0">
+                        <Button Classes="primary" Content="启动游戏" Command="{Binding LaunchCommand}" MinWidth="140" />
+                        <TextBlock Text="{Binding GameDir}" Classes="tertiary" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="560" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="340,16,*" VerticalAlignment="Top">
+            <Border Grid.Column="0" Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="运行设置" Classes="section" />
+                    <TextBlock Text="{Binding MemoryMb, StringFormat='内存上限 {0} MB'}" Classes="secondary" />
+                    <Slider Minimum="512" Maximum="{Binding MaxMemoryMb}" Value="{Binding MemoryMb}" />
+                    <TextBlock Text="数据目录" Classes="tertiary" FontSize="11" Margin="0,8,0,0" />
+                    <TextBlock Text="{Binding DataRoot}" Classes="secondary" FontSize="12" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding InstalledVersionCount, StringFormat='已安装 {0} 个版本'}"
+                               Classes="tertiary" FontSize="12" />
+                </StackPanel>
+            </Border>
+
+            <views:AccountsView Grid.Column="2" DataContext="{Binding Accounts}" />
+        </Grid>
+    </Grid>
+</UserControl>

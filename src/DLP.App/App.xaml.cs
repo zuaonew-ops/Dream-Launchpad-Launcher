@@ -10,6 +10,9 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // 共享服务（DLP.Common）用这个回调回到 WPF 界面线程。
+        UiDispatcher.Post = action => Dispatcher.BeginInvoke(action);
         var services = new AppServices();
         var viewModel = new MainViewModel(
             services,

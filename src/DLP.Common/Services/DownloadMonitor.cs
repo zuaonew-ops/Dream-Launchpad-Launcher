@@ -109,7 +109,7 @@ public sealed class DownloadTaskViewModel : ObservableObject
 
     private void AddLine(string line)
     {
-        App.Current?.Dispatcher.BeginInvoke(() =>
+        UiDispatcher.Post(() =>
         {
             Lines.Add($"{DateTime.Now:HH:mm:ss}  {line}");
             while (Lines.Count > 40) Lines.RemoveAt(0);
@@ -143,7 +143,7 @@ public sealed class DownloadMonitor : ObservableObject
     public DownloadTaskViewModel Begin(string title)
     {
         var task = new DownloadTaskViewModel(title);
-        App.Current?.Dispatcher.BeginInvoke(() =>
+        UiDispatcher.Post(() =>
         {
             Tasks.Add(task);
             Current = task;
@@ -156,7 +156,7 @@ public sealed class DownloadMonitor : ObservableObject
     public void Finish(DownloadTaskViewModel task, string? message = null)
     {
         task.Complete(message);
-        App.Current?.Dispatcher.BeginInvoke(() =>
+        UiDispatcher.Post(() =>
         {
             RaiseActive();
             if (ReferenceEquals(Current, task)) Current = Tasks.LastOrDefault(t => t.IsActive) ?? task;
@@ -166,13 +166,13 @@ public sealed class DownloadMonitor : ObservableObject
     public void Fail(DownloadTaskViewModel task, string message)
     {
         task.Fail(message);
-        App.Current?.Dispatcher.BeginInvoke(RaiseActive);
+        UiDispatcher.Post(RaiseActive);
     }
 
     /// <summary>清理已经结束的任务（弹窗关闭时调用）。</summary>
     public void ClearFinished()
     {
-        App.Current?.Dispatcher.BeginInvoke(() =>
+        UiDispatcher.Post(() =>
         {
             foreach (var task in Tasks.Where(t => !t.IsActive).ToList()) Tasks.Remove(task);
             RaiseActive();
