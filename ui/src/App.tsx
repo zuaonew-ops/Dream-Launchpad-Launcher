@@ -1,4 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
+import { listen } from "@tauri-apps/api/event";
 import DownloadPage from "./pages/DownloadPage";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
@@ -75,6 +76,22 @@ export default function App() {
     const onNav = (e: Event) => setPage((e as CustomEvent<PageKey>).detail);
     window.addEventListener("dlp:nav", onNav);
     return () => window.removeEventListener("dlp:nav", onNav);
+  }, []);
+
+  // 把整合包拖进窗口就直接打开安装界面
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    void listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
+      const path = event.payload.paths?.find((item) =>
+        /.(mrpack|zip)$/i.test(item),
+      );
+      if (!path) return;
+      setPage("download");
+      void actions.openPackFromPath(path);
+    }).then((fn) => {
+      stop = fn;
+    });
+    return () => stop?.();
   }, []);
 
   return (

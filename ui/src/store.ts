@@ -1545,6 +1545,13 @@ async function pickPack() {
   }
 }
 
+/** 拖进来一个文件路径：当作整合包打开 */
+async function openPackFromPath(path: string) {
+  set({ packFile: path, packPreview: null, packId: "", error: "", notice: "" });
+  set({ downloadTab: "pack" });
+  await loadPackPreview(path);
+}
+
 /** 读整合包摘要 */
 async function loadPackPreview(path: string) {
   try {
@@ -1743,6 +1750,7 @@ export const actions = {
   setDownloadSource: (source: "mirror" | "official") => void saveAppSettings({ download_source: source }),
   setCurseForgeKey: (key: string) => void saveAppSettings({ curseforge_api_key: key }),
   pickPack,
+  openPackFromPath,
   loadPackPreview,
   installPack,
   backupSave,
