@@ -2,6 +2,22 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.40.0] - 2026-10-22
+
+模组列表点文件名能看详情了。
+
+### 新增
+
+- **模组详情**（版本设置 →「模组」→ 点文件名）：显示内部 id、版本、加载器、
+  作者、需要的 MC 版本、依赖的 mod、描述。再点一下收起
+- 支持 fabric.mod.json / mods.toml / mcmod.info 三种来源；
+  读不出元数据的 jar（光影、资源包）点了没反应
+
+### 实测
+
+`sodium-fabric-mc1.20.1-0.5.0.jar` →
+`Sodium (sodium) | 0.5.0 | fabric | 作者 ["JellySquid"] | 依赖 [fabric-rendering-data-attachment-v1, fabric-rendering-fluids-v1]`
+
 ## [0.39.0] - 2026-10-22
 
 存档能看详情了：种子、游戏模式、难度、存档版本。

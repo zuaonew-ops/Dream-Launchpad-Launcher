@@ -11,6 +11,7 @@ import type {
   ServerStatus,
   GameOptions,
   LevelInfo,
+  ModDetail,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -94,6 +95,8 @@ export interface State {
   gameOptions: GameOptions | null;
   /** 展开的存档详情（按世界名索引） */
   levelInfo: Record<string, LevelInfo | null>;
+  /** 点开的模组详情 */
+  modDetail: ModDetail | null;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -212,6 +215,7 @@ let state: State = {
   serverStatus: {},
   gameOptions: null,
   levelInfo: {},
+  modDetail: null,
   packId: "",
   search: "",
   filter: "release",
@@ -1116,6 +1120,20 @@ async function confirmInstall() {
   }
 }
 
+/** 模组详情：点文件名打开，再点关闭 */
+async function openModDetail(id: string, file: string) {
+  if (state.modDetail?.file_name === file) {
+    set({ modDetail: null });
+    return;
+  }
+  try {
+    const modDetail = await invoke<ModDetail | null>("mod_detail", { id, file });
+    set({ modDetail });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 存档详情：点一下才拉，列表里不用一次读全部 level.dat */
 async function loadLevelInfo(id: string, world: string) {
   if (state.levelInfo[world]) {
@@ -1602,6 +1620,7 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  openModDetail,
   loadLevelInfo,
   loadGameOptions,
   saveGameOptions,

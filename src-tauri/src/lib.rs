@@ -794,6 +794,7 @@ pub fn run() {
             save_game_options,
             ping_server,
             ping_servers,
+            mod_detail,
             level_info,
             list_shots,
             delete_shot,
@@ -1197,4 +1198,14 @@ fn level_info(
     world: String,
 ) -> Option<content::leveldat::LevelInfo> {
     content::leveldat::read(&game_dir(&state.paths, &id).join("saves").join(&world))
+}
+
+/// 单个模组的详情（描述、作者、依赖）。
+#[tauri::command]
+fn mod_detail(
+    state: State<'_, AppState>,
+    id: String,
+    file: String,
+) -> Option<content::modmeta::ModDetail> {
+    content::modmeta::detail(&game_dir(&state.paths, &id), &file)
 }

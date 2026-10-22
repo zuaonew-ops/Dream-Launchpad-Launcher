@@ -124,9 +124,14 @@ export default function ModPanel({ id }: { id: string }) {
               style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
             >
               <span className={mod.jar ? "dot on" : "dot"} />
-              <span className="content-name" title={mod.name}>
+              <button
+                type="button"
+                className="content-name link"
+                title={`${mod.name} —— 点一下看详情`}
+                onClick={() => void actions.openModDetail(id, mod.name)}
+              >
                 {mod.name.replace(/\.disabled$/, "")}
-              </span>
+              </button>
               <span className="content-meta">{formatSize(mod.size)}</span>
               <label className="mini-switch" title={mod.enabled ? "点一下禁用" : "点一下启用"}>
                 <input
@@ -144,6 +149,28 @@ export default function ModPanel({ id }: { id: string }) {
               >
                 ×
               </button>
+              {state.modDetail?.file_name === mod.name && (
+                <div className="mod-detail">
+                  <div className="mod-detail-head">
+                    <strong>{state.modDetail.name || mod.name}</strong>
+                    <span>
+                      {state.modDetail.id} · {state.modDetail.version} · {state.modDetail.loader}
+                    </span>
+                  </div>
+                  {state.modDetail.mc_version && <span>需要 MC {state.modDetail.mc_version}</span>}
+                  {state.modDetail.authors.length > 0 && (
+                    <span>作者 {state.modDetail.authors.join("、")}</span>
+                  )}
+                  {state.modDetail.depends.length > 0 && (
+                    <span>依赖 {state.modDetail.depends.join("、")}</span>
+                  )}
+                  {state.modDetail.description ? (
+                    <p className="mod-detail-desc">{state.modDetail.description}</p>
+                  ) : (
+                    <p className="hint">这个模组没写描述</p>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>

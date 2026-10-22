@@ -16,6 +16,140 @@ pub struct ModMeta {
     pub name: String,
 }
 
+/// 点开某个模组时给的完整信息（比 [`ModMeta`] 多读描述/作者/依赖）。
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ModDetail {
+    pub file_name: String,
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub authors: Vec<String>,
+    /// 需要的 MC 版本范围（fabric 的 `depends.minecraft`）
+    pub mc_version: String,
+    /// fabric / forge / neoforge / liteloader
+    pub loader: String,
+    /// 依赖的 mod id（不含 minecraft / 加载器自身）
+    pub depends: Vec<String>,
+}
+
+/// 读一个 jar 的完整信息。文件不存在或不是模组时返回 None。
+pub fn detail(dir: &Path, file_name: &str) -> Option<ModDetail> {
+    let path = dir.join("mods").join(file_name);
+    let file = std::fs::File::open(&path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut out = ModDetail {
+        file_name: file_name.to_string(),
+        ..Default::default()
+    };
+
+    if let Some(text) = read_entry(&mut archive, "fabric.mod.json") {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+            out.loader = "fabric".into();
+            out.id = json_str(&value, "id");
+            out.name = json_str(&value, "name");
+            out.version = json_str(&value, "version");
+            out.description = json_str(&value, "description");
+            if let Some(list) = value.get("authors").and_then(|v| v.as_array()) {
+                out.authors = list
+                    .iter()
+                    .filter_map(|item| match item {
+                        serde_json::Value::String(s) => Some(s.clone()),
+                        other => other.get("name").and_then(|v| v.as_str()).map(String::from),
+                    })
+                    .collect();
+            }
+            if let Some(depends) = value.get("depends").and_then(|v| v.as_object()) {
+                out.mc_version = depends
+                    .get("minecraft")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                for key in depends.keys() {
+                    if key != "minecraft" && key != "fabricloader" && key != "java" {
+                        out.depends.push(key.clone());
+                    }
+                }
+            }
+            out.depends.sort();
+            if out.name.is_empty() {
+                out.name = out.id.clone();
+            }
+            return Some(out);
+        }
+    }
+
+    for entry in ["META-INF/neoforge.mods.toml", "META-INF/mods.toml"] {
+        if let Some(text) = read_entry(&mut archive, entry) {
+            out.loader = if entry.contains("neoforge") { "neoforge" } else { "forge" }.into();
+            out.id = toml_value(&text, "modId").unwrap_or_default();
+            out.version = toml_value(&text, "version").unwrap_or_else(|| "?".into());
+            out.name = toml_value(&text, "displayName").unwrap_or_else(|| out.id.clone());
+            out.description = toml_value(&text, "description").unwrap_or_default();
+            out.authors = toml_value(&text, "authors")
+                .map(|v| {
+                    v.split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default();
+            // 依赖段：modId / versionRange 各一行，顺序成对
+            for line in text.lines() {
+                let line = line.trim();
+                if let Some(rest) = line.strip_prefix("modId") {
+                    if let Some(value) = quoted(rest) {
+                        if value != "minecraft" && value != "neoforge" && value != "forge" {
+                            out.depends.push(value);
+                        } else if value == "minecraft" {
+                            // minecraft 的版本范围在下一行的 versionRange
+                            out.mc_version = String::from("已知");
+                        }
+                    }
+                }
+            }
+            out.depends.sort();
+            out.depends.dedup();
+            return Some(out);
+        }
+    }
+
+    if let Some(text) = read_entry(&mut archive, "mcmod.info") {
+        let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+        let first = value.as_array()?.first()?.clone();
+        out.loader = "forge".into();
+        out.id = json_str(&first, "modid");
+        out.name = json_str(&first, "name");
+        out.version = json_str(&first, "version");
+        out.description = json_str(&first, "description");
+        let authors = json_str(&first, "authorList");
+        if !authors.is_empty() && !authors.starts_with('[') {
+            out.authors = vec![authors];
+        }
+        return Some(out);
+    }
+    None
+}
+
+fn json_str(value: &serde_json::Value, key: &str) -> String {
+    value
+        .get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+/// 抠 `= "value"` 里的值（toml 行内用）。
+fn quoted(rest: &str) -> Option<String> {
+    let rest = rest.trim_start().strip_prefix('=')?.trim();
+    let rest = match rest.strip_prefix('"') {
+        Some(v) => v,
+        None => rest.strip_prefix('\'')?,
+    };
+    let end = rest.find(['"', '\'']).unwrap_or(rest.len());
+    Some(rest[..end].to_string())
+}
+
 /// 同一个 mod id 出现在多个文件里 —— 通常会让游戏起不来或行为异常。
 #[derive(Debug, Clone, Serialize)]
 pub struct DuplicateGroup {

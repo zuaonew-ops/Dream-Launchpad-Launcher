@@ -154,6 +154,18 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface ModDetail {
+  file_name: string;
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  authors: string[];
+  mc_version: string;
+  loader: string;
+  depends: string[];
+}
+
 export interface LevelInfo {
   name: string;
   seed: number;

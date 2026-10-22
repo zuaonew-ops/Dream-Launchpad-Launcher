@@ -4063,3 +4063,49 @@ input[type="range"]::-moz-range-thumb {
 .save-detail code {
   color: #1d2939;
 }
+
+/* ── 模组详情 ───────────────────────────────────────── */
+.content-name.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.content-name.link:hover {
+  color: var(--primary);
+}
+
+.mod-detail {
+  flex-basis: 100%;
+  margin: 4px 0 6px 22px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #667085;
+}
+
+.mod-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--text);
+}
+
+.mod-detail-head span {
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.mod-detail-desc {
+  margin: 2px 0 0;
+  line-height: 1.5;
+  color: #667085;
+  white-space: pre-wrap;
+}
