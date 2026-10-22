@@ -6,10 +6,13 @@ using DLP.Avalonia.Services;
 namespace DLP.Avalonia.ViewModels;
 
 /// <summary>一个左侧导航项。</summary>
-public sealed class NavItem(string title, object page) : ObservableObject
+public sealed class NavItem(string title, object page, string icon) : ObservableObject
 {
     public string Title { get; } = title;
     public object Page { get; } = page;
+
+    /// <summary>图标路径（Material Design 24×24 的 Path Data），手机上底部导航用。</summary>
+    public string Icon { get; } = icon;
 }
 
 public sealed class MainViewModel : ObservableObject
@@ -23,10 +26,10 @@ public sealed class MainViewModel : ObservableObject
         Versions = new VersionsViewModel(services);
         NavItems =
         [
-            new NavItem("首页", home),
-            new NavItem("下载", Download),
-            new NavItem("游戏版本", Versions),
-            new NavItem("设置", settings)
+            new NavItem("启动", home, NavIcons.Home),
+            new NavItem("下载", Download, NavIcons.Download),
+            new NavItem("版本", Versions, NavIcons.Versions),
+            new NavItem("设置", settings, NavIcons.Settings)
         ];
         SelectedNav = NavItems[0];
 

@@ -115,6 +115,26 @@
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
+    <!-- 手机底部导航：图标 + 文字，选中时变强调色 -->
+    <Style Selector="ListBox.bottombar ListBoxItem">
+        <Setter Property="Padding" Value="4,6" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ListBox.bottombar ListBoxItem:selected Path">
+        <Setter Property="Fill" Value="{DynamicResource Accent}" />
+    </Style>
+
+    <Style Selector="ListBox.bottombar ListBoxItem:selected TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="ListBox.bottombar ListBoxItem:selected /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+    </Style>
+
     <Style Selector="ComboBox">
         <Setter Property="Background" Value="{DynamicResource Surface}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Line}" />

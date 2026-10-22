@@ -5,7 +5,7 @@
              x:Class="DLP.Avalonia.Views.HomeView"
              x:DataType="vm:HomeViewModel">
 
-    <Grid Margin="24" RowDefinitions="Auto,*">
+    <Grid Margin="16" RowDefinitions="Auto,*">
         <StackPanel Grid.Row="0" Spacing="14" Margin="0,0,0,16">
             <Border Classes="card">
                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
@@ -17,13 +17,12 @@
                     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Status}" Classes="secondary"
                                HorizontalAlignment="Right" VerticalAlignment="Top" MaxWidth="460" TextWrapping="Wrap" />
 
-                    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
-                                Spacing="10" Margin="0,14,0,0">
+                    <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,14,0,0" ItemSpacing="10" LineSpacing="8">
                         <ComboBox Width="260" ItemsSource="{Binding InstalledVersions}"
                                   SelectedItem="{Binding SelectedVersion}" PlaceholderText="还没有已安装的版本" />
                         <Button Content="刷新" Command="{Binding RefreshCommand}" />
                         <Button Content="打开游戏目录" Command="{Binding OpenFolderCommand}" />
-                    </StackPanel>
+                    </WrapPanel>
 
                     <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
                                 Spacing="10" Margin="0,14,0,0">

@@ -6,7 +6,7 @@
         x:DataType="vm:MainViewModel"
         Title="Dream Launchpad"
         Width="1180" Height="740"
-        MinWidth="960" MinHeight="620"
+        MinWidth="360" MinHeight="520"
         WindowStartupLocation="CenterScreen">
     <views:MainView />
 </Window>
