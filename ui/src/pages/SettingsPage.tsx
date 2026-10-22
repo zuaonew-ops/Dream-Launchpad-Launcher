@@ -173,6 +173,40 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
+          <h2>下载与市场</h2>
+          <label className="field">
+            <span className="label">下载源</span>
+            <select
+              className="input"
+              value={state.appSettings?.download_source ?? "mirror"}
+              onChange={(e) =>
+                actions.setDownloadSource(e.target.value === "official" ? "official" : "mirror")
+              }
+            >
+              <option value="mirror">镜像优先（BMCLAPI，国内快）</option>
+              <option value="official">官方直连（镜像缺新版本时用）</option>
+            </select>
+          </label>
+          <p className="hint">
+            镜像只改写大文件地址；镜像拿不到时会自动回退官方
+          </p>
+
+          <label className="field">
+            <span className="label">CurseForge API key</span>
+            <input
+              className="input"
+              type="password"
+              placeholder="不填就只能搜 Modrinth"
+              value={state.appSettings?.curseforge_api_key ?? ""}
+              onChange={(e) => actions.setCurseForgeKey(e.target.value)}
+            />
+          </label>
+          <p className="hint">
+            到 console.curseforge.com 免费申请；填了才能搜 CurseForge 和装 CurseForge 整合包
+          </p>
+        </section>
+
+        <section className="panel">
           <h2>适用版本</h2>
           <label className="field">
             <span className="label">正在编辑</span>

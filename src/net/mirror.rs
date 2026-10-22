@@ -5,12 +5,26 @@
 
 pub const BMCLAPI: &str = "https://bmclapi2.bangbang93.com";
 
+/// 是否优先走镜像。设置里能切成「官方直连」——镜像偶尔会缺新版本的库。
+static USE_MIRROR: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+pub fn set_use_mirror(enabled: bool) {
+    USE_MIRROR.store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn use_mirror() -> bool {
+    USE_MIRROR.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// 官方清单地址。
 pub const OFFICIAL_MANIFEST: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 /// 把一个官方 URL 映射到 BMCLAPI；没有对应规则时返回 `None`。
 pub fn rewrite(url: &str, version_id: Option<&str>) -> Option<String> {
+    if !use_mirror() {
+        return None;
+    }
     if let Some(rest) = url.strip_prefix("https://libraries.minecraft.net/") {
         return Some(format!("{BMCLAPI}/maven/{rest}"));
     }
@@ -46,6 +60,7 @@ mod tests {
 
     #[test]
     fn rewrites_libraries() {
+        set_use_mirror(true);
         assert_eq!(
             rewrite("https://libraries.minecraft.net/org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1.jar", None),
             Some(format!("{BMCLAPI}/maven/org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1.jar"))
@@ -54,6 +69,7 @@ mod tests {
 
     #[test]
     fn rewrites_client_and_version_json() {
+        set_use_mirror(true);
         assert_eq!(
             rewrite("https://piston-data.mojang.com/v1/objects/abc/client.jar", Some("1.20.1")),
             Some(format!("{BMCLAPI}/version/1.20.1/client"))
@@ -66,6 +82,7 @@ mod tests {
 
     #[test]
     fn leaves_unknown_urls_alone() {
+        set_use_mirror(true);
         assert_eq!(
             rewrite("https://piston-meta.mojang.com/v1/packages/abc/5.json", Some("1.20.1")),
             None
@@ -74,6 +91,7 @@ mod tests {
 
     #[test]
     fn asset_urls_pair_up() {
+        set_use_mirror(true);
         let (mirror, official) = asset_urls("abcdef");
         assert!(mirror.starts_with(BMCLAPI));
         assert!(official.starts_with("https://resources.download.minecraft.net/ab/"));

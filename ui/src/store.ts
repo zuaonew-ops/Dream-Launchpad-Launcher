@@ -65,6 +65,8 @@ export interface State {
   backups: BackupEntry[];
   /** 该版本的服务器列表（servers.dat） */
   servers: ServerEntry[];
+  /** 应用级设置（下载源、CurseForge key、默认版本） */
+  appSettings: AppSettings | null;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -173,6 +175,7 @@ let state: State = {
   packPreview: null,
   backups: [],
   servers: [],
+  appSettings: null,
   packId: "",
   search: "",
   filter: "release",
@@ -320,6 +323,7 @@ async function refresh() {
       accounts: accounts.list,
       currentAccount: accounts.current,
       defaultVersion: cfg.default_version,
+      appSettings: cfg,
       selected: current && versions.some((v) => v.id === current) ? current : fallback,
     });
     if (state.selected) void loadSettings(state.selected);
@@ -1075,6 +1079,22 @@ async function confirmInstall() {
   }
 }
 
+/** 保存应用级设置（下载源 / CurseForge key / 默认版本） */
+async function saveAppSettings(patch: Partial<AppSettings>) {
+  const current = state.appSettings;
+  const next: AppSettings = {
+    default_version: patch.default_version ?? current?.default_version ?? null,
+    curseforge_api_key: patch.curseforge_api_key ?? current?.curseforge_api_key ?? null,
+    download_source: patch.download_source ?? current?.download_source ?? "mirror",
+  };
+  try {
+    const saved = await invoke<AppSettings>("save_app_settings", { settings: next });
+    set({ appSettings: saved, notice: "设置已保存" });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 备份一个存档 */
 async function backupSave(id: string, world: string) {
   try {
@@ -1324,6 +1344,9 @@ export const actions = {
   readCrash,
   setDownloadTab: (tab: "versions" | "market" | "pack") => set({ downloadTab: tab }),
   setPackId: (packId: string) => set({ packId }),
+  saveAppSettings,
+  setDownloadSource: (source: "mirror" | "official") => void saveAppSettings({ download_source: source }),
+  setCurseForgeKey: (key: string) => void saveAppSettings({ curseforge_api_key: key }),
   pickPack,
   loadPackPreview,
   installPack,

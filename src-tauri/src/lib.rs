@@ -729,6 +729,12 @@ pub fn run() {
         .build()
         .expect("构建 HTTP 客户端失败");
 
+    // 按保存的设置决定走不走镜像
+    {
+        let cfg = AppSettings::load(&paths);
+        dlp_core::net::mirror::set_use_mirror(cfg.download_source != "official");
+    }
+
     tauri::Builder::default()
         .manage(AppState {
             paths,
@@ -783,6 +789,7 @@ pub fn run() {
             install_market_file,
             install_market,
             install_java,
+            save_app_settings,
             backup_save,
             list_backups,
             restore_backup,
@@ -881,4 +888,24 @@ fn remove_server(
     ip: String,
 ) -> Result<Vec<content::ServerEntry>, String> {
     content::remove_server(&game_dir(&state.paths, &id), &ip)
+}
+
+/// 保存应用级设置（下载源、CurseForge key、默认版本）。
+#[tauri::command]
+fn save_app_settings(
+    state: State<'_, AppState>,
+    settings: AppSettings,
+) -> Result<AppSettings, String> {
+    let mut cfg = AppSettings::load(&state.paths);
+    cfg.default_version = settings.default_version;
+    cfg.curseforge_api_key = settings.curseforge_api_key;
+    cfg.download_source = if settings.download_source == "official" {
+        "official".into()
+    } else {
+        "mirror".into()
+    };
+    cfg.save(&state.paths)?;
+    // 立刻生效，不用重开程序
+    dlp_core::net::mirror::set_use_mirror(cfg.download_source != "official");
+    Ok(cfg)
 }

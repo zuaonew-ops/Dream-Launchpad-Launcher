@@ -162,6 +162,13 @@ pub struct AppSettings {
     /// CurseForge 官方 API key（免费申请）；空 = 没配，市场里选 CurseForge 会提示去填
     #[serde(default)]
     pub curseforge_api_key: Option<String>,
+    /// 下载源："mirror" = BMCLAPI 优先（默认），"official" = 全走官方
+    #[serde(default = "default_source")]
+    pub download_source: String,
+}
+
+fn default_source() -> String {
+    "mirror".into()
 }
 
 impl AppSettings {

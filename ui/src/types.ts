@@ -38,7 +38,10 @@ export interface AccountsPayload {
 }
 
 export interface AppSettings {
+  /** "mirror" = BMCLAPI 优先，"official" = 全走官方 */
+  download_source: string;
   default_version: string | null;
+  curseforge_api_key: string | null;
 }
 
 /** 下载页内部的三个视图 */
