@@ -13,6 +13,7 @@ pub mod mods;
 pub mod packs;
 pub mod saves;
 pub mod servers;
+pub mod shots;
 pub mod skins;
 pub mod stats;
 
@@ -23,6 +24,7 @@ pub use mods::{delete_mod, list_mods, set_all_mods, set_mod_enabled};
 pub use packs::{delete_pack, list_packs};
 pub use saves::list_saves;
 pub use servers::{add_server, read_servers, remove_server, write_servers, ServerEntry};
+pub use shots::{delete_shot, list_shots, ShotEntry};
 pub use skins::{apply_skin, delete_skin, has_customskinloader, import_skin, list_skins, SkinEntry};
 pub use stats::version_stats;
 

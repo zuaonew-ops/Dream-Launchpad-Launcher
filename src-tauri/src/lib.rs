@@ -790,6 +790,9 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            list_shots,
+            delete_shot,
+            open_shot,
             mod_duplicates,
             check_launcher_update,
             check_mod_updates,
@@ -1102,4 +1105,25 @@ async fn check_launcher_update(
 #[tauri::command]
 fn mod_duplicates(state: State<'_, AppState>, id: String) -> Vec<content::DuplicateGroup> {
     content::duplicates(&game_dir(&state.paths, &id))
+}
+
+/// 游戏截图列表。
+#[tauri::command]
+fn list_shots(state: State<'_, AppState>, id: String) -> Vec<content::ShotEntry> {
+    content::list_shots(&game_dir(&state.paths, &id))
+}
+
+#[tauri::command]
+fn delete_shot(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
+    content::delete_shot(&game_dir(&state.paths, &id), &name)
+}
+
+/// 用系统看图打开一张截图。
+#[tauri::command]
+fn open_shot(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
+    let path = game_dir(&state.paths, &id).join("screenshots").join(&name);
+    if !path.is_file() {
+        return Err(format!("找不到截图 {name}"));
+    }
+    open_path(&path)
 }

@@ -102,7 +102,7 @@ pub fn apply_skin(dir: &Path, skin: &str, player: &str) -> Result<String, String
 }
 
 /// 读 PNG 的宽高（IHDR 里 8 字节开始的两个大端 u32）。
-fn png_size(path: &Path) -> Option<(u32, u32)> {
+pub(crate) fn png_size(path: &Path) -> Option<(u32, u32)> {
     let data = std::fs::read(path).ok()?;
     // 8 字节签名 + 4 字节长度 + 4 字节 "IHDR"
     if data.len() < 24 || &data[1..4] != b"PNG" || &data[12..16] != b"IHDR" {

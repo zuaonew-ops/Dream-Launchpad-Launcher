@@ -7,6 +7,7 @@ import type {
   SkinEntry,
   UpdateInfo,
   DuplicateGroup,
+  ShotEntry,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -82,6 +83,8 @@ export interface State {
   launcherUpdate: UpdateInfo | null;
   /** 装了多个版本的模组 */
   modDuplicates: DuplicateGroup[];
+  /** 游戏截图 */
+  shots: ShotEntry[];
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -196,6 +199,7 @@ let state: State = {
   modUpdates: [],
   launcherUpdate: null,
   modDuplicates: [],
+  shots: [],
   packId: "",
   search: "",
   filter: "release",
@@ -1100,6 +1104,33 @@ async function confirmInstall() {
   }
 }
 
+/** 截图 */
+async function loadShots(id: string) {
+  try {
+    const shots = await invoke<ShotEntry[]>("list_shots", { id });
+    set({ shots });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function openShot(id: string, name: string) {
+  try {
+    await invoke("open_shot", { id, name });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+async function deleteShot(id: string, name: string) {
+  try {
+    await invoke("delete_shot", { id, name });
+    await loadShots(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 查重复模组 */
 async function loadModDuplicates(id: string) {
   try {
@@ -1512,6 +1543,9 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  loadShots,
+  openShot,
+  deleteShot,
   loadModDuplicates,
   checkLauncherUpdate,
   checkModUpdates,

@@ -154,6 +154,14 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface ShotEntry {
+  name: string;
+  width: number;
+  height: number;
+  bytes: number;
+  time: string;
+}
+
 export interface DuplicateGroup {
   id: string;
   name: string;
