@@ -44,7 +44,13 @@ import type {
   VersionSummary,
 } from "./types";
 
-export type TypeFilter = "release" | "snapshot" | "installed" | "local" | "all";
+export type TypeFilter =
+  | "release"
+  | "snapshot"
+  | "old"
+  | "installed"
+  | "local"
+  | "all";
 
 export interface RunningGame {
   pid: number;
@@ -312,7 +318,11 @@ export function selectFiltered(s: State): VersionSummary[] {
       if (s.filter === "installed" && !v.installed) return false;
       if (s.filter === "local" && !v.local) return false;
       if (s.filter === "release" && v.kind !== "release") return false;
-      if (s.filter === "snapshot" && v.kind === "release") return false;
+      if (s.filter === "snapshot" && v.kind !== "snapshot") return false;
+      // 远古版：alpha / beta，平时藏在「全部」里
+      if (s.filter === "old" && v.kind !== "old_alpha" && v.kind !== "old_beta") {
+        return false;
+      }
       return !keyword || v.id.toLowerCase().includes(keyword);
     });
 }

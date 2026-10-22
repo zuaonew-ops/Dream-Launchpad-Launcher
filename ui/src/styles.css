@@ -4158,3 +4158,16 @@ input[type="range"]::-moz-range-thumb {
   flex-shrink: 0;
   gap: 6px;
 }
+
+/* 字段标签右侧的小动作按钮 */
+.label-actions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+button.ghost.tiny {
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 16px;
+}

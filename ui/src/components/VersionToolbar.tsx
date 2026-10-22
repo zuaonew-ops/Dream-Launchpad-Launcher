@@ -3,6 +3,7 @@ import type { TypeFilter } from "../store";
 const tabs: { key: TypeFilter; label: string }[] = [
   { key: "release", label: "正式版" },
   { key: "snapshot", label: "快照" },
+  { key: "old", label: "远古版" },
   { key: "installed", label: "已安装" },
   { key: "local", label: "本地" },
   { key: "all", label: "全部" },

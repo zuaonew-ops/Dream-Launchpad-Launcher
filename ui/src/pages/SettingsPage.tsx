@@ -19,6 +19,40 @@ const FALLBACK: VersionSettings = {
     game_args: [],
 };
 
+
+/** 常用的 JVM 参数预设 */
+const JVM_PRESETS: { name: string; desc: string; args: string[] }[] = [
+  {
+    name: "Aikar's flags",
+    desc: "降 GC 停顿，大内存/长时间玩最明显",
+    args: [
+      "-XX:+UseG1GC",
+      "-XX:+ParallelRefProcEnabled",
+      "-XX:MaxGCPauseMillis=200",
+      "-XX:+UnlockExperimentalVMOptions",
+      "-XX:+DisableExplicitGC",
+      "-XX:+AlwaysPreTouch",
+      "-XX:G1NewSizePercent=30",
+      "-XX:G1MaxNewSizePercent=40",
+      "-XX:G1HeapRegionSize=8M",
+      "-XX:G1ReservePercent=20",
+      "-XX:G1HeapWastePercent=5",
+      "-XX:G1MixedGCCountTarget=4",
+      "-XX:InitiatingHeapOccupancyPercent=15",
+      "-XX:G1MixedGCLiveThresholdPercent=90",
+      "-XX:G1RSetUpdatingPauseTimePercent=5",
+      "-XX:SurvivorRatio=32",
+      "-XX:+PerfDisableSharedMem",
+      "-XX:MaxTenuringThreshold=1",
+    ],
+  },
+  {
+    name: "低配机",
+    desc: "内存小、核数少时少开线程",
+    args: ["-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-Xss1M"],
+  },
+];
+
 function formatMemory(mb: number): string {
   if (mb >= 1024) {
     const gb = mb / 1024;
@@ -363,7 +397,22 @@ export default function SettingsPage() {
           </label>
 
           <label className="field">
-            <span className="label">额外 JVM 参数（一行一个）</span>
+            <span className="label">
+              额外 JVM 参数（一行一个）
+              <span className="label-actions">
+                {JVM_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className="ghost tiny"
+                    title={preset.desc}
+                    onClick={() => save({ extra_jvm_args: preset.args })}
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </span>
+            </span>
             <textarea
               className="input area"
               rows={3}
