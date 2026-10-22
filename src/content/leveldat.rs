@@ -26,8 +26,13 @@ pub struct LevelInfo {
 
 /// 读一个存档的详情；读不出来返回 None。
 pub fn read(save_dir: &Path) -> Option<LevelInfo> {
-    let file = std::fs::File::open(save_dir.join("level.dat")).ok()?;
-    let mut decoder = flate2::read::GzDecoder::new(file);
+    let bytes = std::fs::read(save_dir.join("level.dat")).ok()?;
+    read_bytes(&bytes)
+}
+
+/// 解析一份 gzip 压缩的 `level.dat` 内容。
+pub fn read_bytes(bytes: &[u8]) -> Option<LevelInfo> {
+    let mut decoder = flate2::read::GzDecoder::new(bytes);
     let mut raw = Vec::new();
     decoder.read_to_end(&mut raw).ok()?;
 

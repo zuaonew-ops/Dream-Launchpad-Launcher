@@ -808,6 +808,8 @@ pub fn run() {
             ping_server,
             ping_servers,
             mod_detail,
+            import_save,
+            pick_world,
             level_info,
             list_shots,
             delete_shot,
@@ -847,6 +849,13 @@ pub fn run() {
 #[tauri::command]
 fn pick_pack() -> Result<Option<String>, String> {
     Ok(pick::pick_file("选择整合包", "整合包 (*.mrpack;*.zip)", "zip")?
+        .map(|p| p.to_string_lossy().to_string()))
+}
+
+/// 打开文件选择框（世界存档 zip）。
+#[tauri::command]
+fn pick_world() -> Result<Option<String>, String> {
+    Ok(pick::pick_file("选择世界存档", "世界存档 (*.zip)", "zip")?
         .map(|p| p.to_string_lossy().to_string()))
 }
 
@@ -1221,4 +1230,10 @@ fn mod_detail(
     file: String,
 ) -> Option<content::modmeta::ModDetail> {
     content::modmeta::detail(&game_dir(&state.paths, &id), &file)
+}
+
+/// 从外部 zip 导入一个世界到 saves/（重名不覆盖）。
+#[tauri::command]
+fn import_save(state: State<'_, AppState>, id: String, path: String) -> Result<String, String> {
+    content::import_world(&game_dir(&state.paths, &id), std::path::Path::new(&path))
 }

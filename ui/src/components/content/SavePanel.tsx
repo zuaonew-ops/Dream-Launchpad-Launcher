@@ -10,6 +10,9 @@ export default function SavePanel({ id }: { id: string }) {
       <div className="content-tools">
         <span className="hint">每个世界一个文件夹，有 level.dat 才算有效；点「备份」打包成 zip</span>
         <div className="inline">
+          <button type="button" className="ghost" onClick={() => void actions.importSave(id)}>
+            导入世界
+          </button>
           <button
             type="button"
             className="ghost"

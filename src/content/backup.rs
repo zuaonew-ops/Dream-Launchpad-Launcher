@@ -229,3 +229,237 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+/// 从外部 zip 导入一个世界到 `saves/`。返回世界文件夹名。
+///
+/// 兼容两种打包方式：zip 里直接是 `level.dat`，或者套了一层 `世界名/`。
+/// 目标重名时自动加 ` (2)`，不覆盖已有存档 —— 覆盖存档是不可逆的。
+pub fn import_world(dir: &Path, zip_path: &Path) -> Result<String, String> {
+    let file = std::fs::File::open(zip_path)
+        .map_err(|e| format!("打开 {} 失败: {e}", zip_path.display()))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("解析 zip 失败: {e}（只支持 .zip）"))?;
+
+    // 先扫一遍，找出 level.dat 在哪一层
+    let mut names: Vec<String> = Vec::new();
+    for i in 0..archive.len() {
+        let entry = match archive.by_index(i) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let name = entry.name().replace('\\', "/");
+        if !name.is_empty() && !name.starts_with("__MACOSX/") {
+            names.push(name);
+        }
+    }
+    let level_index = names
+        .iter()
+        .position(|name| name == "level.dat" || name.ends_with("/level.dat"))
+        .ok_or_else(|| "这个 zip 里没找到 level.dat，不像是世界存档".to_string())?;
+    // 前缀 = level.dat 之前的目录部分（可能为空）
+    let prefix = match names[level_index].rfind('/') {
+        Some(pos) => names[level_index][..=pos].to_string(),
+        None => String::new(),
+    };
+
+    // 世界名：优先 level.dat 里的 LevelName，其次 zip 文件名
+    let world = level_name(&mut archive, &prefix).unwrap_or_else(|| {
+        zip_path
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "导入的世界".into())
+    });
+    let world = safe_name(&world);
+    let target = unique_dir(&dir.join("saves"), &world);
+    std::fs::create_dir_all(&target).map_err(|e| format!("创建存档目录失败: {e}"))?;
+
+    let mut written = 0usize;
+    for i in 0..archive.len() {
+        let mut entry = match archive.by_index(i) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let full = entry.name().replace('\\', "/");
+        if full.starts_with("__MACOSX/") || !full.starts_with(&prefix) {
+            continue;
+        }
+        let relative = &full[prefix.len()..];
+        if relative.is_empty() || relative.split('/').any(|part| part == "..") {
+            continue;
+        }
+        let out = target.join(relative);
+        if entry.is_dir() {
+            let _ = std::fs::create_dir_all(&out);
+            continue;
+        }
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {e}"))?;
+        }
+        let mut buf = Vec::new();
+        entry
+            .read_to_end(&mut buf)
+            .map_err(|e| format!("读取 {relative} 失败: {e}"))?;
+        std::fs::write(&out, buf).map_err(|e| format!("写入 {} 失败: {e}", out.display()))?;
+        written += 1;
+    }
+    if written == 0 {
+        let _ = std::fs::remove_dir_all(&target);
+        return Err("zip 里没有可解出的文件".into());
+    }
+    Ok(target
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or(world))
+}
+
+/// 从 zip 里的 level.dat 读世界名。
+fn level_name(archive: &mut zip::ZipArchive<std::fs::File>, prefix: &str) -> Option<String> {
+    let info = {
+        let mut entry = archive.by_name(&format!("{prefix}level.dat")).ok()?;
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf).ok()?;
+        crate::content::leveldat::read_bytes(&buf)?
+    };
+    if info.name.is_empty() {
+        None
+    } else {
+        Some(info.name)
+    }
+}
+
+/// 去掉文件名里不能用的字符。
+fn safe_name(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            other => other,
+        })
+        .collect();
+    let cleaned = cleaned.trim().to_string();
+    if cleaned.is_empty() {
+        "导入的世界".into()
+    } else {
+        cleaned.chars().take(60).collect()
+    }
+}
+
+/// 同名目录存在时加 `(2)`、`(3)`…
+fn unique_dir(saves: &Path, base: &str) -> std::path::PathBuf {
+    let first = saves.join(base);
+    if !first.exists() {
+        return first;
+    }
+    for n in 2..100 {
+        let candidate = saves.join(format!("{base} ({n})"));
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    saves.join(format!("{base} ({})", std::process::id()))
+}
+
+#[cfg(test)]
+mod import_tests {
+    use super::*;
+
+    /// 造一个世界 zip：`<prefix>/level.dat` + `<prefix>/region/r.0.0.mca`
+    fn make_zip(path: &std::path::Path, prefix: &str, world_name: &str, seed: i64) {
+        // level.dat：gzip + 最小 NBT
+        let mut nbt: Vec<u8> = Vec::new();
+        nbt.push(10);
+        nbt.extend_from_slice(&0i16.to_be_bytes());
+        nbt.push(10);
+        nbt.extend_from_slice(&(4i16).to_be_bytes());
+        nbt.extend_from_slice(b"Data");
+        nbt.push(8);
+        nbt.extend_from_slice(&(9i16).to_be_bytes());
+        nbt.extend_from_slice(b"LevelName");
+        nbt.extend_from_slice(&(world_name.len() as i16).to_be_bytes());
+        nbt.extend_from_slice(world_name.as_bytes());
+        nbt.push(4);
+        nbt.extend_from_slice(&(10i16).to_be_bytes());
+        nbt.extend_from_slice(b"RandomSeed");
+        nbt.extend_from_slice(&seed.to_be_bytes());
+        nbt.push(0);
+        nbt.push(0);
+        let mut gz: Vec<u8> = Vec::new();
+        {
+            use std::io::Write;
+            let mut encoder = flate2::write::GzEncoder::new(&mut gz, flate2::Compression::fast());
+            encoder.write_all(&nbt).unwrap();
+            encoder.finish().unwrap();
+        }
+
+        let file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options: zip::write::FileOptions<()> =
+            zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        zip.start_file(format!("{prefix}level.dat"), options).unwrap();
+        {
+            use std::io::Write;
+            zip.write_all(&gz).unwrap();
+        }
+        zip.start_file(format!("{prefix}region/r.0.0.mca"), options)
+            .unwrap();
+        {
+            use std::io::Write;
+            zip.write_all(&[0u8; 64]).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn imports_zip_with_folder() {
+        let dir = crate::testdir::temp_dir("dlp-import1");
+        std::fs::create_dir_all(dir.join("saves")).unwrap();
+        let zip_path = dir.join("world.zip");
+        make_zip(&zip_path, "我的世界/", "我的世界", 42);
+
+        let name = import_world(&dir, &zip_path).unwrap();
+        assert_eq!(name, "我的世界");
+        assert!(dir.join("saves").join("我的世界").join("level.dat").exists());
+        assert!(dir
+            .join("saves")
+            .join("我的世界")
+            .join("region")
+            .join("r.0.0.mca")
+            .exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn imports_flat_zip_and_avoids_overwrite() {
+        let dir = crate::testdir::temp_dir("dlp-import2");
+        std::fs::create_dir_all(dir.join("saves").join("世界")).unwrap();
+        let zip_path = dir.join("世界.zip");
+        make_zip(&zip_path, "", "世界", 7);
+
+        // 已有同名存档 → 应该落在「世界 (2)」，不覆盖原来的
+        let name = import_world(&dir, &zip_path).unwrap();
+        assert_eq!(name, "世界 (2)");
+        assert!(dir.join("saves").join("世界 (2)").join("level.dat").exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn rejects_zip_without_level_dat() {
+        let dir = crate::testdir::temp_dir("dlp-import3");
+        std::fs::create_dir_all(&dir).unwrap();
+        let zip_path = dir.join("nope.zip");
+        let file = std::fs::File::create(&zip_path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options: zip::write::FileOptions<()> = zip::write::FileOptions::default();
+        zip.start_file("readme.txt", options).unwrap();
+        {
+            use std::io::Write;
+            zip.write_all(b"hello").unwrap();
+        }
+        zip.finish().unwrap();
+
+        assert!(import_world(&dir, &zip_path).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

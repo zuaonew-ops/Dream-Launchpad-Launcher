@@ -1183,6 +1183,19 @@ async function openModDetail(id: string, file: string) {
   }
 }
 
+/** 导入外部世界 zip */
+async function importSave(id: string) {
+  try {
+    const path = await invoke<string | null>("pick_world");
+    if (!path) return;
+    const name = await invoke<string>("import_save", { id, path });
+    await loadContent(id);
+    set({ notice: `已导入世界 ${name}` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 存档详情：点一下才拉，列表里不用一次读全部 level.dat */
 async function loadLevelInfo(id: string, world: string) {
   if (state.levelInfo[world]) {
@@ -1672,6 +1685,7 @@ export const actions = {
   dismissDiagnosis,
   openModDetail,
   launchQuickPlay,
+  importSave,
   loadLevelInfo,
   loadGameOptions,
   saveGameOptions,

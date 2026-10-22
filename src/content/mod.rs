@@ -21,7 +21,7 @@ pub mod shots;
 pub mod skins;
 pub mod stats;
 
-pub use backup::{backup, delete_backup, list_backups, restore, BackupEntry};
+pub use backup::{backup, delete_backup, import_world, list_backups, restore, BackupEntry};
 pub use logs::{list_crashes, list_logs, read_crash, read_log};
 pub use modmeta::{duplicates, scan as scan_mods, DuplicateGroup, ModMeta};
 pub use mods::{delete_mod, list_mods, set_all_mods, set_mod_enabled};
