@@ -154,6 +154,17 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface ModUpdate {
+  file_name: string;
+  project_id: string;
+  project_slug: string;
+  title: string;
+  current: string;
+  latest: string;
+  download_url: string;
+  latest_file: string;
+}
+
 export interface SkinEntry {
   name: string;
   width: number;

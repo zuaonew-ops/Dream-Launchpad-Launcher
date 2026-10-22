@@ -15,11 +15,47 @@ export default function ModPanel({ id }: { id: string }) {
 
   return (
     <section className="panel list-panel">
+      {state.modUpdates.length > 0 && (
+        <div className="mod-updates">
+          <div className="section-head">
+            <h2>可以更新</h2>
+            <span className="hint">按文件 SHA1 在 Modrinth 上查到的</span>
+          </div>
+          <ul className="content-list">
+            {state.modUpdates.map((update) => (
+              <li key={update.file_name} className="content-item">
+                <span className="dot on" />
+                <span className="content-name">{update.title}</span>
+                <span className="content-meta">
+                  {update.current} → <strong>{update.latest}</strong>
+                </span>
+                <span className="content-actions">
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void actions.applyModUpdate(id, update)}
+                  >
+                    更新
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="content-tools">
         <span className="hint">启用状态靠 .disabled 后缀，和 PCL 一致</span>
         <div className="inline">
           {state.mods.length > 0 && (
             <>
+              <button
+                type="button"
+                className="ghost"
+                disabled={state.busy}
+                onClick={() => void actions.checkModUpdates(id)}
+              >
+                {state.busy ? "检查中…" : "检查更新"}
+              </button>
               <button
                 type="button"
                 className="ghost"

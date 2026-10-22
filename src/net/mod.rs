@@ -5,4 +5,4 @@ pub mod fetch;
 pub mod mirror;
 
 pub use download::{human, Job, Progress};
-pub use fetch::file_matches;
+pub use fetch::{file_matches, sha1_file};

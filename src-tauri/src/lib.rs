@@ -790,6 +790,8 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            check_mod_updates,
+            update_mod,
             clone_version,
             rename_version,
             list_skins,
@@ -996,4 +998,92 @@ fn rename_version(
     to: String,
 ) -> Result<(), String> {
     install::clone::rename_version(&state.paths, &from, &to)
+}
+
+/// 检查该版本 mods 目录里的模组有没有新版本（按文件 SHA1 问 Modrinth）。
+#[tauri::command]
+async fn check_mod_updates(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<dlp_core::market::ModUpdate>, String> {
+    use dlp_core::market::{identify, is_newer, latest};
+
+    let dir = game_dir(&state.paths, &id).join("mods");
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return Ok(Vec::new());
+    };
+    // 只认 .jar；上限 200 个，避免一次算太久
+    let mut files: Vec<(String, String)> = Vec::new();
+    for entry in entries.flatten().take(200) {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        let lower = name.to_ascii_lowercase();
+        if !lower.ends_with(".jar") {
+            continue;
+        }
+        if let Ok(sha1) = dlp_core::net::sha1_file(&path) {
+            files.push((name, sha1));
+        }
+    }
+    if files.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let identities = identify(&state.client, &files).await?;
+    let mc = base_mc_version(&state.paths, &id);
+    let loader = loader_of(&id).unwrap_or_else(|| "vanilla".into());
+
+    let mut updates = Vec::new();
+    for item in identities {
+        let Ok(Some((version, url, filename))) =
+            latest(&state.client, &item.project_id, &mc, &loader).await
+        else {
+            continue;
+        };
+        if !is_newer(&version, &item.version_number) {
+            continue;
+        }
+        updates.push(dlp_core::market::ModUpdate {
+            file_name: item.file_name,
+            project_id: item.project_id,
+            project_slug: item.project_slug,
+            title: item.project_title,
+            current: item.version_number,
+            latest: version,
+            download_url: url,
+            latest_file: filename,
+        });
+    }
+    Ok(updates)
+}
+
+/// 更新一个模组：下新文件、删旧文件。
+#[tauri::command]
+async fn update_mod(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    old_file: String,
+    url: String,
+    filename: String,
+) -> Result<(), String> {
+    let dir = game_dir(&state.paths, &id).join("mods");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建 mods 失败: {e}"))?;
+    let target = dir.join(&filename);
+    let progress = progress_to(app);
+    let job = dlp_core::net::Job::new(url, &target, None);
+    dlp_core::net::download::run(
+        &state.client,
+        vec![job],
+        1,
+        "更新模组",
+        &progress,
+    )
+    .await?;
+    // 新旧同名时上面已经覆盖，不同名才删旧的
+    if old_file != filename {
+        let old = dir.join(&old_file);
+        let _ = std::fs::remove_file(old);
+    }
+    Ok(())
 }

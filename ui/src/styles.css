@@ -4016,3 +4016,12 @@ input[type="range"]::-moz-range-thumb {
   padding: 8px 12px;
   margin: 8px 0;
 }
+
+/* ── 模组更新 ───────────────────────────────────────── */
+.mod-updates {
+  border: 1px solid #cfe6d8;
+  background: #f4fbf7;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}

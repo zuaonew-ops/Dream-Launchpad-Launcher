@@ -5,6 +5,7 @@ import type {
   BackupEntry,
   ExportResult,
   SkinEntry,
+  ModUpdate,
   PackPreview,
   ServerEntry,
   InstallStage,
@@ -73,6 +74,8 @@ export interface State {
   skins: SkinEntry[];
   /** 这个版本装没装 CustomSkinLoader */
   hasCsl: boolean;
+  /** 检测到的可更新模组 */
+  modUpdates: ModUpdate[];
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -184,6 +187,7 @@ let state: State = {
   appSettings: null,
   skins: [],
   hasCsl: false,
+  modUpdates: [],
   packId: "",
   search: "",
   filter: "release",
@@ -1087,6 +1091,43 @@ async function confirmInstall() {
   }
 }
 
+/** 检查模组更新（按 SHA1 问 Modrinth） */
+async function checkModUpdates(id: string) {
+  set({ busy: true, error: "", notice: "" });
+  try {
+    const updates = await invoke<ModUpdate[]>("check_mod_updates", { id });
+    set({
+      busy: false,
+      modUpdates: updates,
+      notice:
+        updates.length === 0
+          ? "所有模组都是最新的"
+          : `${updates.length} 个模组有新版本`,
+    });
+  } catch (e) {
+    set({ busy: false, error: String(e) });
+  }
+}
+
+/** 更新一个模组 */
+async function applyModUpdate(id: string, update: ModUpdate) {
+  try {
+    await invoke("update_mod", {
+      id,
+      oldFile: update.file_name,
+      url: update.download_url,
+      filename: update.latest_file,
+    });
+    set({
+      modUpdates: state.modUpdates.filter((m) => m.file_name !== update.file_name),
+      notice: `${update.title} 已更新到 ${update.latest}`,
+    });
+    await loadContent(id);
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 复制一个版本 */
 async function cloneVersion(from: string) {
   const to = window.prompt(`把 ${from} 复制成：`, `${from}-副本`);
@@ -1442,6 +1483,8 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  checkModUpdates,
+  applyModUpdate,
   renameVersion,
   loadSkins,
   importSkin,

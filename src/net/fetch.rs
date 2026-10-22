@@ -256,3 +256,19 @@ mod tests {
         assert!(!file_matches(&file, "deadbeef").await);
     }
 }
+
+/// 算一个文件的 SHA1（十六进制小写）。模组更新检查用它认文件。
+pub fn sha1_file(path: &Path) -> std::io::Result<String> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha1::new();
+    let mut buf = vec![0u8; 64 * 1024];
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(hex::encode(hasher.finalize()))
+}

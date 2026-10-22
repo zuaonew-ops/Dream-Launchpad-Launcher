@@ -12,9 +12,11 @@ mod curseforge;
 mod install;
 mod modrinth;
 mod types;
+pub mod updater;
 pub mod zh;
 
 pub use install::{install, install_file};
+pub use updater::{identify, is_newer, latest, ModIdentity, ModUpdate};
 pub use types::{FileChoice, Hit, ProjectDetail, SearchPage, VersionEntry};
 
 use reqwest::Client;
