@@ -1,6 +1,6 @@
 [package]
 name = "dlp-desktop"
-version = "0.26.0"
+version = "0.32.1"
 description = "Dream Launchpad Launcher - desktop shell (Tauri 2)"
 edition = "2021"
 rust-version = "1.77"
@@ -9,6 +9,12 @@ rust-version = "1.77"
 [lib]
 name = "dlp_desktop_lib"
 crate-type = ["rlib"]
+
+[features]
+# 生产构建必须打开：不带这个 feature，Tauri 认为自己在 dev 模式，
+# 不把前端资源嵌进 exe，运行时去找 devUrl（localhost:1420）就会白屏
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

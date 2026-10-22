@@ -2,6 +2,24 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.32.1] - 2026-10-22
+
+打包出来的 exe 一开就是「localhost 拒绝连接」，界面根本出不来。
+
+### 修复
+
+- **`src-tauri/Cargo.toml` 少了 `custom-protocol` feature**：Tauri 用它判断
+  「这是生产构建」（`tauri-macros/src/context.rs: dev: cfg!(not(feature = "custom-protocol"))`）。
+  少了它，即使 `cargo build --release`，Tauri 也认为在 dev 模式，**不把前端资源嵌进 exe**，
+  运行时去找 `devUrl`（localhost:1420）—— 没人监听，所以白屏。
+  现在 `default = ["custom-protocol"]`，直接 `cargo build --release` 就能出可用包
+- 顺带去掉临时加的 `[profile.fast]`（它构建出的 exe 也会走 dev 模式，是个坑）
+
+### 实测
+
+- 重新打包启动：界面正常，首页列出 12 个版本，`TestPack2` 和
+  `fabric-loader-0.19.5-26.1` 上都能看到 `DLP` 徽章，左下角版本号 `v0.32.1`
+
 ## [0.32.0] - 2026-10-22
 
 版本能复制和改名了。
