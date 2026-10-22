@@ -152,3 +152,82 @@ mod tests {
         assert_eq!(options.render_distance, 12);
     }
 }
+
+/// 读写 `options.txt` 里的 `resourcePacks` / `incompatibleResourcePacks`。
+///
+/// 值是 JSON 数组字符串，元素形如 `"vanilla"`、`"file/我的包.zip"`。
+/// 界面只让用户勾启用/停用，这里负责格式：进 `resourcePacks` 的就是启用的。
+pub fn read_resource_packs(dir: &Path) -> Vec<String> {
+    let Ok(text) = std::fs::read_to_string(path(dir)) else {
+        return Vec::new();
+    };
+    for line in text.lines() {
+        let Some(rest) = line.trim().strip_prefix("resourcePacks:") else {
+            continue;
+        };
+        let parsed: Vec<String> = serde_json::from_str(rest).unwrap_or_default();
+        return parsed.into_iter().filter(|item| item != "vanilla").collect();
+    }
+    Vec::new()
+}
+
+/// 设置启用的资源包（整体覆盖）。`vanilla` 永远排在最前面（内置资源）。
+pub fn write_resource_packs(dir: &Path, packs: &[String]) -> Result<(), String> {
+    let file = path(dir);
+    let existing = std::fs::read_to_string(&file).unwrap_or_default();
+    let mut lines: Vec<String> = existing.lines().map(|l| l.to_string()).collect();
+
+    let mut all = vec!["vanilla".to_string()];
+    all.extend(packs.iter().cloned());
+    let value = serde_json::to_string(&all).map_err(|e| format!("序列化失败: {e}"))?;
+    let new_line = format!("resourcePacks:{value}");
+
+    match lines
+        .iter()
+        .position(|line| line.starts_with("resourcePacks:"))
+    {
+        Some(index) => lines[index] = new_line,
+        None => lines.push(new_line),
+    }
+
+    std::fs::create_dir_all(dir).map_err(|e| format!("创建目录失败: {e}"))?;
+    let mut text = lines.join("\n");
+    text.push('\n');
+    std::fs::write(&file, text).map_err(|e| format!("写入 {} 失败: {e}", file.display()))
+}
+
+#[cfg(test)]
+mod resource_tests {
+    use super::*;
+
+    #[test]
+    fn reads_and_writes_resource_packs() {
+        let dir = crate::testdir::temp_dir("dlp-respack");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("options.txt"),
+            "version:3955\nresourcePacks:[\"vanilla\",\"file/我的包.zip\"]\n",
+        )
+        .unwrap();
+
+        let packs = read_resource_packs(&dir);
+        assert_eq!(packs, vec!["file/我的包.zip"]);
+
+        write_resource_packs(&dir, &["file/另一个.zip".into()]).unwrap();
+        let text = std::fs::read_to_string(dir.join("options.txt")).unwrap();
+        // vanilla 要在，旧包要没，别的行要保住
+        assert!(text.contains("resourcePacks:[\"vanilla\",\"file/另一个.zip\"]"));
+        assert!(text.contains("version:3955"));
+        assert_eq!(read_resource_packs(&dir), vec!["file/另一个.zip"]);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn works_without_options_file() {
+        let dir = crate::testdir::temp_dir("dlp-respack2");
+        assert!(read_resource_packs(&dir).is_empty());
+        write_resource_packs(&dir, &[]).unwrap();
+        assert!(read_resource_packs(&dir).is_empty());
+    }
+}

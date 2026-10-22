@@ -808,6 +808,8 @@ pub fn run() {
             ping_server,
             ping_servers,
             mod_detail,
+            enabled_resource_packs,
+            set_resource_packs,
             import_save,
             pick_world,
             level_info,
@@ -1236,4 +1238,20 @@ fn mod_detail(
 #[tauri::command]
 fn import_save(state: State<'_, AppState>, id: String, path: String) -> Result<String, String> {
     content::import_world(&game_dir(&state.paths, &id), std::path::Path::new(&path))
+}
+
+/// 已启用的资源包（options.txt 里 resourcePacks 去掉 vanilla）。
+#[tauri::command]
+fn enabled_resource_packs(state: State<'_, AppState>, id: String) -> Vec<String> {
+    content::options::read_resource_packs(&game_dir(&state.paths, &id))
+}
+
+/// 设置启用的资源包（整体覆盖）。
+#[tauri::command]
+fn set_resource_packs(
+    state: State<'_, AppState>,
+    id: String,
+    packs: Vec<String>,
+) -> Result<(), String> {
+    content::options::write_resource_packs(&game_dir(&state.paths, &id), &packs)
 }

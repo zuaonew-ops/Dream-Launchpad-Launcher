@@ -100,6 +100,8 @@ export interface State {
   levelInfo: Record<string, LevelInfo | null>;
   /** 点开的模组详情 */
   modDetail: ModDetail | null;
+  /** 已启用的资源包（options.txt 的 resourcePacks） */
+  enabledPacks: string[];
   /** 上次启动失败的诊断（横幅），关掉就清空 */
   diagnosis: Diagnosis | null;
   /** 装出来的版本 id（可手改） */
@@ -221,6 +223,7 @@ let state: State = {
   gameOptions: null,
   levelInfo: {},
   modDetail: null,
+  enabledPacks: [],
   diagnosis: null,
   packId: "",
   search: "",
@@ -1183,6 +1186,29 @@ async function openModDetail(id: string, file: string) {
   }
 }
 
+/** 已启用的资源包 */
+async function loadEnabledPacks(id: string) {
+  try {
+    const enabledPacks = await invoke<string[]>("enabled_resource_packs", { id });
+    set({ enabledPacks });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+/** 勾选/取消一个资源包（写进 options.txt） */
+async function toggleResourcePack(id: string, name: string, enabled: boolean) {
+  const key = `file/${name}`;
+  const current = state.enabledPacks.filter((item) => item !== key);
+  const next = enabled ? [...current, key] : current;
+  set({ enabledPacks: next });
+  try {
+    await invoke("set_resource_packs", { id, packs: next });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 导入外部世界 zip */
 async function importSave(id: string) {
   try {
@@ -1685,6 +1711,8 @@ export const actions = {
   dismissDiagnosis,
   openModDetail,
   launchQuickPlay,
+  loadEnabledPacks,
+  toggleResourcePack,
   importSave,
   loadLevelInfo,
   loadGameOptions,

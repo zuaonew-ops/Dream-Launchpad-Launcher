@@ -22,6 +22,7 @@ export default function PackPanel({ id, kind }: Props) {
 
   useEffect(() => {
     void actions.loadPacks(id, kind);
+    if (kind === "resourcepacks") void actions.loadEnabledPacks(id);
   }, [id, kind]);
 
   return (
@@ -59,6 +60,18 @@ export default function PackPanel({ id, kind }: Props) {
                 {item.name}
               </span>
               <span className="content-meta">{formatSize(item.size)}</span>
+              {kind === "resourcepacks" && (
+                <label className="mini-switch" title="进游戏时启用">
+                  <input
+                    type="checkbox"
+                    checked={state.enabledPacks.includes(`file/${item.name}`)}
+                    onChange={(e) =>
+                      void actions.toggleResourcePack(id, item.name, e.target.checked)
+                    }
+                  />
+                  <span />
+                </label>
+              )}
               <button
                 type="button"
                 className="icon-btn"

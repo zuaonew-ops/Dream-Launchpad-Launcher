@@ -2,6 +2,24 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.44.0] - 2026-10-22
+
+资源包能在启动器里勾启用了。
+
+### 新增
+
+- **资源包启用开关**（版本设置 →「资源包」每项右侧）：勾上就写进
+  `options.txt` 的 `resourcePacks`，进游戏直接生效
+- 格式按游戏自己的来：`["vanilla","file/包名.zip"]`，`vanilla` 永远在最前
+- 光影没有这个机制（iris/optifine 自己管），所以光影页不显示开关
+
+### 实测
+
+`respack_probe`：`[]` → 写入 `Faithful.zip` → `["file/Faithful.zip"]`，
+`options.txt` 里是 `resourcePacks:["vanilla","file/Faithful.zip"]`。
+
+（游戏里勾选框是否跟着亮，要开游戏看；文件格式已按游戏写的一致。）
+
 ## [0.43.0] - 2026-10-22
 
 外面拿到的世界存档能直接导进来了。
