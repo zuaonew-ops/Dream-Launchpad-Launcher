@@ -4171,3 +4171,232 @@ button.ghost.tiny {
   font-size: 11px;
   line-height: 16px;
 }
+
+/* ── 自绘下拉 ───────────────────────────────────────── */
+.sel {
+  position: relative;
+  min-width: 130px;
+}
+
+.sel-block {
+  display: block;
+  width: 100%;
+}
+
+.sel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.sel-sm .sel-btn {
+  padding: 5px 9px;
+  font-size: 12px;
+  border-radius: 7px;
+}
+
+.sel-btn:hover:not(:disabled) {
+  border-color: var(--line-strong, #c9d2df);
+}
+
+.sel.open .sel-btn {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+.sel.disabled .sel-btn {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sel-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sel-value.placeholder {
+  color: #98a2b3;
+}
+
+.sel-btn svg {
+  flex-shrink: 0;
+  color: #98a2b3;
+  transition: transform 0.15s;
+}
+
+.sel.open .sel-btn svg {
+  transform: rotate(180deg);
+}
+
+.sel-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 10px 28px rgba(16, 24, 40, 0.16);
+  animation: sel-in 0.12s ease-out;
+}
+
+@keyframes sel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.sel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sel-item:hover {
+  background: rgba(59, 130, 246, 0.09);
+}
+
+.sel-item.active {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.sel-hint {
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* ── 加载器选择 ─────────────────────────────────────── */
+:root {
+  --tint-vanilla: linear-gradient(135deg, #e9edf3, #d7dde6);
+  --tint-fabric: linear-gradient(135deg, #f6e3c8, #e8c99b);
+  --tint-quilt: linear-gradient(135deg, #ecd9f5, #d4b7e6);
+  --tint-forge: linear-gradient(135deg, #dbe4f0, #b9c9de);
+  --tint-neoforge: linear-gradient(135deg, #d8f0e0, #b3ddc3);
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.loader-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.loader-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.loader-card:hover {
+  border-color: var(--line-strong, #c9d2df);
+  transform: translateY(-1px);
+}
+
+.loader-card.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+.loader-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.loader-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.loader-text strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.loader-text small {
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.loader-check {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  color: var(--primary);
+}
+
+.picker-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .picker-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.picker-compact {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

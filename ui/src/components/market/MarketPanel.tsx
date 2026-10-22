@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import Select from "../Select";
 import { actions, useLauncher } from "../../store";
 import type { MarketKind, MarketSource } from "../../types";
 import MarketDetail from "./MarketDetail";
@@ -113,57 +114,47 @@ export default function MarketPanel() {
 
         <label className="mini-field">
           <span className="label">游戏版本</span>
-          <select
-            className="input small"
+          <Select
+            size="sm"
             value={state.marketMc}
-            onChange={(e) => {
-              actions.setMarketMc(e.target.value);
+            options={[
+              { value: "", label: "不指定" },
+              ...versionOptions.map((v) => ({ value: v.id, label: v.id })),
+            ]}
+            onChange={(value) => {
+              actions.setMarketMc(value);
               void actions.searchMarket();
             }}
-          >
-            <option value="">不指定</option>
-            {versionOptions.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.id}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <label className="mini-field">
           <span className="label">加载器</span>
-          <select
-            className="input small"
+          <Select
+            size="sm"
             value={state.marketLoader}
-            onChange={(e) => {
-              actions.setMarketLoader(e.target.value);
+            options={loaders.map((l) => ({ value: l.value, label: l.label }))}
+            onChange={(value) => {
+              actions.setMarketLoader(value);
               void actions.searchMarket();
             }}
-          >
-            {loaders.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <label className="mini-field">
           <span className="label">类别</span>
-          <select
-            className="input small"
+          <Select
+            size="sm"
             value={state.marketCategory}
-            onChange={(e) => {
-              actions.setMarketCategory(e.target.value);
+            options={categories[state.marketKind].map((c) => ({
+              value: c.value,
+              label: c.label,
+            }))}
+            onChange={(value) => {
+              actions.setMarketCategory(value);
               void actions.searchMarket();
             }}
-          >
-            {categories[state.marketKind].map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <div className="market-search">

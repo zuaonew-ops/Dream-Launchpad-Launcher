@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { actions, useLauncher } from "../../store";
+import Select from "../Select";
 import type { GameOptions } from "../../types";
 
 /** 游戏内设置：直接编辑 options.txt 里常见的几项 */
@@ -95,54 +96,58 @@ export default function OptionsPanel({ id }: { id: string }) {
           <h2>其它</h2>
           <label className="field">
             <span className="label">画质</span>
-            <select
-              className="input"
+            <Select
+              block
               value={options.graphics}
-              onChange={(e) => set({ graphics: e.target.value })}
-            >
-              <option value="fast">流畅</option>
-              <option value="fancy">精致</option>
-              <option value="fabulous">极佳</option>
-            </select>
+              options={[
+                { value: "fast", label: "流畅" },
+                { value: "fancy", label: "精致" },
+                { value: "fabulous", label: "极佳" },
+              ]}
+              onChange={(value) => set({ graphics: value })}
+            />
           </label>
           <label className="field">
             <span className="label">粒子效果</span>
-            <select
-              className="input"
+            <Select
+              block
               value={options.particles}
-              onChange={(e) => set({ particles: e.target.value })}
-            >
-              <option value="all">全部</option>
-              <option value="decreased">减少</option>
-              <option value="minimal">最少</option>
-            </select>
+              options={[
+                { value: "all", label: "全部" },
+                { value: "decreased", label: "减少" },
+                { value: "minimal", label: "最少" },
+              ]}
+              onChange={(value) => set({ particles: value })}
+            />
           </label>
           <label className="field">
             <span className="label">界面缩放（0 = 自动）</span>
-            <select
-              className="input"
-              value={options.gui_scale}
-              onChange={(e) => set({ gui_scale: Number(e.target.value) })}
-            >
-              <option value={0}>自动</option>
-              <option value={1}>1×</option>
-              <option value={2}>2×</option>
-              <option value={3}>3×</option>
-              <option value={4}>4×</option>
-            </select>
+            <Select
+              block
+              value={String(options.gui_scale)}
+              options={[
+                { value: "0", label: "自动" },
+                { value: "1", label: "1×" },
+                { value: "2", label: "2×" },
+                { value: "3", label: "3×" },
+                { value: "4", label: "4×" },
+              ]}
+              onChange={(value) => set({ gui_scale: Number(value) })}
+            />
           </label>
           <label className="field">
             <span className="label">语言</span>
-            <select
-              className="input"
+            <Select
+              block
               value={options.language}
-              onChange={(e) => set({ language: e.target.value })}
-            >
-              <option value="zh_cn">简体中文</option>
-              <option value="zh_tw">繁體中文</option>
-              <option value="en_us">English</option>
-              <option value="ja_jp">日本語</option>
-            </select>
+              options={[
+                { value: "zh_cn", label: "简体中文" },
+                { value: "zh_tw", label: "繁體中文" },
+                { value: "en_us", label: "English" },
+                { value: "ja_jp", label: "日本語" },
+              ]}
+              onChange={(value) => set({ language: value })}
+            />
           </label>
           <label className="switch-row">
             <div>

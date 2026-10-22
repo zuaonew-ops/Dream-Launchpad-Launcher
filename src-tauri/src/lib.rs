@@ -120,8 +120,13 @@ async fn list_versions(
     include_snapshots: bool,
 ) -> Result<Vec<VersionSummary>, String> {
     let paths = state.paths.clone();
-    let manifest = minecraft::fetch(&state.client).await?;
+    // 清单拉不到（断网/镜像挂了）不该让整个版本列表失败 —— 至少要能看到本地已装的
+    let (manifest, offline) = match minecraft::fetch(&state.client).await {
+        Ok(list) => (list, false),
+        Err(_) => (minecraft::manifest::VersionManifest::default(), true),
+    };
     let local = minecraft::scan::scan(&paths);
+    let _ = offline;
     let installable: HashSet<&str> = local
         .iter()
         .filter(|v| v.has_json)

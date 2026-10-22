@@ -1,3 +1,4 @@
+import Select from "../Select";
 import { actions, useLauncher } from "../../store";
 
 const kindLabel: Record<string, string> = {
@@ -46,19 +47,14 @@ export default function InstallDialog() {
           <>
             <label className="field">
               <span className="label">装到哪个版本</span>
-              <select
-                className="input"
+              <Select
+                block
                 value={state.installTargetId}
                 disabled={running}
-                onChange={(e) => actions.setInstallTargetId(e.target.value)}
-              >
-                {installed.length === 0 && <option value="">还没有安装任何版本</option>}
-                {installed.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.id}
-                  </option>
-                ))}
-              </select>
+                placeholder={installed.length === 0 ? "还没有安装任何版本" : "选一个版本"}
+                options={installed.map((v) => ({ value: v.id, label: v.id }))}
+                onChange={(value) => actions.setInstallTargetId(value)}
+              />
             </label>
             <p className="hint">
               目标目录：

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import Select from "../components/Select";
 import { actions, useLauncher } from "../store";
 
 function formatSize(bytes: number): string {
@@ -51,18 +52,14 @@ export default function ToolsPage() {
         <section className="panel log-panel">
           <div className="log-head">
             <h2>日志</h2>
-            <select
-              className="input small"
-              value={state.logName}
-              onChange={(e) => void actions.loadLogs(e.target.value)}
-              hidden={state.logs.length === 0}
-            >
-              {state.logs.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
+            {state.logs.length > 0 && (
+              <Select
+                size="sm"
+                value={state.logName}
+                options={state.logs.map((name) => ({ value: name, label: name }))}
+                onChange={(value) => void actions.loadLogs(value)}
+              />
+            )}
           </div>
           <pre className="log-view">{state.logText || "还没有日志。启动一次游戏就会生成。"}</pre>
         </section>

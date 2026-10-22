@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Select from "../components/Select";
 import { actions, currentName, selectSelectedVersion, useLauncher } from "../store";
 import type { VersionSummary } from "../types";
 import MsaLoginPanel from "../components/MsaLoginPanel";
@@ -194,20 +195,15 @@ export default function HomePage() {
         <div className="launch-side">
           <label className="field">
             <span className="label">启动版本</span>
-            <select
-              className="input"
+            <Select
+              block
               value={launchId}
-              onChange={(e) => {
-                void actions.setDefaultVersion(e.target.value);
-                actions.setSelected(e.target.value);
+              options={installed.map((v) => ({ value: v.id, label: v.id }))}
+              onChange={(value) => {
+                void actions.setDefaultVersion(value);
+                actions.setSelected(value);
               }}
-            >
-              {installed.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.id}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           {state.install && (
             <div className="launch-progress">

@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 
 pub const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct VersionManifest {
     pub latest: Latest,
     pub versions: Vec<VersionEntry>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Latest {
     pub release: String,
     pub snapshot: String,
