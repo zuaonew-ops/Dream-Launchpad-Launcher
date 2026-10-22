@@ -154,6 +154,12 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface DuplicateGroup {
+  id: string;
+  name: string;
+  files: string[];
+}
+
 export interface UpdateInfo {
   current: string;
   latest: string;

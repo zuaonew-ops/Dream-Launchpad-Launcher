@@ -15,6 +15,24 @@ export default function ModPanel({ id }: { id: string }) {
 
   return (
     <section className="panel list-panel">
+      {state.modDuplicates.length > 0 && (
+        <div className="mod-dup">
+          <div className="section-head">
+            <h2>装了多个版本</h2>
+            <span className="hint">同一个模组装了多份，通常会让游戏起不来 —— 留一个就够</span>
+          </div>
+          <ul className="content-list">
+            {state.modDuplicates.map((group) => (
+              <li key={group.id} className="content-item">
+                <span className="dot" />
+                <span className="content-name">{group.name}</span>
+                <span className="content-meta">{group.files.join(" · ")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {state.modUpdates.length > 0 && (
         <div className="mod-updates">
           <div className="section-head">

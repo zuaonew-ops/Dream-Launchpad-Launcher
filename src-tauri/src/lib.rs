@@ -790,6 +790,7 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            mod_duplicates,
             check_launcher_update,
             check_mod_updates,
             update_mod,
@@ -1095,4 +1096,10 @@ async fn check_launcher_update(
     state: State<'_, AppState>,
 ) -> Result<Option<dlp_core::update::UpdateInfo>, String> {
     dlp_core::update::check(&state.client, env!("CARGO_PKG_VERSION")).await
+}
+
+/// 找出装了多个版本的模组（按模组内部 id 判断）。
+#[tauri::command]
+fn mod_duplicates(state: State<'_, AppState>, id: String) -> Vec<content::DuplicateGroup> {
+    content::duplicates(&game_dir(&state.paths, &id))
 }

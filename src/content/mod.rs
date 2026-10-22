@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 pub mod backup;
 pub mod logs;
+pub mod modmeta;
 pub mod mods;
 pub mod packs;
 pub mod saves;
@@ -17,6 +18,7 @@ pub mod stats;
 
 pub use backup::{backup, delete_backup, list_backups, restore, BackupEntry};
 pub use logs::{list_crashes, list_logs, read_crash, read_log};
+pub use modmeta::{duplicates, scan as scan_mods, DuplicateGroup, ModMeta};
 pub use mods::{delete_mod, list_mods, set_all_mods, set_mod_enabled};
 pub use packs::{delete_pack, list_packs};
 pub use saves::list_saves;

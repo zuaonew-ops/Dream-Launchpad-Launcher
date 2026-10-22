@@ -6,6 +6,7 @@ import type {
   ExportResult,
   SkinEntry,
   UpdateInfo,
+  DuplicateGroup,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -79,6 +80,8 @@ export interface State {
   modUpdates: ModUpdate[];
   /** 启动器自身更新信息 */
   launcherUpdate: UpdateInfo | null;
+  /** 装了多个版本的模组 */
+  modDuplicates: DuplicateGroup[];
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -192,6 +195,7 @@ let state: State = {
   hasCsl: false,
   modUpdates: [],
   launcherUpdate: null,
+  modDuplicates: [],
   packId: "",
   search: "",
   filter: "release",
@@ -643,6 +647,7 @@ async function loadContent(id: string) {
       invoke<BackupEntry[]>("list_backups", { id }),
     ]);
     set({ mods, saves, backups });
+    void loadModDuplicates(id);
   } catch (e) {
     set({ error: String(e) });
   }
@@ -1095,6 +1100,16 @@ async function confirmInstall() {
   }
 }
 
+/** 查重复模组 */
+async function loadModDuplicates(id: string) {
+  try {
+    const modDuplicates = await invoke<DuplicateGroup[]>("mod_duplicates", { id });
+    set({ modDuplicates });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 启动时查一次启动器更新（失败静默，不打扰） */
 async function checkLauncherUpdate() {
   try {
@@ -1497,6 +1512,7 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  loadModDuplicates,
   checkLauncherUpdate,
   checkModUpdates,
   applyModUpdate,

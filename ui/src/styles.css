@@ -4040,3 +4040,12 @@ input[type="range"]::-moz-range-thumb {
   color: #1d4ed8;
   font-size: 13px;
 }
+
+/* ── 重复模组 ───────────────────────────────────────── */
+.mod-dup {
+  border: 1px solid #f3d9a4;
+  background: #fdf8ec;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
