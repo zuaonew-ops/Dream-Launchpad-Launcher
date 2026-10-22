@@ -213,6 +213,8 @@ async fn launch_game(
     state: State<'_, AppState>,
     id: String,
     username: String,
+    /// 只在这次启动追加的游戏参数（例如直连服务器），不写进设置
+    extra_args: Option<Vec<String>>,
 ) -> Result<u32, String> {
     let paths = state.paths.clone();
     let version = minecraft::load_version(&paths, &id)?;
@@ -261,7 +263,13 @@ async fn launch_game(
         memory_mb: settings.memory_mb.unwrap_or(2048),
         isolate: settings.isolate.unwrap_or(true),
         extra_jvm_args: &settings.extra_jvm_args,
-        game_args: &settings.game_args,
+        game_args: &{
+            let mut args = settings.game_args.clone();
+            if let Some(extra) = &extra_args {
+                args.extend(extra.iter().cloned());
+            }
+            args
+        },
     };
     let plan = launch::build(&paths, &version, &options)?;
 

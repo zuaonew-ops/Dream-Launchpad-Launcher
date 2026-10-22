@@ -1120,6 +1120,42 @@ async function confirmInstall() {
   }
 }
 
+/** 启动游戏并直连某个服务器 */
+async function launchQuickPlay(id: string, address: string) {
+  let mc = "";
+  try {
+    mc = await invoke<string>("base_version", { id });
+  } catch {
+    // 读不到就当新版，quickPlayMultiplayer 在旧版本上会被忽略
+  }
+  // 1.20 起用 quickPlayMultiplayer，更早的用 --server/--port
+  const legacy = compareMc(mc, "1.20") < 0;
+  const args = legacy
+    ? (() => {
+        const [host, port] = address.split(":");
+        return ["--server", host, "--port", port ?? "25565"];
+      })()
+    : ["--quickPlayMultiplayer", address];
+  try {
+    await invoke("launch_game", { id, username: "", extraArgs: args });
+    set({ notice: `正在启动并直连 ${address}` });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
+/** "1.20.1" 与 "1.20" 比数字段；拿不准就当作新版 */
+function compareMc(a: string, b: string): number {
+  const pa = a.split(".").map((v) => parseInt(v, 10) || 0);
+  const pb = b.split(".").map((v) => parseInt(v, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const x = pa[i] ?? 0;
+    const y = pb[i] ?? 0;
+    if (x !== y) return x - y;
+  }
+  return 0;
+}
+
 /** 模组详情：点文件名打开，再点关闭 */
 async function openModDetail(id: string, file: string) {
   if (state.modDetail?.file_name === file) {
@@ -1621,6 +1657,7 @@ export const actions = {
   exportPack,
   cloneVersion,
   openModDetail,
+  launchQuickPlay,
   loadLevelInfo,
   loadGameOptions,
   saveGameOptions,

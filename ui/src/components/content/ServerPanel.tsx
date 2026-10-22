@@ -87,6 +87,14 @@ export default function ServerPanel({ id }: { id: string }) {
               <span className="content-actions">
                 <button
                   type="button"
+                  className="ghost"
+                  title="启动游戏并直接连上这个服务器"
+                  onClick={() => void actions.launchQuickPlay(id, server.ip)}
+                >
+                  直连
+                </button>
+                <button
+                  type="button"
                   className="ghost danger"
                   onClick={() => void actions.removeServer(id, server.ip)}
                 >
