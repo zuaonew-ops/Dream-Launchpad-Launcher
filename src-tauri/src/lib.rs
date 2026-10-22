@@ -794,6 +794,7 @@ pub fn run() {
             save_game_options,
             ping_server,
             ping_servers,
+            level_info,
             list_shots,
             delete_shot,
             open_shot,
@@ -1186,4 +1187,14 @@ fn save_game_options(
     options: content::GameOptions,
 ) -> Result<(), String> {
     content::options::write(&game_dir(&state.paths, &id), &options)
+}
+
+/// 存档详情（世界名、种子、游戏模式、难度）。
+#[tauri::command]
+fn level_info(
+    state: State<'_, AppState>,
+    id: String,
+    world: String,
+) -> Option<content::leveldat::LevelInfo> {
+    content::leveldat::read(&game_dir(&state.paths, &id).join("saves").join(&world))
 }

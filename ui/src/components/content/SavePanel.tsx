@@ -40,11 +40,39 @@ export default function SavePanel({ id }: { id: string }) {
                   type="button"
                   className="ghost"
                   disabled={!save.valid}
+                  onClick={() => void actions.loadLevelInfo(id, save.name)}
+                >
+                  {state.levelInfo[save.name] ? "收起" : "详情"}
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={!save.valid}
                   onClick={() => void actions.backupSave(id, save.name)}
                 >
                   备份
                 </button>
               </span>
+              {state.levelInfo[save.name] && (
+                <div className="save-detail">
+                  {(() => {
+                    const info = state.levelInfo[save.name]!;
+                    const mode =
+                      ["生存", "创造", "冒险", "旁观"][info.game_type] ?? "未知";
+                    const diff =
+                      ["未知", "和平", "简单", "普通", "困难"][info.difficulty] ?? "未知";
+                    return (
+                      <>
+                        <span>种子 <code>{info.seed}</code></span>
+                        <span>模式 {mode}{info.hardcore ? "（极限）" : ""}</span>
+                        <span>难度 {diff}</span>
+                        {info.version && <span>存档版本 {info.version}</span>}
+                        {info.name && info.name !== save.name && <span>世界名 {info.name}</span>}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </li>
           ))}
         </ul>

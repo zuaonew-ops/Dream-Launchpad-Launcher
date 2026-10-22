@@ -693,6 +693,7 @@ dependencies = [
 name = "dlp-core"
 version = "0.38.0"
 dependencies = [
+ "flate2",
  "futures-util",
  "hex",
  "md-5",

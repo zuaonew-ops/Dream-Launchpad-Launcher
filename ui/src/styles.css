@@ -4049,3 +4049,17 @@ input[type="range"]::-moz-range-thumb {
   padding: 10px 14px;
   margin-bottom: 12px;
 }
+
+/* ── 存档详情 ───────────────────────────────────────── */
+.save-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 6px 0 8px 22px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.save-detail code {
+  color: #1d2939;
+}

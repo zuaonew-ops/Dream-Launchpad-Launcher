@@ -10,6 +10,7 @@ import type {
   ShotEntry,
   ServerStatus,
   GameOptions,
+  LevelInfo,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -91,6 +92,8 @@ export interface State {
   serverStatus: Record<string, ServerStatus>;
   /** 游戏内设置（options.txt） */
   gameOptions: GameOptions | null;
+  /** 展开的存档详情（按世界名索引） */
+  levelInfo: Record<string, LevelInfo | null>;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -208,6 +211,7 @@ let state: State = {
   shots: [],
   serverStatus: {},
   gameOptions: null,
+  levelInfo: {},
   packId: "",
   search: "",
   filter: "release",
@@ -1112,6 +1116,21 @@ async function confirmInstall() {
   }
 }
 
+/** 存档详情：点一下才拉，列表里不用一次读全部 level.dat */
+async function loadLevelInfo(id: string, world: string) {
+  if (state.levelInfo[world]) {
+    // 已经拉过就折叠
+    set({ levelInfo: { ...state.levelInfo, [world]: null } });
+    return;
+  }
+  try {
+    const info = await invoke<LevelInfo | null>("level_info", { id, world });
+    set({ levelInfo: { ...state.levelInfo, [world]: info } });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 游戏内设置 */
 async function loadGameOptions(id: string) {
   try {
@@ -1583,6 +1602,7 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  loadLevelInfo,
   loadGameOptions,
   saveGameOptions,
   pingServers,

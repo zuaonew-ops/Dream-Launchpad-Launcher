@@ -7,6 +7,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 
 pub mod backup;
+pub mod leveldat;
 pub mod logs;
 pub mod modmeta;
 pub mod mods;

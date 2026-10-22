@@ -154,6 +154,18 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface LevelInfo {
+  name: string;
+  seed: number;
+  game_type: number;
+  difficulty: number;
+  hardcore: boolean;
+  day_time: number;
+  last_played: number;
+  version: string;
+  played_ticks: number;
+}
+
 export interface GameOptions {
   render_distance: number;
   simulation_distance: number;
