@@ -154,6 +154,18 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface ServerStatus {
+  host: string;
+  port: number;
+  online: boolean;
+  motd: string;
+  players: number;
+  max_players: number;
+  version: string;
+  latency: number;
+  error: string;
+}
+
 export interface ShotEntry {
   name: string;
   width: number;

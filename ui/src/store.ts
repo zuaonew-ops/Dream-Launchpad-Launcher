@@ -8,6 +8,7 @@ import type {
   UpdateInfo,
   DuplicateGroup,
   ShotEntry,
+  ServerStatus,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -85,6 +86,8 @@ export interface State {
   modDuplicates: DuplicateGroup[];
   /** 游戏截图 */
   shots: ShotEntry[];
+  /** 服务器在线状态（按 host:port 索引） */
+  serverStatus: Record<string, ServerStatus>;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -200,6 +203,7 @@ let state: State = {
   launcherUpdate: null,
   modDuplicates: [],
   shots: [],
+  serverStatus: {},
   packId: "",
   search: "",
   filter: "release",
@@ -1104,6 +1108,19 @@ async function confirmInstall() {
   }
 }
 
+/** 查所有服务器的在线状态 */
+async function pingServers(id: string) {
+  try {
+    set({ serverStatus: {} });
+    const list = await invoke<ServerStatus[]>("ping_servers", { id });
+    const map: Record<string, ServerStatus> = {};
+    for (const item of list) map[`${item.host}:${item.port}`] = item;
+    set({ serverStatus: map });
+  } catch (e) {
+    set({ error: String(e) });
+  }
+}
+
 /** 截图 */
 async function loadShots(id: string) {
   try {
@@ -1543,6 +1560,7 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  pingServers,
   loadShots,
   openShot,
   deleteShot,

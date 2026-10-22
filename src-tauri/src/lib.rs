@@ -790,6 +790,8 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            ping_server,
+            ping_servers,
             list_shots,
             delete_shot,
             open_shot,
@@ -1126,4 +1128,44 @@ fn open_shot(state: State<'_, AppState>, id: String, name: String) -> Result<(),
         return Err(format!("找不到截图 {name}"));
     }
     open_path(&path)
+}
+
+/// 查一个服务器的状态（Minecraft Server List Ping）。
+#[tauri::command]
+async fn ping_server(host: String, port: u16) -> content::ServerStatus {
+    content::ping(&host, port).await
+}
+
+/// 查服务器页里所有服务器的状态（并发，连不上的也会返回一条）。
+#[tauri::command]
+async fn ping_servers(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<content::ServerStatus>, String> {
+    let servers = content::read_servers(&game_dir(&state.paths, &id));
+    let tasks: Vec<_> = servers
+        .into_iter()
+        .map(|server| {
+            let (host, port) = split_host(&server.ip);
+            tokio::spawn(async move { content::ping(&host, port).await })
+        })
+        .collect();
+    let mut out = Vec::new();
+    for task in tasks {
+        if let Ok(status) = task.await {
+            out.push(status);
+        }
+    }
+    Ok(out)
+}
+
+/// `play.example.com:25565` → (`play.example.com`, 25565)
+fn split_host(ip: &str) -> (String, u16) {
+    match ip.rsplit_once(':') {
+        Some((host, port)) => (
+            host.to_string(),
+            port.parse().unwrap_or(25565),
+        ),
+        None => (ip.to_string(), 25565),
+    }
 }

@@ -19,6 +19,15 @@ export default function ServerPanel({ id }: { id: string }) {
         <span className="hint">
           写进游戏目录的 servers.dat —— 启动游戏后在「多人游戏」里直接能看到
         </span>
+        <div className="inline">
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => void actions.pingServers(id)}
+          >
+            查在线状态
+          </button>
+        </div>
       </div>
 
       <div className="server-form">
@@ -58,11 +67,23 @@ export default function ServerPanel({ id }: { id: string }) {
         </div>
       ) : (
         <ul className="content-list">
-          {state.servers.map((server) => (
+          {state.servers.map((server) => {
+            const status = state.serverStatus[server.ip];
+            return (
             <li key={server.ip} className="content-item">
-              <span className="dot on" />
+              <span className={status ? (status.online ? "dot on" : "dot") : "dot"} />
               <span className="content-name">{server.name}</span>
-              <span className="content-meta">{server.ip}</span>
+              <span className="content-meta">
+                {server.ip}
+                {status && (
+                  <>
+                    {" · "}
+                    {status.online
+                      ? `在线 ${status.players}/${status.max_players} · ${status.latency}ms`
+                      : status.error}
+                  </>
+                )}
+              </span>
               <span className="content-actions">
                 <button
                   type="button"
@@ -73,7 +94,8 @@ export default function ServerPanel({ id }: { id: string }) {
                 </button>
               </span>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>
