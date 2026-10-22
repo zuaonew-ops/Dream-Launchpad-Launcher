@@ -118,6 +118,20 @@ export default function HomePage() {
 
   return (
     <div className="page">
+      {state.launcherUpdate && (
+        <div className="update-bar">
+          <span>
+            有新版本 <strong>{state.launcherUpdate.latest}</strong>（当前 {state.launcherUpdate.current}）
+          </span>
+          <button
+            type="button"
+            className="pill primary"
+            onClick={() => void actions.openUrl(state.launcherUpdate!.url)}
+          >
+            去下载
+          </button>
+        </div>
+      )}
       <header className="page-head">
         <div>
           <h1>主页</h1>

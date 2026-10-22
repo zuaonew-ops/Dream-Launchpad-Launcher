@@ -790,6 +790,7 @@ pub fn run() {
             install_market,
             install_java,
             save_app_settings,
+            check_launcher_update,
             check_mod_updates,
             update_mod,
             clone_version,
@@ -1086,4 +1087,12 @@ async fn update_mod(
         let _ = std::fs::remove_file(old);
     }
     Ok(())
+}
+
+/// 检查启动器有没有新版本（查 GitHub Releases）。
+#[tauri::command]
+async fn check_launcher_update(
+    state: State<'_, AppState>,
+) -> Result<Option<dlp_core::update::UpdateInfo>, String> {
+    dlp_core::update::check(&state.client, env!("CARGO_PKG_VERSION")).await
 }

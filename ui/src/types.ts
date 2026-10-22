@@ -154,6 +154,14 @@ export interface SystemInfo {
   cores: number;
 }
 
+export interface UpdateInfo {
+  current: string;
+  latest: string;
+  url: string;
+  newer: boolean;
+  notes: string;
+}
+
 export interface ModUpdate {
   file_name: string;
   project_id: string;

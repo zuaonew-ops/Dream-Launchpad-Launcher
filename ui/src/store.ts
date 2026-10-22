@@ -5,6 +5,7 @@ import type {
   BackupEntry,
   ExportResult,
   SkinEntry,
+  UpdateInfo,
   ModUpdate,
   PackPreview,
   ServerEntry,
@@ -76,6 +77,8 @@ export interface State {
   hasCsl: boolean;
   /** 检测到的可更新模组 */
   modUpdates: ModUpdate[];
+  /** 启动器自身更新信息 */
+  launcherUpdate: UpdateInfo | null;
   /** 装出来的版本 id（可手改） */
   packId: string;
   search: string;
@@ -188,6 +191,7 @@ let state: State = {
   skins: [],
   hasCsl: false,
   modUpdates: [],
+  launcherUpdate: null,
   packId: "",
   search: "",
   filter: "release",
@@ -1091,6 +1095,16 @@ async function confirmInstall() {
   }
 }
 
+/** 启动时查一次启动器更新（失败静默，不打扰） */
+async function checkLauncherUpdate() {
+  try {
+    const info = await invoke<UpdateInfo | null>("check_launcher_update");
+    if (info?.newer) set({ launcherUpdate: info });
+  } catch {
+    // 没网 / 没发过版：安静地跳过
+  }
+}
+
 /** 检查模组更新（按 SHA1 问 Modrinth） */
 async function checkModUpdates(id: string) {
   set({ busy: true, error: "", notice: "" });
@@ -1483,6 +1497,7 @@ export const actions = {
   saveAppSettings,
   exportPack,
   cloneVersion,
+  checkLauncherUpdate,
   checkModUpdates,
   applyModUpdate,
   renameVersion,

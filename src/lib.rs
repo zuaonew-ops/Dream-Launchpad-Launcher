@@ -15,6 +15,7 @@
 //! - [`pack`]      整合包（.mrpack / CurseForge zip）
 //! - [`content`]   内容管理：模组、存档、资源包、日志、崩溃
 //! - [`sys`]       系统：硬件信息、Java 探测与下载
+//! - [`update`]    启动器自身更新检查
 
 #[cfg(test)]
 mod testdir;
@@ -28,6 +29,7 @@ pub mod minecraft;
 pub mod net;
 pub mod pack;
 pub mod store;
+pub mod update;
 pub mod sys;
 
 // 兼容旧路径：`crate::paths::Paths` 这类写法继续可用，调用点不用改

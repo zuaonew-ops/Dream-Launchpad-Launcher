@@ -4025,3 +4025,18 @@ input[type="range"]::-moz-range-thumb {
   padding: 10px 14px;
   margin-bottom: 12px;
 }
+
+/* ── 启动器更新提示 ─────────────────────────────────── */
+.update-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: #eef4ff;
+  border: 1px solid #cddcff;
+  color: #1d4ed8;
+  font-size: 13px;
+}

@@ -62,6 +62,9 @@ export default function App() {
 
   useEffect(() => {
     void actions.init();
+    // 启动几秒后再查有无新版本，别和首屏加载抢带宽
+    const timer = window.setTimeout(() => void actions.checkLauncherUpdate(), 3000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
