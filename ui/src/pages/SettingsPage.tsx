@@ -102,11 +102,12 @@ export default function SettingsPage() {
           <p className="desc">
             {isGlobal
               ? "所有版本的默认值"
-              : contentId + (loader ? " · " + loader : " · 原版")}
-            {" · "}
-            {tabs.find((item) => item.key === tab)?.label}
+              : `${contentId}${loader ? " · " + loader : " · 原版"} · ${
+                  tabs.find((item) => item.key === tab)?.label ?? ""
+                }`}
           </p>
         </div>
+        {tabs.filter((item) => item.show).length > 1 && (
         <div className="seg">
           {tabs
             .filter((item) => item.show)
@@ -127,6 +128,7 @@ export default function SettingsPage() {
               </button>
             ))}
         </div>
+        )}
       </header>
 
       {tab === "overview" && contentId ? (

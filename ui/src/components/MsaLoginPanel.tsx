@@ -26,8 +26,19 @@ export default function MsaLoginPanel() {
 
       {msa.status === "waiting" && code && (
         <>
-          <p className="msa-hint">浏览器里应该已经打开了授权页，输入这串码：</p>
-          <div className="msa-code">{code.user_code}</div>
+          <p className="msa-hint">
+            浏览器里应该已经打开了授权页，把这串码粘进去（已经复制到剪贴板了）：
+          </p>
+          <button
+            type="button"
+            className="msa-code msa-copy"
+            title="再复制一次"
+            onClick={() => {
+              void navigator.clipboard?.writeText(code.user_code);
+            }}
+          >
+            {code.user_code}
+          </button>
           <div className="msa-actions">
             <button
               type="button"

@@ -1,6 +1,6 @@
 //! 把整合包装成一个新版本：下载清单里的文件 → 解压 overrides → 落盘版本 JSON。
 
-use super::{curseforge, mrpack, PackPreview};
+use super::{curseforge, generic, mrpack, PackPreview};
 use crate::content::game_dir;
 use crate::install;
 use crate::loader::{self, LoaderKind};
@@ -46,7 +46,10 @@ pub fn preview(zip: &Path) -> Result<PackPreview, String> {
     if let Ok(p) = curseforge::preview(zip) {
         return Ok(p);
     }
-    Err("这个 zip 里既没有 modrinth.index.json 也没有 manifest.json，不是整合包".into())
+    if let Some(p) = generic::preview(zip) {
+        return Ok(p);
+    }
+    Err("认不出这个整合包格式（支持 .mrpack、CurseForge zip、MultiMC/Prism、HMCL、以及带 mods/ 目录的通用 zip）".into())
 }
 
 /// 安装整合包。`id` 为空时按包名自动生成。
@@ -71,15 +74,24 @@ pub async fn install(
 
     // 2) 清单里的文件下到游戏目录（整合包版本默认隔离，所以就是版本目录）
     let dir = game_dir(paths, &target, true);
-    let jobs = jobs_for(client, cf_key, zip, &preview, &dir).await?;
+    // MultiMC / HMCL / 纯覆盖包：文件都在包里，没有要下载的
+    let self_contained = generic::detect(zip);
+    let jobs = if self_contained.is_some() {
+        Vec::new()
+    } else {
+        jobs_for(client, cf_key, zip, &preview, &dir).await?
+    };
     let total = jobs.len();
     if total > 0 {
         download::run(client, jobs, 16, "下载整合包文件", &progress.clone().unwrap_or(Progress::none()))
             .await?;
     }
 
-    // 3) overrides 覆盖到游戏目录
-    let overrides = unpack_overrides(zip, &dir)?;
+    // 3) overrides 覆盖到游戏目录；自带文件的包则是整包解开
+    let overrides = match &self_contained {
+        Some(layout) => unpack_all(zip, &dir, &layout.prefix)?,
+        None => unpack_overrides(zip, &dir)?,
+    };
 
     // 4) 版本目录里留个说明，界面能显示整合包信息
     // 记下加载器，导出时不用再从 mainClass 猜
@@ -182,6 +194,49 @@ async fn jobs_for(
 }
 
 /// 解压 `overrides/` 与 `client-overrides/` 到游戏目录，返回文件数。
+/// 把整个包（去掉 prefix 那层）解到游戏目录。MultiMC / HMCL / 覆盖包用这个。
+pub fn unpack_all(zip: &Path, dir: &Path, prefix: &str) -> Result<usize, String> {
+    let file = std::fs::File::open(zip).map_err(|e| format!("打开 {} 失败: {e}", zip.display()))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| format!("解析 {} 失败: {e}", zip.display()))?;
+    let mut count = 0;
+    for i in 0..archive.len() {
+        let mut entry = match archive.by_index(i) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let name = entry.name().replace('\\', "/");
+        if name.starts_with("__MACOSX/") {
+            continue;
+        }
+        let rel = name.strip_prefix(prefix).unwrap_or(&name);
+        // 清单文件和 MultiMC 的实例配置不属于游戏目录
+        if rel.is_empty()
+            || rel == "mmc-pack.json"
+            || rel == "instance.cfg"
+            || rel == "modpack.json"
+            || rel.split('/').any(|part| part == "..")
+        {
+            continue;
+        }
+        let out = dir.join(rel);
+        if entry.is_dir() {
+            let _ = std::fs::create_dir_all(&out);
+            continue;
+        }
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {e}"))?;
+        }
+        let mut bytes = Vec::new();
+        entry
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("读取 {name} 失败: {e}"))?;
+        std::fs::write(&out, bytes).map_err(|e| format!("写入 {} 失败: {e}", out.display()))?;
+        count += 1;
+    }
+    Ok(count)
+}
+
 pub fn unpack_overrides(zip: &Path, dir: &Path) -> Result<usize, String> {
     let file = std::fs::File::open(zip).map_err(|e| format!("打开 {} 失败: {e}", zip.display()))?;
     let mut archive =

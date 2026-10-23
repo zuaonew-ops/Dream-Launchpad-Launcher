@@ -7,6 +7,7 @@
 
 pub mod curseforge;
 pub mod export;
+pub mod generic;
 pub mod install;
 pub mod mrpack;
 

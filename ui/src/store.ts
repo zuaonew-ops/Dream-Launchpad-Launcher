@@ -830,6 +830,31 @@ function stopMsaTimer() {
 }
 
 /** 开始正版登录：申请设备码 → 自动打开浏览器 → 轮询 */
+/** 复制文本到剪贴板；老 WebView 没有 clipboard API 时退回 execCommand */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // 落到下面的兜底
+  }
+  try {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(area);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 async function startMsaLogin() {
   // 已经在走流程就别再申请一次（否则会连着开好几个浏览器窗口）
   const busy = state.msa && (state.msa.status === "requesting" || state.msa.status === "waiting");
@@ -856,6 +881,10 @@ async function startMsaLogin() {
 
   // 直接把浏览器拉起来，省得用户手动复制链接
   void invoke("open_url", { url: code.verification_uri }).catch(() => undefined);
+  // 设备码同时放进剪贴板 —— 授权页里要粘贴，没人愿意手抄
+  void copyText(code.user_code).then((ok) => {
+    if (ok) set({ msa: { code, status: "waiting", message: "验证码已复制，粘贴到浏览器里确认" } });
+  });
 
   const deadline = Date.now() + code.expires_in * 1000;
   msaTimer = window.setInterval(async () => {

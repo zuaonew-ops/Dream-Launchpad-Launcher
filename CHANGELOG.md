@@ -2,6 +2,37 @@
 
 本项目从 .NET 版（`main` 分支）切换为 Rust + Tauri 重写，版本号重新从 0.1.0 开始。
 
+## [0.48.0] - 2026-10-23
+
+下拉重叠修了，多了三种整合包格式。
+
+### 修
+
+- **下拉列表文字重叠**：`Select` 的样式写了 `background: var(--panel)`，但这个变量不存在
+  （实际叫 `--surface`）→ 背景透明，列表下面的说明文字透上来。三处一起改了
+- **设置页标题重复**：全局设置时标题、描述、页签都写着「设置」。现在只有一个页签
+  就不画那排按钮，描述里也不再拼页签名
+- **微软登录的设备码不自动复制**：现在申请到码就写进剪贴板（`navigator.clipboard`，
+  失败退回 `execCommand`），码本身也能点一下再复制
+
+### 新增：更多整合包格式
+
+除了 `.mrpack` 和 CurseForge zip，现在还认：
+
+- **MultiMC / Prism**（`mmc-pack.json`）：从 components 里读游戏版本与加载器
+- **HMCL**（`modpack.json` 的 `gameVersion` + `modLoader`）
+- **纯覆盖包**：zip 里有 `mods/` / `config/` / `saves/` 等游戏目录结构，
+  当「把文件整个盖上去」处理，游戏版本让用户自己选
+
+这几种的文件都在包里，所以不下载，直接按包内前缀（`.minecraft/`、`minecraft/`、
+或实例目录名）解开覆盖。
+
+### 未验证
+
+`mmc-pack.json` / `modpack.json` 的 **BOM 容错**（Windows 记事本存出来的 JSON 带 BOM，
+`serde_json` 会报非法字符）—— 代码加了一行 `trim_start_matches('﻿')`，
+但这次构建时 target 目录被占用，没能跑通验证。下次补。
+
 ## [0.47.0] - 2026-10-22
 
 三个界面问题一起改了。

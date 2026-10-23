@@ -4192,7 +4192,7 @@ button.ghost.tiny {
   padding: 8px 11px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: var(--panel);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: 13px;
@@ -4254,7 +4254,7 @@ button.ghost.tiny {
   list-style: none;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--panel);
+  background: var(--surface);
   box-shadow: 0 10px 28px rgba(16, 24, 40, 0.16);
   animation: sel-in 0.12s ease-out;
 }
@@ -4328,7 +4328,7 @@ button.ghost.tiny {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--panel);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   text-align: left;
@@ -4399,4 +4399,18 @@ button.ghost.tiny {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* 设备码点击可再复制 */
+.msa-copy {
+  border: 1px dashed var(--line-strong, #c9d2df);
+  cursor: copy;
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+}
+
+.msa-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
