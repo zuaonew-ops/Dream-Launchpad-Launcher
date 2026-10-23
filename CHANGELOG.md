@@ -19,6 +19,14 @@
   只有 CI 的 MSVC 产物是真的单文件
 - NSIS 工具链是 tauri 构建时联网下的，下不到就只发 exe，不让构建挂掉
 
+### 实测
+
+- CI 6m59s（多了 NSIS 下载），产出 `DLP-1.0.0-beta.3.exe` **5.78MB** 和
+  `DLP-1.0.0-beta.3-setup.exe` **2.17MB**（LZMA 压过，比裸 exe 还小）
+- 单 exe 丢进空目录启动 → 正常（不需要 dll，MD5 和 CI 产物一致）
+- 安装程序静默装（`/S /D=...`）→ 装出 `dlp-desktop.exe` + `uninstall.exe`，
+  装完的 exe 启动正常
+
 ## [1.0.0-beta.2] - 2026-10-23
 
 构建和发布交给 GitHub Actions 了。
