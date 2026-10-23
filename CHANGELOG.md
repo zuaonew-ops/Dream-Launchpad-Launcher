@@ -21,6 +21,15 @@
 - 装的时候走独立分支：下载 zip 到 `dlp/tmp/`，再按整合包格式（mrpack / CurseForge /
   MultiMC / HMCL / 覆盖包）解成**新版本**，不动现有版本
 
+### 实测
+
+- **CI 跑通**：3m33s（有缓存）~ 4m51s（首次），产物 `DLP-1.0.0-beta.2-win64-portable.zip`
+  自动挂到 Release；下载下来启动正常 —— 左下角 `v1.0.0-beta.2`、13 个版本、清单 928 个可用
+- **Modrinth 整合包搜索**：18903 条，前三条是 Fabulously Optimized、
+  Zombie Invade 100 Days、Cobblemon Official Modpack
+- **CurseForge 现在全部 403**（连 `/v1/games` 也是），同一个 key 上午还是 200 ——
+  key 失效或被限流了，得换一个。功能本身按官方文档写的（`classId=4471`）
+
 ## [1.0.0-beta.1] - 2026-10-23
 
 第一个 beta。核心功能齐了，接下来是修 bug 和补细节。
