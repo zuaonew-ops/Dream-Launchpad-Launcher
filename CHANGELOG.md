@@ -1,5 +1,24 @@
 # 更新日志
 
+## [1.0.0-beta.3] - 2026-10-23
+
+发布只给两个文件：一个 exe、一个安装程序。
+
+### 改变
+
+- **单文件 exe**。MSVC 下 `webview2-com-sys` 把 WebView2Loader 静态链进去了
+  （源码里是 `cfg_attr(target_env = "msvc", link(name = "WebView2LoaderStatic", kind = "static"))`），
+  所以 exe 旁边不再需要 dll。实测把 CI 产物那个 exe 单独丢进空目录，照常启动
+- **NSIS 安装程序**：`npx tauri build` 产出 `setup.exe`，装的时候自动处理 WebView2
+  运行时（`webviewInstallMode: downloadBootstrapper`）
+- 那个 2.8MB 的 zip 不再发了 —— 解开就一个 exe + 一个 160KB 的 dll
+
+### 注意
+
+- 本机用 MinGW 构建，GNU 下只能动态链接（.lib 是 MSVC 的），所以**本地**跑还是需要 dll；
+  只有 CI 的 MSVC 产物是真的单文件
+- NSIS 工具链是 tauri 构建时联网下的，下不到就只发 exe，不让构建挂掉
+
 ## [1.0.0-beta.2] - 2026-10-23
 
 构建和发布交给 GitHub Actions 了。

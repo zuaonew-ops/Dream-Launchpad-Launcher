@@ -40,46 +40,51 @@ jobs:
       - name: 核心库单测
         run: cargo test -p dlp-core --lib
 
-      - name: 构建桌面端
-        run: cargo build --release -p dlp-desktop
+      - name: 构建 exe 与安装程序
+        # tauri-cli 会把 exe 改成 productName 并把 NSIS 安装包放进 bundle/nsis
+        run: npx tauri build
 
-      - name: 组装便携包
+      - name: 整理产物
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           Write-Host "版本: $version"
 
-          $out = "portable"
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-          Copy-Item "target/release/dlp-desktop.exe" "$out/DreamLaunchpad.exe"
+          # MSVC 下 WebView2Loader 是静态链接的（webview2-com-sys 的 cfg_attr），
+          # 所以这个 exe 单独放哪都能跑，不用带 dll
+          # tauri build 不会改 exe 名，产物就是 cargo 的包名
+          $exe = "target/release/dlp-desktop.exe"
+          if (-not (Test-Path $exe)) { throw "没找到 $exe" }
 
-          # WebView2 的加载器是 webview2-com-sys 的构建产物，路径带 hash，递归找 x64 那份
-          $dll = Get-ChildItem -Path target -Recurse -Filter WebView2Loader.dll -ErrorAction SilentlyContinue |
-                 Where-Object { $_.FullName -match 'x64' } |
-                 Select-Object -First 1
-          if (-not $dll) { throw "没找到 WebView2Loader.dll" }
-          Write-Host "WebView2Loader: $($dll.FullName)"
-          Copy-Item $dll.FullName "$out/WebView2Loader.dll"
+          Copy-Item $exe "DLP-$version.exe"
+          Get-Item "DLP-$version.exe" | Select-Object Name, Length | Format-Table | Out-String
 
-          $zip = "DLP-$version-win64-portable.zip"
-          Compress-Archive -Path "$out/*" -DestinationPath $zip -Force
-          Get-Item $zip | Select-Object Name, Length | Format-Table | Out-String
+          $setup = Get-ChildItem "target/release/bundle/nsis/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($setup) {
+            Copy-Item $setup.FullName "DLP-$version-setup.exe"
+            Get-Item "DLP-$version-setup.exe" | Select-Object Name, Length | Format-Table | Out-String
+          } else {
+            # NSIS 要在构建时联网下（tauri 从 github.com/tauri-apps/binary-releases 拉），
+            # 拉不到就只发 exe，不让整个构建挂掉
+            Write-Warning "没生成 NSIS 安装包（大概是下载 NSIS 工具链失败），这次只发 exe"
+          }
 
           "DLP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "DLP_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: 上传构建产物（每次都能下）
         uses: actions/upload-artifact@v4
         with:
           name: dlp-${{ env.DLP_VERSION }}-win64
-          path: ${{ env.DLP_ZIP }}
+          path: DLP-${{ env.DLP_VERSION }}*.exe
           if-no-files-found: error
 
       - name: 发布到 Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.DLP_ZIP }}
+          files: |
+            DLP-${{ env.DLP_VERSION }}.exe
+            DLP-${{ env.DLP_VERSION }}-setup.exe
           # tag 里带 beta / alpha 就标成预发布
           prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
           fail_on_unmatched_files: true
