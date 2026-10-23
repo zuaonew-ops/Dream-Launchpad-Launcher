@@ -47,6 +47,7 @@ impl Source {
 /// CurseForge 的模组类型 id（官方 API 用）
 pub(crate) fn curseforge_class(kind: &str) -> u32 {
     match kind {
+        "modpack" => 4471,
         "resourcepack" => 12,
         "shader" => 6552,
         _ => 6,
@@ -56,6 +57,7 @@ pub(crate) fn curseforge_class(kind: &str) -> u32 {
 /// 资源种类 → 游戏目录下的子目录
 pub(crate) fn target_dir(kind: &str) -> &'static str {
     match kind {
+        "modpack" => "",
         "resourcepack" => "resourcepacks",
         "shader" => "shaderpacks",
         _ => "mods",

@@ -46,16 +46,23 @@ impl Layout {
 pub fn detect(zip: &Path) -> Option<Layout> {
     let file = std::fs::File::open(zip).ok()?;
     let mut archive = zip::ZipArchive::new(file).ok()?;
-    let names: Vec<String> = (0..archive.len())
-        .filter_map(|i| archive.by_index(i).ok().map(|e| e.name().replace('\\', "/")))
-        .filter(|n| !n.is_empty() && !n.starts_with("__MACOSX/"))
+    // 记下 index：Windows 的 Compress-Archive 用反斜杠分隔，by_name("/") 会找不到
+    let entries: Vec<(usize, String)> = (0..archive.len())
+        .filter_map(|i| {
+            archive
+                .by_index(i)
+                .ok()
+                .map(|e| (i, e.name().replace('\\', "/")))
+        })
+        .filter(|(_, n)| !n.is_empty() && !n.starts_with("__MACOSX/"))
         .collect();
+    let names: Vec<String> = entries.iter().map(|(_, n)| n.clone()).collect();
 
     let has = |name: &str| names.iter().any(|n| n == name || n.ends_with(&format!("/{name}")));
 
     // MultiMC / Prism
-    if let Some(path) = names.iter().find(|n| n.ends_with("mmc-pack.json")) {
-        if let Ok(text) = read_entry(&mut archive, path) {
+    if let Some((index, path)) = entries.iter().find(|(_, n)| n.ends_with("mmc-pack.json")) {
+        if let Ok(text) = read_entry_at(&mut archive, *index) {
             if let Some(layout) = parse_mmc(&text, &names, path) {
                 return Some(layout);
             }
@@ -64,8 +71,8 @@ pub fn detect(zip: &Path) -> Option<Layout> {
 
     // HMCL / 通用包：modpack.json 或 manifest.json 里有 gameVersion
     for marker in ["modpack.json", "manifest.json"] {
-        if let Some(path) = names.iter().find(|n| n.ends_with(marker)) {
-            if let Ok(text) = read_entry(&mut archive, path) {
+        if let Some((index, _)) = entries.iter().find(|(_, n)| n.ends_with(marker)) {
+            if let Ok(text) = read_entry_at(&mut archive, *index) {
                 if let Some(layout) = parse_modpack_json(&text, &names) {
                     return Some(layout);
                 }
@@ -81,6 +88,19 @@ pub fn detect(zip: &Path) -> Option<Layout> {
     None
 }
 
+fn read_entry_at(archive: &mut zip::ZipArchive<std::fs::File>, index: usize) -> Result<String, String> {
+    let mut entry = archive
+        .by_index(index)
+        .map_err(|e| format!("读取第 {index} 个文件失败: {e}"))?;
+    let mut text = String::new();
+    entry
+        .read_to_string(&mut text)
+        .map_err(|e| format!("读取第 {index} 个文件失败: {e}"))?;
+    // 记事本/VS 生成的 JSON 常带 BOM，serde_json 会当成非法字符
+    Ok(text.trim_start_matches('﻿').to_string())
+}
+
+#[allow(dead_code)]
 fn read_entry(archive: &mut zip::ZipArchive<std::fs::File>, name: &str) -> Result<String, String> {
     let mut entry = archive
         .by_name(name)
