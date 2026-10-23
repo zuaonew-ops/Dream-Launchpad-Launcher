@@ -13,6 +13,14 @@
 - 构建跑在 `windows-latest` + MSVC（本机用的是 MinGW，两边产物应当等价；
   首次跑通之前不敢打包票）
 
+### 新增：市场里能搜整合包了
+
+- 市场多了「整合包」一类：Modrinth 用 `project_type:modpack`，
+  CurseForge 用 `classId=4471`（之前错写成 447，搜出来永远是空的）
+- 整合包文件多，列表页的按钮是「选择」而不是「安装」，点进详情挑具体版本的文件
+- 装的时候走独立分支：下载 zip 到 `dlp/tmp/`，再按整合包格式（mrpack / CurseForge /
+  MultiMC / HMCL / 覆盖包）解成**新版本**，不动现有版本
+
 ## [1.0.0-beta.1] - 2026-10-23
 
 第一个 beta。核心功能齐了，接下来是修 bug 和补细节。

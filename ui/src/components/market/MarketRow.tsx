@@ -5,11 +5,19 @@ interface Props {
   hit: MarketHit;
   onOpen: () => void;
   onInstall: () => void;
+  /** 按钮文案（整合包是「选择」而不是「安装」） */
+  installLabel?: string;
   busy: boolean;
 }
 
 /** 市场列表的一行：图标 + 中文名/原名 + 下载量 + 安装 */
-export default function MarketRow({ hit, onOpen, onInstall, busy }: Props) {
+export default function MarketRow({
+  hit,
+  onOpen,
+  onInstall,
+  busy,
+  installLabel = "安装",
+}: Props) {
   return (
     <li className="market-row">
       <button type="button" className="market-main" onClick={onOpen}>
@@ -29,7 +37,7 @@ export default function MarketRow({ hit, onOpen, onInstall, busy }: Props) {
 
       <span className="market-downloads">{formatCount(hit.downloads)}</span>
       <button type="button" className="ghost" disabled={busy} onClick={onInstall}>
-        安装
+        {installLabel}
       </button>
     </li>
   );

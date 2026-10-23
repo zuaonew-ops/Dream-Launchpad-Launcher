@@ -45,6 +45,11 @@ export default function InstallDialog() {
 
         {!state.installDone && (
           <>
+            {state.installAsk?.kind === "modpack" ? (
+              <p className="hint">
+                整合包会装成一个**新的**版本（不会动现有版本），装完回主页就能看到
+              </p>
+            ) : (
             <label className="field">
               <span className="label">装到哪个版本</span>
               <Select
@@ -56,12 +61,15 @@ export default function InstallDialog() {
                 onChange={(value) => actions.setInstallTargetId(value)}
               />
             </label>
+            )}
+            {state.installAsk?.kind !== "modpack" && (
             <p className="hint">
               目标目录：
               <code>
                 {state.installTargetId || "<未选版本>"}/…/{dir}
               </code>
             </p>
+            )}
           </>
         )}
 

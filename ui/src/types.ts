@@ -365,4 +365,4 @@ export interface MarketPage {
   offset: number;
 }
 
-export type MarketKind = "mod" | "resourcepack" | "shader";
+export type MarketKind = "mod" | "resourcepack" | "shader" | "modpack";

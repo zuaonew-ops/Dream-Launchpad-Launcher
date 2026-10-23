@@ -9,6 +9,7 @@ const kinds: { value: MarketKind; label: string }[] = [
   { value: "mod", label: "模组" },
   { value: "resourcepack", label: "材质" },
   { value: "shader", label: "光影" },
+  { value: "modpack", label: "整合包" },
 ];
 
 const sources: { value: MarketSource; label: string }[] = [
@@ -26,6 +27,16 @@ const loaders: { value: string; label: string }[] = [
 ];
 
 const categories: Record<MarketKind, { value: string; label: string }[]> = {
+  modpack: [
+    { value: "all", label: "全部分类" },
+    { value: "adventure", label: "冒险" },
+    { value: "combat", label: "战斗" },
+    { value: "technology", label: "科技" },
+    { value: "magic", label: "魔法" },
+    { value: "optimization", label: "优化" },
+    { value: "quests", label: "任务" },
+    { value: "worldgen", label: "世界生成" },
+  ],
   mod: [
     { value: "all", label: "全部分类" },
     { value: "optimization", label: "优化" },
@@ -209,7 +220,13 @@ export default function MarketPanel() {
                 hit={hit}
                 busy={state.busy || !installTarget}
                 onOpen={() => void actions.openMarketProject(hit)}
+                installLabel={state.marketKind === "modpack" ? "选择" : "安装"}
                 onInstall={() => {
+                  // 整合包有多个文件（不同版本），得先进详情挑
+                  if (state.marketKind === "modpack") {
+                    void actions.openMarketProject(hit);
+                    return;
+                  }
                   if (!installTarget) return;
                   void actions.installMarket(hit.id, state.marketKind);
                 }}

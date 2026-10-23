@@ -1120,6 +1120,47 @@ async function confirmInstall() {
   const ask = state.installAsk;
   const id = state.installTargetId;
   if (!ask) return;
+
+  // 整合包装成一个新版本，不需要挑目标版本
+  if (ask.kind === "modpack") {
+    if (!ask.url) {
+      set({ error: "整合包需要文件直链" });
+      return;
+    }
+    set({
+      busy: true,
+      error: "",
+      installDone: "",
+      install: {
+        id: ask.title,
+        stage: "下载整合包",
+        done: 0,
+        total: 0,
+        percent: 0,
+        bytes_done: 0,
+        bytes_total: 0,
+        current: "",
+        speed: "",
+      },
+    });
+    try {
+      const version = await invoke<string>("install_market_pack", {
+        url: ask.url,
+        filename: ask.filename ?? "modpack.zip",
+      });
+      set({
+        busy: false,
+        install: null,
+        installDone: version,
+        notice: `整合包已装成版本 ${version}`,
+      });
+      await refresh();
+    } catch (e) {
+      set({ busy: false, error: String(e), install: null });
+    }
+    return;
+  }
+
   if (!id) {
     set({ error: "先选一个已安装的版本作为安装目标" });
     return;

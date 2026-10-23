@@ -805,6 +805,7 @@ pub fn run() {
             market_project,
             market_versions,
             install_market_file,
+            install_market_pack,
             install_market,
             install_java,
             save_app_settings,
@@ -1259,4 +1260,33 @@ fn set_resource_packs(
     packs: Vec<String>,
 ) -> Result<(), String> {
     content::options::write_resource_packs(&game_dir(&state.paths, &id), &packs)
+}
+
+/// 从市场直接装一个整合包：下载 zip 到临时目录，再走整合包安装流程。
+#[tauri::command]
+async fn install_market_pack(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    url: String,
+    filename: String,
+) -> Result<String, String> {
+    let paths = state.paths.clone();
+    let tmp = paths.root.join("dlp").join("tmp");
+    std::fs::create_dir_all(&tmp).map_err(|e| format!("创建临时目录失败: {e}"))?;
+    let dest = tmp.join(&filename);
+    let progress = progress_to(app.clone());
+
+    let job = dlp_core::net::download::Job::new(url, dest.clone(), None);
+    dlp_core::net::download::run(
+        &state.client,
+        vec![job],
+        1,
+        "下载整合包",
+        &progress,
+    )
+    .await?;
+
+    let cf_key = curseforge_key(&paths);
+    dlp_core::pack::install::install(&state.client, &paths, &dest, "", &cf_key, Some(progress))
+        .await
 }

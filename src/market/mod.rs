@@ -66,6 +66,7 @@ pub(crate) fn target_dir(kind: &str) -> &'static str {
 
 pub(crate) fn project_type(kind: &str) -> &'static str {
     match kind {
+        "modpack" => "modpack",
         "resourcepack" => "resourcepack",
         "shader" => "shader",
         _ => "mod",
