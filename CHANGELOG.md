@@ -1,5 +1,18 @@
 # 更新日志
 
+## [1.0.0-beta.2] - 2026-10-23
+
+构建和发布交给 GitHub Actions 了。
+
+### 新增
+
+- **CI/CD**（`.github/workflows/build.yml`）：推 `v*` tag 自动
+  跑单测 → 构建前端 → 构建桌面端 → 打成便携 zip → 传到 Release。
+  tag 里带 `beta` / `alpha` 自动标预发布；每次构建的 zip 也会挂到
+  Actions 的 artifact 上，非 tag 分支手动触发也能下
+- 构建跑在 `windows-latest` + MSVC（本机用的是 MinGW，两边产物应当等价；
+  首次跑通之前不敢打包票）
+
 ## [1.0.0-beta.1] - 2026-10-23
 
 第一个 beta。核心功能齐了，接下来是修 bug 和补细节。
