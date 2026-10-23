@@ -1,0 +1,85 @@
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 装前端依赖
+        run: npm ci
+
+      - name: 类型检查 + 构建前端
+        run: npm run build
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          # workspace 根在仓库根，产物默认进 target/
+          workspaces: ". -> target"
+
+      - name: 核心库单测
+        run: cargo test -p dlp-core --lib
+
+      - name: 构建桌面端
+        run: cargo build --release -p dlp-desktop
+
+      - name: 组装便携包
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          Write-Host "版本: $version"
+
+          $out = "portable"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item "target/release/dlp-desktop.exe" "$out/DreamLaunchpad.exe"
+
+          # WebView2 的加载器是 webview2-com-sys 的构建产物，路径带 hash，递归找 x64 那份
+          $dll = Get-ChildItem -Path target -Recurse -Filter WebView2Loader.dll -ErrorAction SilentlyContinue |
+                 Where-Object { $_.FullName -match 'x64' } |
+                 Select-Object -First 1
+          if (-not $dll) { throw "没找到 WebView2Loader.dll" }
+          Write-Host "WebView2Loader: $($dll.FullName)"
+          Copy-Item $dll.FullName "$out/WebView2Loader.dll"
+
+          $zip = "DLP-$version-win64-portable.zip"
+          Compress-Archive -Path "$out/*" -DestinationPath $zip -Force
+          Get-Item $zip | Select-Object Name, Length | Format-Table | Out-String
+
+          "DLP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "DLP_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: 上传构建产物（每次都能下）
+        uses: actions/upload-artifact@v4
+        with:
+          name: dlp-${{ env.DLP_VERSION }}-win64
+          path: ${{ env.DLP_ZIP }}
+          if-no-files-found: error
+
+      - name: 发布到 Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.DLP_ZIP }}
+          # tag 里带 beta / alpha 就标成预发布
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+          fail_on_unmatched_files: true
