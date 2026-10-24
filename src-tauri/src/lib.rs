@@ -831,6 +831,7 @@ pub fn run() {
             market_versions,
             install_market_file,
             install_market_pack,
+            test_curseforge_key,
             install_market,
             install_java,
             save_app_settings,
@@ -1324,4 +1325,33 @@ async fn install_market_pack(
     // 不管成没成都把下载的 zip 删掉 —— 整合包动辄几百兆，留着白占磁盘
     let _ = std::fs::remove_file(&dest);
     result
+}
+
+/// 试一下 CurseForge 的 key 到底还能不能用。
+///
+/// `/v1/games` 是最便宜的端点（结果可以忽略），403 就是 key 本身的问题，
+/// 429 才是配额用完 —— 这两种情况用户要做的事完全不同，不能都甩一句「无效」。
+#[tauri::command]
+async fn test_curseforge_key(state: State<'_, AppState>, key: String) -> Result<String, String> {
+    let key = key.trim().to_string();
+    if key.is_empty() {
+        return Err("还没填 key".into());
+    }
+    let response = state
+        .client
+        .get("https://api.curseforge.com/v1/games")
+        .header("x-api-key", &key)
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("连不上 CurseForge: {e}"))?;
+
+    match response.status().as_u16() {
+        200 => Ok("key 有效".into()),
+        403 => Err("CurseForge 拒绝了这个 key（403）。去 console.curseforge.com 重新生成一个，\
+                   生成后要等一两分钟才生效"
+            .into()),
+        429 => Err("这个 key 今天的请求配额用完了（429），明天再来，或者换一个 key".into()),
+        code => Err(format!("CurseForge 返回 HTTP {code}")),
+    }
 }

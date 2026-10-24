@@ -93,6 +93,14 @@ export default function GlobalSettings() {
           <span className="hint">
             到 console.curseforge.com 免费申请；填了才能搜 CurseForge 与装它的整合包
           </span>
+          <button
+            type="button"
+            className="ghost small"
+            disabled={state.busy}
+            onClick={() => void actions.testCurseForgeKey()}
+          >
+            测一下这个 key
+          </button>
         </label>
       </section>
 

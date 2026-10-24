@@ -1110,6 +1110,22 @@ function installMarketFile(url: string, filename: string) {
   askInstall({ title: filename, kind: state.marketKind, url, filename });
 }
 
+/** 测一下填进去的 CurseForge key 还能不能用 */
+async function testCurseForgeKey() {
+  const key = state.appSettings?.curseforge_api_key ?? "";
+  if (!key.trim()) {
+    set({ notice: "", error: "还没填 key" });
+    return;
+  }
+  set({ busy: true, error: "", notice: "正在测 key…" });
+  try {
+    const message = await invoke<string>("test_curseforge_key", { key });
+    set({ busy: false, notice: `CurseForge ${message}` });
+  } catch (e) {
+    set({ busy: false, notice: "", error: String(e) });
+  }
+}
+
 /** 点「安装」——同样先确认 */
 function installMarket(project: string, kind: MarketKind) {
   askInstall({ title: project, kind, project });
@@ -1837,6 +1853,7 @@ export const actions = {
   applySkin,
   setDownloadSource: (source: "mirror" | "official") => void saveAppSettings({ download_source: source }),
   setCurseForgeKey: (key: string) => void saveAppSettings({ curseforge_api_key: key }),
+  testCurseForgeKey: () => void testCurseForgeKey(),
   pickPack,
   openPackFromPath,
   loadPackPreview,

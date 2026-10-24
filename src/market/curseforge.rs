@@ -85,7 +85,11 @@ pub async fn search(
         .map_err(|e| format!("请求 CurseForge 失败: {e}"))?;
 
     if response.status().as_u16() == 403 {
-        return Err("CurseForge 拒绝了请求：API key 无效或已过期".into());
+        return Err("CurseForge 拒绝了这个 key（403）。去 console.curseforge.com 重新生成一个，                   生成后要等一两分钟才生效"
+            .into());
+    }
+    if response.status().as_u16() == 429 {
+        return Err("这个 key 今天的请求配额用完了（429），明天再来，或者换一个 key".into());
     }
     if !response.status().is_success() {
         return Err(format!("CurseForge 返回 HTTP {}", response.status()));
