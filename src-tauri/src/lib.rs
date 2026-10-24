@@ -126,6 +126,7 @@ async fn list_versions(
         Err(_) => (minecraft::manifest::VersionManifest::default(), true),
     };
     let local = minecraft::scan::scan(&paths);
+    let played = dlp_core::settings::AppSettings::load(&paths).last_played;
     let _ = offline;
     let installable: HashSet<&str> = local
         .iter()
@@ -148,6 +149,7 @@ async fn list_versions(
             april_fools: minecraft::is_april_fools(&v.id),
             loader: loader_of(&v.id),
             dlp_installed: dlp_ids.contains(v.id.as_str()),
+            last_played: played.get(&v.id).copied(),
             id: v.id,
             kind: v.kind,
             release_time: v.release_time,
@@ -163,6 +165,7 @@ async fn list_versions(
         }
         let april_fools = minecraft::is_april_fools(&version.id);
         let loader = loader_of(&version.id);
+        let played_at = played.get(&version.id).copied();
         out.push(VersionSummary {
             id: version.id,
             kind: version.kind,
@@ -172,6 +175,7 @@ async fn list_versions(
             april_fools,
             loader,
             dlp_installed: version.dlp_installed,
+            last_played: played_at,
         });
     }
 
@@ -289,6 +293,17 @@ async fn launch_game(
     });
 
     // 等待进程退出：清掉状态并通知前端，否则界面会一直显示「运行中」
+    // 记一笔最近启动时间，主页/版本列表里按这个显示「上次玩"
+    {
+        let mut cfg = dlp_core::settings::AppSettings::load(&state.paths);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        cfg.last_played.insert(id.clone(), now);
+        let _ = cfg.save(&state.paths);
+    }
+
     let handle = app.clone();
     std::thread::spawn(move || {
         let status = child.wait();

@@ -5,6 +5,7 @@ const tabs: { key: TypeFilter; label: string }[] = [
   { key: "snapshot", label: "快照" },
   { key: "old", label: "远古版" },
   { key: "installed", label: "已安装" },
+  { key: "recent", label: "最近玩过" },
   { key: "local", label: "本地" },
   { key: "all", label: "全部" },
 ];

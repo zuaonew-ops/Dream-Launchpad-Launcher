@@ -50,6 +50,7 @@ export type TypeFilter =
   | "old"
   | "installed"
   | "local"
+  | "recent"
   | "all";
 
 export interface RunningGame {
@@ -313,8 +314,9 @@ export function groupKey(id: string): string {
 
 export function selectFiltered(s: State): VersionSummary[] {
   const keyword = s.search.trim().toLowerCase();
-  return s.versions.filter((v) => v.local || v.kind !== undefined)
+  const list = s.versions.filter((v) => v.local || v.kind !== undefined)
     .filter((v) => {
+      if (s.filter === "recent" && !v.last_played) return false;
       if (s.filter === "installed" && !v.installed) return false;
       if (s.filter === "local" && !v.local) return false;
       if (s.filter === "release" && v.kind !== "release") return false;
@@ -325,9 +327,20 @@ export function selectFiltered(s: State): VersionSummary[] {
       }
       return !keyword || v.id.toLowerCase().includes(keyword);
     });
+
+  // 「最近玩过」按时间倒序，其余保持原有分组顺序
+  if (s.filter === "recent") {
+    return list.sort((a, b) => (b.last_played ?? 0) - (a.last_played ?? 0));
+  }
+  return list;
 }
 
 export function selectGroups(s: State): { key: string; items: VersionSummary[] }[] {
+  // 「最近玩过」是一条时间线，按大版本分组反而不好找
+  if (s.filter === "recent") {
+    const items = selectFiltered(s);
+    return items.length === 0 ? [] : [{ key: "按最近启动排序", items }];
+  }
   const order: string[] = [];
   const map = new Map<string, VersionSummary[]>();
   for (const version of selectFiltered(s)) {

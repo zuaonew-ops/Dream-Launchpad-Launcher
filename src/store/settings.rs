@@ -165,6 +165,9 @@ pub struct AppSettings {
     /// 下载源："mirror" = BMCLAPI 优先（默认），"official" = 全走官方
     #[serde(default = "default_source")]
     pub download_source: String,
+    /// 每个版本最后一次启动的 unix 时间戳（秒），版本 id → 时间
+    #[serde(default)]
+    pub last_played: BTreeMap<String, u64>,
 }
 
 fn default_source() -> String {

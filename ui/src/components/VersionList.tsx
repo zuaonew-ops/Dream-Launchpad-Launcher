@@ -1,3 +1,13 @@
+/** 把 unix 秒变成「刚刚 / 3 小时前 / 2 天前」 */
+function ago(seconds: number): string {
+  const diff = Math.max(0, Date.now() / 1000 - seconds);
+  if (diff < 60) return "刚刚";
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)} 天前`;
+  return `${Math.floor(diff / 86400 / 30)} 个月前`;
+}
+
 import type { VersionSummary } from "../types";
 
 interface Props {
@@ -51,7 +61,11 @@ export default function VersionList({ groups, selected, loading, onSelect }: Pro
                   <span className={version.installed ? "state on" : "state"}>
                     {version.installed ? "已安装" : "未安装"}
                   </span>
-                  <span className="time">{version.release_time.slice(0, 10) || "—"}</span>
+                  <span className="time">
+                    {version.last_played
+                      ? `玩过 · ${ago(version.last_played)}`
+                      : version.release_time.slice(0, 10) || "—"}
+                  </span>
                   <svg className="chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                     <path d="m9 6 6 6-6 6" />
                   </svg>

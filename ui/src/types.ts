@@ -11,6 +11,8 @@ export interface VersionSummary {
   dlp_installed: boolean;
   /** 从版本 id 推断的加载器，原版为 null */
   loader: string | null;
+  /** 上次用这个版本启动的 unix 秒；从没启动过是 null */
+  last_played: number | null;
 }
 
 /** 离线账号（id 就是离线 UUID） */

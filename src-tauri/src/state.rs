@@ -26,6 +26,8 @@ pub struct VersionSummary {
     pub loader: Option<String>,
     /// 这个版本是 DLP 装的（界面显示 DLP 徽章）
     pub dlp_installed: bool,
+    /// 上次用这个版本启动的时间（unix 秒），从没启动过是 None
+    pub last_played: Option<u64>,
 }
 
 #[derive(Serialize, Clone)]
