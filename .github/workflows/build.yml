@@ -52,8 +52,11 @@ jobs:
 
           # MSVC 下 WebView2Loader 是静态链接的（webview2-com-sys 的 cfg_attr），
           # 所以这个 exe 单独放哪都能跑，不用带 dll
-          # tauri build 不会改 exe 名，产物就是 cargo 的包名
-          $exe = "target/release/dlp-desktop.exe"
+          # 设了 mainBinaryName 之后，tauri build 会把 exe 改成那个名字（不设就是 cargo 包名）
+          $bin = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).mainBinaryName
+          if (-not $bin) { $bin = "dlp-desktop" }
+          $exe = "target/release/$bin.exe"
+          Write-Host "产物: $exe"
           if (-not (Test-Path $exe)) { throw "没找到 $exe" }
 
           Copy-Item $exe "DLP-$version.exe"
