@@ -56,3 +56,6 @@ release/
 
 # 本地探针产物
 /dlp-bin/
+
+# 调试截图
+_*.png
