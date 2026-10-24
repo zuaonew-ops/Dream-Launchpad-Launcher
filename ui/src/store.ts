@@ -375,13 +375,21 @@ export function javaLabel(javas: JavaInfo[]): string {
 async function refresh() {
   set({ loading: true, error: "" });
   try {
-    const [versions, environment, javas, accounts, cfg] = await Promise.all([
+    // 用 allSettled：Java 探测、账号读取这类附属信息失败时，不该让整个刷新挂掉 ——
+    // 版本列表拿不到才是真失败，其它几项能拿到就更新
+    const [versionsR, envR, javaR, accR, cfgR] = await Promise.allSettled([
       invoke<VersionSummary[]>("list_versions", { includeSnapshots: true }),
       invoke<Environment>("environment"),
       invoke<JavaInfo[]>("detect_java"),
       invoke<AccountsPayload>("accounts"),
       invoke<AppSettings>("app_settings"),
     ]);
+    if (versionsR.status === "rejected") throw versionsR.reason;
+    const versions = versionsR.value;
+    const environment = envR.status === "fulfilled" ? envR.value : state.environment;
+    const javas = javaR.status === "fulfilled" ? javaR.value : state.javas;
+    const accounts = accR.status === "fulfilled" ? accR.value : { list: state.accounts, current: state.currentAccount };
+    const cfg = cfgR.status === "fulfilled" ? cfgR.value : (state.appSettings ?? { default_version: null, curseforge_api_key: null, download_source: "mirror", last_played: {} });
     const current = state.selected;
     const fallback =
       versions.find((v) => v.installed && v.kind === "release")?.id ??
@@ -505,6 +513,8 @@ async function installSelected() {
     set({ notice: finalId === target.id ? `${target.id} 安装完成` : `已安装 ${finalId}` });
     await refresh();
     set({ selected: finalId });
+    // refresh 已经替旧选中项拉过一次设置，装了新版本（比如带加载器的）得再拉一次
+    void loadSettings(finalId);
   } catch (e) {
     set({ error: String(e) });
   } finally {
