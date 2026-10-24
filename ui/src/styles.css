@@ -2041,6 +2041,17 @@ textarea:focus-visible {
   background: var(--accent-soft);
 }
 
+.ver-ago {
+  margin-left: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* 选中的那一行整体描蓝，时间别跟着变蓝 */
+.ver-row.active .ver-ago {
+  color: var(--muted);
+}
+
 .ver-id {
   flex: 1;
   min-width: 0;

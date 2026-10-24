@@ -345,7 +345,12 @@ export default function HomePage() {
                     void actions.setDefaultVersion(version.id);
                   }}
                 >
-                  <span className="ver-id">{version.id}</span>
+                  <span className="ver-id">
+                    {version.id}
+                    {version.last_played && (
+                      <span className="ver-ago">· {ago(version.last_played)}</span>
+                    )}
+                  </span>
                   <span className={`badge badge-${t.kind}`}>{t.text}</span>
                   {version.dlp_installed && <span className="badge badge-dlp">DLP</span>}
                   {active && <span className="ver-now">默认</span>}
