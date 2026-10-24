@@ -505,6 +505,16 @@ fn delete_version(state: State<'_, AppState>, id: String) -> Result<(), String> 
     if instance.exists() && instance != dir {
         let _ = std::fs::remove_dir_all(&instance);
     }
+
+    // 版本没了，留着它的「上次玩过」和启动设置只会变成垃圾
+    let mut app = dlp_core::settings::AppSettings::load(&paths);
+    if app.last_played.remove(&id).is_some() {
+        let _ = app.save(&paths);
+    }
+    let mut store = Store::load(&paths);
+    if store.remove(&id) {
+        let _ = store.save(&paths);
+    }
     Ok(())
 }
 
@@ -1288,7 +1298,13 @@ async fn install_market_pack(
     let paths = state.paths.clone();
     let tmp = paths.root.join("dlp").join("tmp");
     std::fs::create_dir_all(&tmp).map_err(|e| format!("创建临时目录失败: {e}"))?;
-    let dest = tmp.join(&filename);
+    // 文件名来自远端响应，不能直接拼路径（`../` 会写到 tmp 外面）
+    let safe_name = std::path::Path::new(&filename)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .filter(|n| !n.is_empty())
+        .unwrap_or_else(|| "modpack.zip".to_string());
+    let dest = tmp.join(safe_name);
     let progress = progress_to(app.clone());
 
     let job = dlp_core::net::download::Job::new(url, dest.clone(), None);
@@ -1302,6 +1318,10 @@ async fn install_market_pack(
     .await?;
 
     let cf_key = curseforge_key(&paths);
-    dlp_core::pack::install::install(&state.client, &paths, &dest, "", &cf_key, Some(progress))
-        .await
+    let result =
+        dlp_core::pack::install::install(&state.client, &paths, &dest, "", &cf_key, Some(progress))
+            .await;
+    // 不管成没成都把下载的 zip 删掉 —— 整合包动辄几百兆，留着白占磁盘
+    let _ = std::fs::remove_file(&dest);
+    result
 }

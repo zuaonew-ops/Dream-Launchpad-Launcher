@@ -1,3 +1,13 @@
+/** 把 unix 秒变成「刚刚 / 3 小时前 / 2 天前」 */
+function ago(seconds: number): string {
+  const diff = Math.max(0, Date.now() / 1000 - seconds);
+  if (diff < 60) return "刚刚";
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)} 天前`;
+  return `${Math.floor(diff / 86400 / 30)} 个月前`;
+}
+
 import { useEffect, useState } from "react";
 import Select from "../components/Select";
 import { actions, currentName, selectSelectedVersion, useLauncher } from "../store";
@@ -27,7 +37,11 @@ function tailLines(text: string, count: number): string {
 export default function HomePage() {
   const state = useLauncher();
   const selected = selectSelectedVersion(state);
-  const installed = state.versions.filter((v) => v.installed);
+  // 玩过的排前面（最近的打头），没玩过的保持原来的顺序跟在后面
+  const installed = state.versions
+    .filter((v) => v.installed)
+    .slice()
+    .sort((a, b) => (b.last_played ?? 0) - (a.last_played ?? 0));
   const running = state.game;
   const empty = !state.loading && installed.length === 0;
   const [name, setName] = useState("");
@@ -162,6 +176,12 @@ export default function HomePage() {
                   ? "文件完整，可以启动"
                   : "还没有安装"}
             </span>
+            {launchVersion?.last_played && (
+              <>
+                <span className="sep">·</span>
+                <span>上次玩 {ago(launchVersion.last_played)}</span>
+              </>
+            )}
           </p>
 
           <div className="launch-actions">
@@ -315,6 +335,11 @@ export default function HomePage() {
                   key={version.id}
                   type="button"
                   className={active ? "ver-row active" : "ver-row"}
+                  title={
+                    version.last_played
+                      ? `${version.id} · 上次玩 ${ago(version.last_played)}`
+                      : version.id
+                  }
                   onClick={() => {
                     actions.setSelected(version.id);
                     void actions.setDefaultVersion(version.id);

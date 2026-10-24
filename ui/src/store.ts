@@ -388,6 +388,7 @@ async function refresh() {
       versions.find((v) => v.kind === "release")?.id ??
       versions[0]?.id ??
       null;
+    const next = current && versions.some((v) => v.id === current) ? current : fallback;
     set({
       versions,
       environment,
@@ -396,9 +397,9 @@ async function refresh() {
       currentAccount: accounts.current,
       defaultVersion: cfg.default_version,
       appSettings: cfg,
-      selected: current && versions.some((v) => v.id === current) ? current : fallback,
+      selected: next,
     });
-    if (state.selected) void loadSettings(state.selected);
+    if (next) void loadSettings(next);
   } catch (e) {
     set({ error: String(e) });
   } finally {
@@ -407,13 +408,17 @@ async function refresh() {
 }
 
 /** 选中版本变化时把它的设置拉下来 */
+let settingsSeq = 0;
+
 async function loadSettings(id: string) {
+  const seq = ++settingsSeq;
   set({ settingsKey: id });
   try {
     const settings = await invoke<VersionSettings>("version_settings", { id });
-    set({ settings });
+    // 期间又切了版本就别覆盖，否则会看到别的版本的设置
+    if (seq === settingsSeq) set({ settings });
   } catch (e) {
-    set({ error: String(e), settings: { ...EMPTY_SETTINGS } });
+    if (seq === settingsSeq) set({ error: String(e), settings: { ...EMPTY_SETTINGS } });
   }
 }
 

@@ -97,6 +97,11 @@ impl Store {
     pub fn all(&self) -> &BTreeMap<String, VersionSettings> {
         &self.versions
     }
+
+    /// 删掉某个版本的专属设置；返回是否真的删了（给删版本时清理用）
+    pub fn remove(&mut self, id: &str) -> bool {
+        self.versions.remove(id).is_some()
+    }
 }
 
 #[cfg(test)]
