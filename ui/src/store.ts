@@ -131,6 +131,12 @@ export interface State {
 
   // 安装选项
   loader: LoaderKind;
+  /**
+   * 当前 MC 版本装不了哪些加载器（键是加载器，值是原因）。
+   * 1.12.2 之类老版本 Fabric 返回 400、Quilt 返回 404 —— 卡片要能显示出来，
+   * 而不是点了才报错。
+   */
+  loaderUnsupported: Partial<Record<LoaderKind, string>>;
   loaderVersion: string;
   optifine: boolean;
   optifineEdition: string;
@@ -245,6 +251,7 @@ let state: State = {
   settings: null,
   settingsKey: "",
   loader: "none",
+  loaderUnsupported: {},
   loaderVersion: "",
   optifine: false,
   optifineEdition: "",
@@ -424,7 +431,7 @@ let settingsSeq = 0;
 
 async function loadSettings(id: string) {
   const seq = ++settingsSeq;
-  set({ settingsKey: id });
+  set({ settingsKey: id, settings: { ...EMPTY_SETTINGS } });
   try {
     const settings = await invoke<VersionSettings>("version_settings", { id });
     // 期间又切了版本就别覆盖，否则会看到别的版本的设置
@@ -445,15 +452,39 @@ async function saveSettings(id: string, settings: VersionSettings) {
 
 async function loadLoaderOptions(mc: string, kind: LoaderKind) {
   if (kind === "none") {
-    set({ loaderOptions: [], loaderVersion: "" });
+    // 这里原来只清了候选列表，没把 loader 本身设回 none ——
+    // 于是点「原版」看着没反应，装机时还是按上一个加载器来
+    set({ loader: "none", loaderOptions: [], loaderVersion: "" });
     return;
   }
   set({ loader: kind, loaderVersion: "", loaderOptions: [] });
   try {
     const list = await invoke<Candidate[]>("loader_candidates", { mc, kind });
-    set({ loaderOptions: list, loaderVersion: list[0]?.version ?? "" });
+    if (list.length === 0) {
+      // 这个版本上确实没有可选版本（比如 1.12.2 的 NeoForge）
+      set({
+        loader: "none",
+        loaderOptions: [],
+        loaderVersion: "",
+        loaderUnsupported: { ...state.loaderUnsupported, [kind]: `${mc} 没有可用的 ${kind} 版本` },
+        error: `${mc} 没有可用的 ${kind} 版本`,
+      });
+      return;
+    }
+    set({
+      loaderOptions: list,
+      loaderVersion: list[0]?.version ?? "",
+      loaderUnsupported: { ...state.loaderUnsupported, [kind]: undefined } as Partial<Record<LoaderKind, string>>,
+    });
   } catch (e) {
-    set({ error: String(e) });
+    // 这个版本压根不支持这个加载器（Fabric 对 1.12.2 是 400、Quilt 是 404）
+    set({
+      loader: "none",
+      loaderOptions: [],
+      loaderVersion: "",
+      loaderUnsupported: { ...state.loaderUnsupported, [kind]: `${mc} 不支持 ${kind}` },
+      error: `${mc} 不支持 ${kind}`,
+    });
   }
 }
 
@@ -1879,7 +1910,18 @@ export const actions = {
   addServer,
   removeServer,
   setSelected: (selected: string) => {
-    set({ selected });
+    // 换版本时把加载器选择一起清掉：上一个版本选的 Forge 47.x 对 1.12.2 没意义，
+    // 留着会让「装什么」那栏显示一堆不属于这个版本的东西
+    set({
+      selected,
+      loaderUnsupported: {},
+      loader: "none",
+      loaderOptions: [],
+      loaderVersion: "",
+      optifine: false,
+      optifineOptions: [],
+      optifineEdition: "",
+    });
     void loadSettings(selected);
     void loadContent(selected);
     void loadBaseVersion(selected);

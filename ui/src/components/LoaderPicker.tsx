@@ -88,11 +88,15 @@ export default function LoaderPicker({ mc, compact }: Props) {
   return (
     <div className="picker">
       <div className="loader-cards">
-        {loaders.map((item) => (
+        {loaders.map((item) => {
+          const blocked = state.loaderUnsupported[item.value];
+          const active = state.loader === item.value;
+          return (
           <button
             key={item.value}
             type="button"
-            className={state.loader === item.value ? "loader-card active" : "loader-card"}
+            className={`loader-card${active ? " active" : ""}${blocked ? " blocked" : ""}`}
+            title={blocked ? `${mc} ${blocked}` : undefined}
             onClick={() => actions.setLoader(item.value, mc)}
           >
             <span className="loader-icon" style={{ background: item.tint }}>
@@ -100,9 +104,9 @@ export default function LoaderPicker({ mc, compact }: Props) {
             </span>
             <span className="loader-text">
               <strong>{item.label}</strong>
-              <small>{item.desc}</small>
+              <small>{blocked ? `${mc} 装不了` : item.desc}</small>
             </span>
-            {state.loader === item.value && (
+            {active && !blocked && (
               <svg className="loader-check" viewBox="0 0 16 16" width="14" height="14">
                 <path
                   d="M3 8.5 6.5 12 13 4.5"
@@ -115,7 +119,8 @@ export default function LoaderPicker({ mc, compact }: Props) {
               </svg>
             )}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <div className="picker-row">

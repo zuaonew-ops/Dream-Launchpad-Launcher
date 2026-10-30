@@ -4352,6 +4352,15 @@ button.ghost.tiny {
   transform: translateY(-1px);
 }
 
+.loader-card.blocked {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.loader-card.blocked .loader-text small {
+  color: var(--muted);
+}
+
 .loader-card.active {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);

@@ -360,7 +360,13 @@ async fn loader_candidates(
     kind: String,
 ) -> Result<Vec<loader::Candidate>, String> {
     let kind = loader::LoaderKind::parse(&kind).ok_or_else(|| format!("未知加载器: {kind}"))?;
-    loader::candidates(&state.client, &mc, kind).await
+    // Forge / NeoForge 没有 meta 接口，候选版本要从 BMCLAPI 的安装器列表拿
+    match kind {
+        loader::LoaderKind::Forge | loader::LoaderKind::NeoForge => {
+            loader::installer_candidates(&state.client, &mc, kind).await
+        }
+        _ => loader::candidates(&state.client, &mc, kind).await,
+    }
 }
 
 #[tauri::command]
