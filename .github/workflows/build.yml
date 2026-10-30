@@ -16,6 +16,8 @@ jobs:
   windows:
     name: Windows x64
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,9 +47,11 @@ jobs:
         run: npx tauri build
 
       - name: 整理产物
+        id: meta
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "版本: $version"
 
           # MSVC 下 WebView2Loader 是静态链接的（webview2-com-sys 的 cfg_attr），
@@ -77,7 +81,7 @@ jobs:
       - name: 上传构建产物（每次都能下）
         uses: actions/upload-artifact@v4
         with:
-          name: dlp-${{ env.DLP_VERSION }}-win64
+          name: dlp-${{ steps.meta.outputs.version }}-win64
           path: DLP-${{ env.DLP_VERSION }}*.exe
           if-no-files-found: error
 
@@ -91,3 +95,39 @@ jobs:
           # tag 里带 beta / alpha 就标成预发布
           prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
           fail_on_unmatched_files: true
+
+  # 单独跑、允许失败：把「这个 exe 在 Win7 上缺哪些系统 DLL」记录下来。
+  # 结论进 job summary，不拦构建 —— 缺不缺 DLL 取决于 tauri/rust 的版本，
+  # 不是每次提交能改的东西。
+  win7-check:
+    name: Windows 7 兼容性检查
+    runs-on: windows-latest
+    needs: windows
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 取本次构建的 exe
+        uses: actions/download-artifact@v4
+        with:
+          name: dlp-${{ needs.windows.outputs.version }}-win64
+          path: artifacts
+
+      - name: 分析导入表
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem artifacts -Filter *.exe | Where-Object { $_.Name -notlike "*setup*" } | Select-Object -First 1
+          if (-not $exe) { throw "没找到 exe" }
+          Write-Host "分析 $($exe.Name)"
+          # 脚本自己会打印分类结果；退出码 2 = Win7 上有硬阻断
+          $out = node scripts/pe-imports.mjs $exe.FullName --win7 2>&1
+          $code = $LASTEXITCODE
+          $out | ForEach-Object { Write-Host $_ }
+          @("### Windows 7 兼容性", "", '```', $out, '```') | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if ($code -eq 2) {
+            Write-Warning "这个 exe 在 Windows 7 上跑不起来（上面列了缺的 DLL）。Tauri 2 官方最低要求 Windows 10。"
+          }

@@ -117,7 +117,9 @@ async fn query(host: &str, port: u16) -> Result<Info, String> {
         Some(serde_json::Value::Object(_)) => {
             // 组件形式：{"text": "...", "extra": [...]}，只取 text 与 extra 的 text
             let mut out = String::new();
-            collect_text(value.pointer("/description").unwrap(), &mut out);
+            if let Some(desc) = value.pointer("/description") {
+                collect_text(desc, &mut out);
+            }
             out
         }
         _ => String::new(),

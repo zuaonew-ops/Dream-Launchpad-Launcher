@@ -52,7 +52,10 @@ export default function McVersionGroup({
         <span className={open ? "chev open" : "chev"} />
       </button>
 
-      {open && (
+      {open && files.length === 0 && (
+        <p className="empty small">这个版本下面没有可下载的文件</p>
+      )}
+      {open && files.length > 0 && (
         <ul className="file-list">
           {files.map((item, index) => (
             <li className="file-row" key={`${item.file.version_id}-${item.file.filename}-${index}`}>

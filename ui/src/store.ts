@@ -374,6 +374,10 @@ export function javaLabel(javas: JavaInfo[]): string {
 
 async function refresh() {
   set({ loading: true, error: "" });
+  // 正版账号的 access_token 24 小时就过期。过期之后再启动游戏就退化成
+  // "0"，表现出来的就是「进服务器被踢」——每次刷新顺手续一次。
+  // 续不上也不影响下面拉列表。
+  await invoke("msa_refresh").catch(() => undefined);
   try {
     // 用 allSettled：Java 探测、账号读取这类附属信息失败时，不该让整个刷新挂掉 ——
     // 版本列表拿不到才是真失败，其它几项能拿到就更新

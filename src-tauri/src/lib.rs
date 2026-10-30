@@ -184,7 +184,7 @@ async fn list_versions(
 
 #[tauri::command]
 fn running_game(state: State<'_, AppState>) -> Option<RunningGame> {
-    state.game.lock().unwrap().clone()
+    state.game.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 #[tauri::command]
@@ -281,13 +281,13 @@ async fn launch_game(
     };
     let plan = launch::build(&paths, &version, &options)?;
 
-    if let Some(existing) = state.game.lock().unwrap().as_ref() {
+    if let Some(existing) = state.game.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         return Err(format!("游戏已在运行（pid {}）", existing.pid));
     }
 
     let mut child = launch::spawn(&plan, &paths)?;
     let pid = child.id();
-    *state.game.lock().unwrap() = Some(RunningGame {
+    *state.game.lock().unwrap_or_else(|e| e.into_inner()) = Some(RunningGame {
         pid,
         id: id.clone(),
     });
@@ -308,7 +308,7 @@ async fn launch_game(
     std::thread::spawn(move || {
         let status = child.wait();
         if let Some(state) = handle.try_state::<AppState>() {
-            let mut guard = state.game.lock().unwrap();
+            let mut guard = state.game.lock().unwrap_or_else(|e| e.into_inner());
             if guard.as_ref().map(|g| g.pid) == Some(pid) {
                 *guard = None;
             }
@@ -493,7 +493,7 @@ async fn repair_version(
 #[tauri::command]
 fn delete_version(state: State<'_, AppState>, id: String) -> Result<(), String> {
     let paths = state.paths.clone();
-    if state.game.lock().unwrap().as_ref().map(|g| g.id.as_str()) == Some(id.as_str()) {
+    if state.game.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|g| g.id.as_str()) == Some(id.as_str()) {
         return Err("这个版本正在运行，先关掉游戏".into());
     }
     let dir = paths.version_dir(&id);

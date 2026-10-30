@@ -1,5 +1,32 @@
 # 更新日志
 
+## [1.0.2] - 2026-10-30
+
+这一版在补 Win7 的账，顺便把几个会一直在后台悄悄出错的地方修了。
+
+### 新增
+
+- **CI 多了个「Windows 7 兼容性检查」job**：构建完之后解析 exe 的 PE 导入表，
+  列出 Win7 上不存在的系统 DLL，结果写进 job summary。它跑失败不拦构建 ——
+  缺不缺 DLL 取决于 Rust / Tauri 的版本，不是每次提交能改的
+- `scripts/pe-imports.mjs`：独立可用的 PE 导入表读取脚本，
+  `node scripts/pe-imports.mjs xxx.exe --win7` 直接看这个 exe 能不能在 Win7 跑
+
+### 修复
+
+- **正版账号的 token 从来没续过**。微软的 access_token 24 小时过期，
+  `msa_refresh` 这个命令写好了但前端一次都没调 —— 过期之后启动游戏会退化成
+  accessToken 传 `0`，表现是「单机正常、进服务器被踢」，而且没有任何报错。
+  现在每次刷新顺手续一次，续不上也不影响其它信息
+- **`state.game` 这把 Mutex 中毒会让整个启动器永久卡死**：只要有一个线程持锁时
+  panic（比如装版本中途出错），之后每次 `lock().unwrap()` 都 panic —— 点「启动游戏」
+  直接崩，重启才好。改成 `unwrap_or_else(|e| e.into_inner())`：锁里只有一个
+  `Option<RunningGame>`，中毒也不影响读写正确性
+- **服务器 ping 回来的 json 少个字段就 panic**：原来写的是
+  `pointer("/description").unwrap()`。服务器列表是外部数据，缺 description 很正常，
+  改成 `if let Some`
+- **市场里单个 MC 版本下没有文件时是一片空白**，补了「这个版本下面没有可下载的文件」
+
 ## [1.0.1] - 2026-10-24
 
 ### 修复
